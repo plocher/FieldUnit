@@ -246,41 +246,130 @@ While the time lock timer counts down:
 
 ### 8. The Complete Interlocking Logic Chains
 
-FieldUnit evaluates these exact vital logic chains during each plant cycle:
+In prototype signaling, vital logic is not an abstract mathematical equation.
+It represents an electrical circuit where every contact protects against a specific, life-threatening hazard.
 
-#### 8.1 Switch Lock Relay (`WLR`) — Can the Switch Move?
+This section dissects the seven core logic chains evaluated by FieldUnit during each plant cycle.
+For each chain, we show the traditional relay contact word picture, followed by its plain-English logical equivalent and an explanation of why each contact is present.
+
+---
+
+#### 8.1 Switch Lock Relay (`WLR`) — The Four Padlocks on the Motor
+A switch machine (like a US&S M-23 or a model Tortoise) exerts tremendous mechanical force against the points.
+If the motor runs while a train is moving over the points, it will split the switch, derail the cars, and tear up the track.
+Power to the motor circuit must pass through `1WLR`.
+If any contact opens, `1WLR` drops, instantly cutting all electrical power to the motor:
+
 ```
   Power ───[ 1TR Front ]───[ RouteLock Back ]───[ 2ASR Front ]───[ SwitchLock Front ]───( 1WLR )
+          (Points Clear)     (Route Free)       (No Approach)    (Local Lock Safe)
 ```
+
 `WLR = (1TR is VACANT) AND (NOT RouteLocked) AND (2ASR is UNLOCKED) AND (HandSwitchLocked)`
 
-#### 8.2 Switch Correspondence Relay (`KR`) — Are Points Locked in Line?
+Why each contact is vital:
+1. **`1TR Front` (Detector Locking)**:
+   Proves no train is physically standing on or straddling the points.
+   If wheels shunt the rails, `1TR` drops and physically breaks the motor circuit.
+2. **`RouteLock Back` (Route Locking)**:
+   Proves no active cleared route has reserved this switch.
+   Even if the track is empty right now, if a signal is Green for an approaching train, the route lock contact opens to freeze the points.
+3. **`2ASR Front` (Approach Locking)**:
+   Proves no train is bearing down on the plant under a revoked signal whose safety timer is still running down.
+4. **`SwitchLock Front` (Electric Switch Lock)**:
+   Proves that if this is a hand-throw switch, the physical padlock and solenoid are locked and secure.
+
+---
+
+#### 8.2 Switch Correspondence Relay (`KR`) — Proving the Points Truly Made
+The railroad never trusts a motor command.
+A motor can hum, an electrical wire can corrode, or ballast gravel can jam between the rail and the point.
+The dispatcher may command Normal, but the points might be gapped open by 1/2 inch—enough to catch a wheel flange and cause a head-on derailment.
+
+The `KR` relay is the **only proof the interlocking trusts**.
+It proves that the physical points made full travel and mechanically locked:
+
 ```
   Power ───┬───[ Normal Commanded ]───[ 1NWCR Front ]───┬───( 1KR )
+           │   (Dispatcher Demand)    (Points Normal)   │
            │                                            │
            └───[ Reverse Commanded ]──[ 1RWCR Front ]───┘
+               (Dispatcher Demand)    (Points Reverse)
 ```
+
 `KR = (Normal Commanded AND 1NWCR) OR (Reverse Commanded AND 1RWCR)`
 
-#### 8.3 Crossover Proving Relay (`3KR`) — Are Both Crossover Switches Aligned?
+Why this dual-check is vital:
+- `1NWCR` energizes only when physical circuit controller rods prove the points are locked tight against the stock rail in Normal.
+- `1RWCR` energizes only when the points are locked tight in Reverse.
+- If the points are in transit (`MOVING`), gapped by ballast, or out of correspondence with the command, both `NWCR` and `RWCR` drop.
+- `1KR` drops, making it electrically impossible to clear any signal over the switch.
+
+---
+
+#### 8.3 Crossover Proving Relay (`3KR`) — Preventing the Half-Thrown Nightmare
+A crossover connects two main tracks via two physical switch machines (`SW3` on Track 1, `SW3B` on Track 2).
+If `SW3` throws to Reverse, but `SW3B` jams in Normal, a train entering the crossover would be steered across the gap directly into the side of a train on the adjacent track!
+
+To prevent this catastrophe, the interlocking evaluates both machines in series:
+
 ```
-  Power ───[ SW3 KR Front ]───[ SW3B KR Front ]───( 3KR )
+  Power Source ───[ SW3 KR Front ]───[ SW3B KR Front ]───( 3KR )
+                  (MT1 Points)       (MT2 Points)
 ```
+
 `3KR = (SW3 is KR) AND (SW3B is KR)`
 
-#### 8.4 Home Relay (`HR`) — Can the Signal Clear?
+Both switch machines must travel together, lock together, and prove correspondence together.
+If either switch binds or lags, `3KR` drops, and no crossover signal can clear.
+
+---
+
+#### 8.4 Home Relay (`HR`) — The Guardian of the Entrance
+What must be true before an engineer sees anything other than a solid red Stop aspect?
+Current to the signal mechanism must pass through four independent safety gates:
+
 ```
   Power ───[ 2HSR Front ]───[ Route KR Fronts ]───[ Route TR Fronts ]───[ Opposing ASR Fronts ]───( 2HR )
+     (Dispatcher)     (Switches in Line)        (Track Blocks Clear)      (Opposing Held Stop)
 ```
+
 `HR = (2HSR active) AND (All Route Switches in KR) AND (All Route Blocks VACANT) AND (Opposing Signals in ASR)`
 
-#### 8.5 Distant Relay (`DR`) — Can the Signal Upgrade to Clear?
+Why each contact is vital:
+1. **`2HSR Front` (Authority)**: The dispatcher explicitly coded permission in this direction.
+2. **`Route KR Fronts` (Alignment)**: Every single switch on the path is proven locked in correspondence.
+3. **`Route TR Fronts` (Occupancy)**: Every block of track on the path is proven empty and un-shunted.
+4. **`Opposing ASR Fronts` (Collision Protection)**: Conflicting and opposing signals on the same track are locked at Stop, with their approach locks intact.
+When all contacts close, `2HR` energizes. The signal drops its red aspect and displays at least `APPROACH` or `RESTRICTING`.
+
+---
+
+#### 8.5 Distant Relay (`DR`) — Looking Down the Line (ABS Upgrades)
+The `HR` relay proves it is safe to enter *this* plant.
+But how fast may the train travel?
+The `DR` relay looks down the track to the next signal:
+
 ```
   Power ───[ 2HR Front ]───[ Advance Block TR Front ]───[ Next Signal HR Front ]───( 2DR )
+                  (Plant Clear)   (Block Ahead Clear)         (Next Signal Permissive)
 ```
+
 `DR = (2HR picked up) AND (Advance Block VACANT) AND (Next Downstream Signal Permissive)`
 
-#### 8.6 Signal Knockdown and Stick Relay (`HSR`)
+- If the block ahead is occupied, `DR` stays dropped.
+  The signal displays **`APPROACH`** (Yellow).
+  The engineer knows to slow down and prepare to stop at the next signal.
+- If the block ahead is clear AND the next signal is also displaying a permissive aspect, `DR` picks up.
+  This upgrades the aspect from `APPROACH` (Yellow) to **`CLEAR`** (Green).
+
+---
+
+#### 8.6 Signal Knockdown and Stick Relay (`HSR`) — The One-Shot Rule
+Why must a signal never stay green behind a train?
+If a following train enters the same block, a rear-end collision occurs.
+The signal must drop to Stop the instant the locomotive cab passes the mast:
+
 ```
                         Entrance Island TR Front
   Dispatcher Code ──────[       ]───────┬───────────────────────────( 2HSR )
@@ -291,9 +380,26 @@ FieldUnit evaluates these exact vital logic chains during each plant cycle:
      │  2FSR Front  │
      └──[    ]──────┘
 ```
+
 `HSR_next = (Dispatcher Code) OR ((2HSR picked up) AND (Entrance Island VACANT)) OR (2FSR active)`
 
-#### 8.7 Engine Return Stick Relay (`ERS`)
+1. **The Knockdown**: As the locomotive's front wheels pass the signal and bridge the insulated joint, `1TR` drops.
+   This opens the contact and breaks the stick circuit on `2HSR`.
+   The signal immediately slams down to Stop (Red) behind the engine.
+2. **The Stick Break**: Because `2HSR` dropped, its own front contact opens.
+   Even after the entire train leaves the plant and `1TR` picks back up, `2HSR` remains dead.
+   The signal will not clear again until the dispatcher sends a brand new code transmission.
+3. **The Fleeting Bypass (`2FSR`)**: If the dispatcher toggles Fleeting on (`2FSR` picked up), the fleet contact bypasses the broken `2HSR` contact.
+   As soon as the train vacates the route and blocks ahead clear, power feeds back to the signal, clearing it automatically for a following train.
+
+---
+
+#### 8.7 Engine Return Stick Relay (`ERS`) — Switching Fluidity Without Stalls
+During switching operations, an engine pulls past a signal into an adjacent block or siding, uncouples from its cars, and needs to immediately reverse direction to couple back up.
+
+Normally, revoking signal authority or attempting a reverse movement trips Approach Locking (`ASR`), triggering a 5-minute safety countdown timer.
+The Engine Return circuit eliminates this delay safely:
+
 ```
   Forward Exit Move Trigger
   ───[ Route Active Front ]───[ Island TR Back ]───[ Exit Track TR Back ]───┐
@@ -302,8 +408,22 @@ FieldUnit evaluates these exact vital logic chains during each plant cycle:
   Hold-In Path (Stick)                                                      ▲
   ───[ 2ERS Front ]───────────[ Exit Track TR Back ]────────────────────────┘
 ```
+
 `ERS_pickup = (Forward Route Active) AND (Island TR is OCCUPIED) AND (Exit Track is OCCUPIED)`
 `ERS_hold   = (2ERS picked up) AND (Exit Track remains OCCUPIED)`
+
+1. **The Sequence Trigger**:
+   The circuit monitors the physical progression of the locomotive:
+   $$\text{Route Active} \longrightarrow \text{Island shunted} \longrightarrow \text{Exit track shunted}$$
+   When the engine straddles the boundary onto the exit track, `2ERS` picks up.
+2. **The Hold-In Path**:
+   `2ERS` stays energized through its own front contact as long as the train's cars continue to stand on the exit track (`Exit TR` remains dropped).
+3. **The Benefit**:
+   Because `2ERS` proves the train is sitting right at the boundary at switching speed, it **bypasses the 5-minute safety timer**.
+   The return dwarf signal immediately displays **`RESTRICTING`** (Lunar or Yellow), authorizing the engineer to back up at low speed to couple onto the cars.
+4. **The Fail-Safe Reset**:
+   If another train pulls those cars away and the exit block becomes vacant, the circuit breaks.
+   `2ERS` drops immediately, and the return signal drops to Stop fail-safe.
 
 ---
 
