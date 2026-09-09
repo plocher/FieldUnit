@@ -15,16 +15,19 @@ The code in this tutorial matches the verified example in `examples/CP_Corporal/
 Here is the signaling diagram for CP Corporal using the standard symbols from Tutorial 1:
 
 ```
-< Railroad West/North                    MP 83               Railroad East/South >
+< Railroad West / North                  MP 83                  Railroad East / South >
+  (Toward Gilroy)                                               (Toward Sargent)
 
-                         DERAIL                     /---IND3---DARK Beet Loader 1
-                                \ 5T1   [==| 4na]  /
-                      /----------\\-------IND1----+---IND2-------DARK Beet Loader 2
-                  1T1/                [4sa |==]   [MC]
-  MT2 <== 2SAT ══════\\═══════════════\\══════════//════ 1NAT ═══════════ 2NAT ==> (<->)
-             [==| 2sa]           3T1/            IRJ                    (Approach)
-  MT1 >== 1SAT ════════════════════/  [2nab |==]
-          (Approach)                  (Two Heads)
+                               DERAIL 5                  /─── IND3 ─── (Beet Loader 1)
+                                   \ 5T1   [==| 4na]    /
+                        /───────────\─────── IND1 ─────+───── IND2 ─── (Beet Loader 2)
+                    1T1/                 [4sa |==]   SW7 (Hand-throw with 7WLS Lock)
+  MT2 <══ 2SAT ═══════||═══════════════+═════════════════+════════||════ 1NAT ══════ 2NAT ══> (<->)
+       (Northbound)  IRJ               │                 │ 3T1    IRJ    (Single Track)
+                                       │                / [SS]
+  MT1 >══ 1SAT ════════════════════════════════════════/ [2nab |==]
+       (Southbound)    [==| 2sa]       │                 (Two Heads)
+                        (Dwarf)
 ```
 
 ### Review Your Data Collection Tables

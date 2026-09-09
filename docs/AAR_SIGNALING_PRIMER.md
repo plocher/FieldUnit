@@ -538,19 +538,23 @@ Let us examine how all these concepts unite in a real, compilable sketch: **CP C
 
 ### 11.1 The Track Diagram
 Double track from the north (`MT1` and `MT2`) converges into single track through Switch 3.
+Switch 3 is operated as a **Spring Switch (`[SS]`)**: Southbound trains on `MT1` trail through the spring points onto single track without needing motor alignment.
 Switch 1 provides access to the Beet Loader spur, protected by an automatic safety derail (`SW5`):
 
 ```
-< Railroad West/North                    MP 83               Railroad East/South >
+< Railroad West / North                  MP 83                  Railroad East / South >
+  (Toward Gilroy)                                               (Toward Sargent)
 
-                         DERAIL                     /---IND3---DARK Beet Loader 1
-                                \ 5T1   [==| 4na]  /
-                      /----------\\-------IND1----+---IND2-------DARK Beet Loader 2
-                  1T1/                [4sa |==]   [MC]
-  MT2 <== 2SAT ══════\\═══════════════\\══════════//════ 1NAT ═══════════ 2NAT ==> (<->)
-             [==| 2sa]           3T1/            IRJ                    (Approach)
-  MT1 >== 1SAT ════════════════════/  [2nab |==]
-          (Approach)                  (Two Heads)
+                               DERAIL 5                  /─── IND3 ─── (Beet Loader 1)
+                                   \ 5T1   [==| 4na]    /
+                        /───────────\─────── IND1 ─────+───── IND2 ─── (Beet Loader 2)
+                    1T1/                 [4sa |==]   SW7 (Hand-throw with 7WLS Lock)
+  MT2 <══ 2SAT ═══════||═══════════════+═════════════════+════════||════ 1NAT ══════ 2NAT ══> (<->)
+       (Northbound)  IRJ               │                 │ 3T1    IRJ    (Single Track)
+                                       │                / [SS]
+  MT1 >══ 1SAT ════════════════════════════════════════/ [2nab |==]
+       (Southbound)    [==| 2sa]       │                 (Two Heads)
+                        (Dwarf)
 ```
 
 ### 11.2 The Interlocking Control Table
