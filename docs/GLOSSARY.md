@@ -15,7 +15,16 @@ AAR relay names use a structured combination of functional letters:
 - **Core Function**: The primary operational role (Track, Switch, Signal, Stick).
 - **Suffix**: `R` indicates Relay. `P` indicates Repeater Relay.
 
-### 2.1 Reading Relay Contact Diagrams
+### 2.1 The Two Golden Rules of Railroad Names
+1. **"W" Means sWitch**:
+   In railroad telegraphy, the letter **`S`** was already reserved for **`Signal`** (and **`Stick`**).
+   To prevent deadly errors, signal engineers used the second letter of switch: **`W`**.
+   Therefore: `WR` = s**W**itch **R**elay; `WLR` = s**W**itch **L**ock **R**elay; `NW` = **N**ormal s**W**itch.
+2. **Switches Are ALWAYS Odd, Signals Are ALWAYS Even**:
+   On physical CTC panels, each control point column pairs an **odd switch lever** on top (1, 3, 5, 777, 781) with an **even signal lever** below it (2, 4, 6, 778, 782) over a common code button.
+   Even in complex terminal interlockings, this odd/even discipline is strictly maintained.
+
+### 2.2 Reading Relay Contact Diagrams
 In railroad circuit plans, relays operate contacts:
 - **Front Contact (`[  ]`)**: Neutral contact. Closed when the relay coil is energized (picked up). In software, evaluates to `true`.
 - **Back Contact (`[/]`)**: Closed by gravity or spring when the coil is de-energized (dropped). In software, evaluates to `!true`.

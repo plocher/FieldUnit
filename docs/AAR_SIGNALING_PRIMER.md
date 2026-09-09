@@ -166,6 +166,29 @@ AAR relay names are built from four basic elements:
 
 $$\text{Name} = [\text{Appliance Number}] + [\text{Direction / Function}] + [\text{Operational Role}] + [\text{Suffix}]$$
 
+### The "AHA!" Secrets of Railroad Nomenclature
+
+#### Secret 1: "W" means sWitch!
+Newcomers often ask: *Why is a switch named with the letter "W"?*
+Because in railroad telegraphy and signaling, the letter **`S`** was already reserved for **`Signal`** (and **`Stick`**)!
+To avoid deadly confusion, signal engineers used the second letter of switch: **`W`**.
+Once you know that `W` = Switch, the acronyms become obvious:
+- `WR` = s**W**itch **R**elay.
+- `WLR` = s**W**itch **L**ock **R**elay.
+- `NW` = **N**ormal s**W**itch.
+- `RW` = **R**everse s**W**itch.
+- `NWCR` = **N**ormal s**W**itch **C**orrespondence **R**elay.
+
+#### Secret 2: Switches are ALWAYS Odd, Signals are ALWAYS Even!
+Look at any CTC panel or interlocking diagram:
+- **Switch numbers are ALWAYS ODD**: Switch 1, Switch 3, Switch 5 (or 777, 781).
+- **Signal numbers are ALWAYS EVEN**: Signal 2, Signal 4, Signal 6 (or 778, 782).
+
+On a physical CTC machine panel, each control point column pairs an odd switch lever on top with an even signal lever below it over a common code button.
+Even when a plant has complex crossovers and ladders, this odd/even discipline is strictly maintained.
+
+---
+
 ### Examples for Switch 1 (`"1"`):
 - `1` + `NW` + `CR` $\implies$ **`1NWCR`**: Switch 1, Normal, Correspondence Relay.
 - `1` + `RW` + `CR` $\implies$ **`1RWCR`**: Switch 1, Reverse, Correspondence Relay.
