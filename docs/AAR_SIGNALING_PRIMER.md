@@ -500,7 +500,15 @@ It transmits the **entire plant vector containing both asserted and unasserted s
 Why must the unasserted items be present?
 - `(1NWS)` and `(1RWS)` explicitly confirm: *"Leave Switch 1 alone in its existing position."*
 - If those tokens were missing, the field unit could not tell whether Switch 1 was supposed to be untouched or if the packet was truncated by line noise.
+- **The Truncation Rule**: If any expected token is missing or truncated, the entire vital control transaction is rejected as invalid. Zero switches move and zero signals clear.
 - Transmitting the whole of everything is what proves the transaction is complete, authentic, and safe to evaluate.
+
+#### The Special Case: Maintainer Call (`MC`)
+Notice the one exception in the transaction: `MC1S`.
+Maintainer Call is an auxiliary, **non-vital circuit**:
+- Lighting the maintainer lamp on the outside of the bungalow cannot cause a collision or derailment.
+- In fact, the Maintainer Call exists primarily to summon a maintainer to the bungalow **when the plant is broken, failed, or locked down**!
+- Therefore, even if vital switch or signal commands in a packet are rejected due to active locks or track occupancy, valid non-vital commands like `MC` are still executed. It is always safe to call the maintainer.
 
 ### 9.2 The Indication Stream Reports Ground Truth
 The Control Point in the field does not send "error packets," "NACKs," or conversational replies.
