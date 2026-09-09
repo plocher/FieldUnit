@@ -122,6 +122,35 @@ It updates local occupancy without local physical detector wiring.
 It includes a freshness timer.
 If adjacent station messages stop, the circuit sets quality to `LOST_COMMS`.
 
+##### F. Vital Stick Relays (Fleeting and Engine Return)
+The engine models vital stick relays to preserve operational state across train movements:
+
+1. **Standard Signal Stick**:
+   A train accepts a cleared signal and shunts the entrance track circuit.
+   The signal knocks down immediately to `STOP`.
+   The control stick drops and remains dropped.
+   The signal does not re-clear when the train departs.
+   The signal requires a new dispatcher control command to clear again.
+
+2. **Fleeting Stick (`FS`)**:
+   The dispatcher commands fleeting mode active.
+   The fleet stick energizes in the local control point.
+   A train enters the plant and knocks down the signal.
+   When the train vacates the route and downstream blocks clear, the signal re-clears automatically.
+   The dispatcher does not need to send new commands for following trains.
+   A manual command to `STOP` drops the fleet stick immediately.
+
+3. **Engine Return Stick (`ERS`)**:
+   A train pulls into a control point, uncouples, and moves forward into an adjacent block or siding.
+   The engine tracks the sequential drop of track circuits:
+   $$\text{Interlocking Island Occupied} \longrightarrow \text{Exit Block Occupied}$$
+   The Engine Return Stick energizes when the train straddles or exits onto the adjacent block.
+   The stick stays energized while the exit block remains continuously occupied.
+   The stick proves that the train occupies the block boundary.
+   The engine bypasses the standard five-minute approach locking safety timer.
+   The engine permits an immediate return move into the plant under a `RESTRICTING` aspect.
+   When the engine reverses and clears the exit block, the stick drops to rest.
+
 #### Interlocking Control Table
 The Interlocking Control Table defines routes through the plant.
 Each row in the table specifies:
