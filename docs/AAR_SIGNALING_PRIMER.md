@@ -207,8 +207,9 @@ Even when a plant has complex crossovers and ladders, this odd/even discipline i
 
 ## 6. How FieldUnit Translates Relays to Software
 
-In FieldUnit, you do not solder physical relays or write complex circuit diagrams.
-FieldUnit provides these exact AAR relay contracts directly as member methods on its appliances:
+FieldUnit encapsulates these vital relay circuits under the hood.
+You do not need to be an expert in AAR wiring diagrams to build a working plant; FieldUnit evaluates these contracts automatically whenever you write a simple route.
+However, if you are a signal historian or want to verify the exact circuit logic, FieldUnit exposes every one of these vital relay states as direct query methods:
 
 ```cpp
 // Check if Track Relay is picked up (unoccupied and good quality)
@@ -223,9 +224,88 @@ if (sw1->WLR()) { ... }
 // Check if Signal 2 authority is actively latched
 if (sig2->HSR()) { ... }
 
-// Check if approach locking is clear
+// Check if approach locking is clear (ASR picked up)
 if (sig2->ASR()) { ... }
 ```
 
 By using the authentic names, your C++ code matches historical railroad circuit plans directly.
 You can read a real railroad plan from 1950, find the contact chain, and verify that your FieldUnit plant behaves with identical safety.
+
+---
+
+## 7. The Complete Interlocking Logic Chains
+
+This section enumerates the exact vital logic equations FieldUnit evaluates during each plant cycle.
+Knowledgeable signal modelers can use this section to verify the rigor of the engine, while newcomers can see the complete safety checks operating behind every route.
+
+### 7.1 Switch Lock Relay (`WLR`) — Can the Switch Move?
+Before a switch motor can energize, FieldUnit evaluates `sw->WLR()`:
+
+$$\text{WLR} = \text{TR}_{\text{island}} \land \neg \text{RouteLocked} \land \text{ASR}_{\text{approaching signals}} \land \text{HandSwitchLocked}$$
+
+- `TR` front contact: Proves no train occupies the points (Detector Locking).
+- `RouteLocked` back contact: Proves no active cleared route reserves this switch.
+- `ASR` front contacts: Proves no approaching train has been cleared toward this switch whose timer is still running down.
+- `HandSwitchLocked`: Proves the local electric switch lock is locked and secure.
+- **Rule**: If any condition fails, $\text{WLR} == \text{false}$. Power to the switch motor is cut off and the throw command is rejected.
+
+### 7.2 Switch Correspondence Relay (`KR`) — Are Points Locked in Line?
+Before any signal can clear over a switch, FieldUnit evaluates `sw->KR()`:
+
+$$\text{KR} = (\text{NormalCommanded} \land \text{NWCR}) \lor (\text{ReverseCommanded} \land \text{RWCR})$$
+
+- Proves that the points physically made contact AND that they agree with what the plant commanded.
+- If points gap, bounce, or fail to travel within the motion timeout, $\text{KR} == \text{false}$.
+- No signal can display a permissive aspect over points when $\text{KR} == \text{false}$.
+
+### 7.3 Crossover Proving Relay (`3KR`) — Are Both Crossover Switches Aligned?
+A crossover connects two main tracks via two physical switch machines (`SW3` and `SW3B`):
+
+$$\text{3KR} = \text{KR}_{\text{Switch 3}} \land \text{KR}_{\text{Switch 3B}}$$
+
+- Proves that *both* the MT1 points and the MT2 points have thrown and locked in the same position.
+- If either switch machine is lagging or gapped, $\text{3KR} == \text{false}$.
+- Prevents sending a train across a half-thrown crossover.
+
+### 7.4 Home Relay (`HR`) — Can the Signal Clear?
+The Home Relay evaluates whether the immediate plant route is safe for train movement:
+
+$$\text{HR} = \text{HSR} \land \bigwedge \text{KR}_{\text{route switches}} \land \bigwedge \text{TR}_{\text{route blocks}} \land \bigwedge \text{ASR}_{\text{opposing signals}}$$
+
+- Dispatcher movement authority is active (`HSR` picked up).
+- All switches along the path report correspondence (`KR` picked up).
+- All track circuits on the path are vacant and healthy (`TR` picked up).
+- All opposing / conflicting signals are locked at Stop (`ASR` picked up).
+- When $\text{HR} == \text{true}$, the entrance signal drops its red aspect and displays at least `APPROACH` or `RESTRICTING`.
+
+### 7.5 Distant Relay (`DR`) — Can the Signal Upgrade to Clear?
+The Distant Relay evaluates downstream block spacing (Automatic Block Signaling logic):
+
+$$\text{DR} = \text{HR} \land \text{TR}_{\text{advance block ahead}} \land \text{HR}_{\text{next downstream signal}}$$
+
+- When the block ahead is clear and the next signal is also permissive, $\text{DR} == \text{true}$.
+- Upgrades `APPROACH` (Yellow) to `CLEAR` (Green).
+- If the block ahead is occupied, $\text{DR} == \text{false}$, holding the aspect at `APPROACH` (Yellow) to warn the engineer to stop at the next signal.
+
+### 7.6 Signal Knockdown and Stick Relay (`HSR`)
+The stick circuit ensures a signal protects the train that accepted it:
+
+$$\text{HSR}_{\text{next}} = \text{DispatcherCommand} \lor (\text{HSR} \land \text{TR}_{\text{entrance island}}) \lor \text{FSR}$$
+
+- When the train shunts the entrance track circuit (`TR` drops), the stick path breaks.
+- `HSR` drops immediately to Stop.
+- If Fleeting (`FSR`) is off, `HSR` remains dropped even after the train leaves the plant.
+- The signal cannot clear again until the dispatcher sends a new command.
+
+### 7.7 Engine Return Stick Relay (`ERS`)
+The Engine Return circuit allows an engine to reverse direction back onto its train without tripping safety timers:
+
+$$\text{ERS}_{\text{pickup}} = \text{ForwardRouteActive} \land \text{TR}_{\text{island}} \text{ (dropped)} \land \text{TR}_{\text{exit track}} \text{ (dropped)}$$
+$$\text{ERS}_{\text{hold}} = \text{ERS} \land (\text{TR}_{\text{exit track}} == \text{OCCUPIED})$$
+
+- Tracks the forward progression of the locomotive uncoupling and pulling past the points.
+- Energizes when the engine occupies the exit track.
+- Holds energized while the cars continue to stand on the exit track.
+- Bypasses the 5-minute approach locking timer (`ASR`).
+- Automatically displays a `RESTRICTING` aspect on the return signal.
+- Drops fail-safe to Stop if the cars on the exit track depart.
