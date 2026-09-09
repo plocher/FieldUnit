@@ -6,6 +6,29 @@ FieldUnit uses prototype relay abbreviations to maintain direct alignment with h
 
 For a complete conceptual walkthrough of how these relays interact inside a trackside bungalow, see **[Inside the Bungalow: An Introduction to AAR Signaling for Model Railroaders](AAR_SIGNALING_PRIMER.md)**.
 
+### 1.1 The Railroad Architecture Taxonomy
+In prototype signaling, terms like "Control Point," "Interlocking," "Plant," and "Bungalow" describe different scopes of the system.
+FieldUnit uses each term with one precise meaning:
+
+- **Control Point (CP)**:
+  The **logical unit of authority**.
+  A named geographic location on the railroad (for example, *CP Christopher, MP 81*) where trains receive movement authority from the dispatcher via wayside signals.
+- **Interlocking**:
+  The **vital safety arrangement**.
+  An arrangement of switches, track circuits, and signals interconnected such that their movements must succeed each other in a strictly safe sequence.
+  Every Control Point with switches contains an interlocking.
+- **Plant**:
+  The **physical collection of trackside hardware**.
+  The physical steel rails, switch machines, frog points, and signal masts that make up a junction (for example, *"throwing points in the plant"*).
+- **Bungalow**:
+  The **physical trackside housing / enclosure**.
+  The weather-proof steel shed or instrument case at the junction that houses the relays, batteries, chargers, and field computers.
+- **Field Unit**:
+  The **local compute and I/O controller**.
+  The electronic controller inside the bungalow that executes vital safety logic and connects the plant to the CodeLine. (This library!)
+- **The Field**:
+  Generic term for **everything trackside** outside the central dispatcher's office.
+
 ---
 
 ## 2. Relay Naming Conventions and Contact Notation

@@ -241,67 +241,120 @@ Knowledgeable signal modelers can use this section to verify the rigor of the en
 ### 7.1 Switch Lock Relay (`WLR`) — Can the Switch Move?
 Before a switch motor can energize, FieldUnit evaluates `sw->WLR()`:
 
-$$\text{WLR} = \text{TR}_{\text{island}} \land \neg \text{RouteLocked} \land \text{ASR}_{\text{approaching signals}} \land \text{HandSwitchLocked}$$
+```
+  Power Source
+  ───[ 1TR Front ]───[ RouteLock Back ]───[ 2ASR Front ]───[ SwitchLock Front ]───( 1WLR )
+     (Points Clear)    (Route Free)       (No Approach)    (Local Lock Safe)
+```
 
-- `TR` front contact: Proves no train occupies the points (Detector Locking).
-- `RouteLocked` back contact: Proves no active cleared route reserves this switch.
-- `ASR` front contacts: Proves no approaching train has been cleared toward this switch whose timer is still running down.
+$$\text{WLR} = (\text{1TR is VACANT}) \text{ AND } (\text{NOT RouteLocked}) \text{ AND } (\text{2ASR is UNLOCKED}) \text{ AND } (\text{HandSwitchLocked})$$
+
+- `1TR` front contact: Proves no train occupies the points (Detector Locking).
+- `RouteLock` back contact: Proves no active cleared route reserves this switch.
+- `2ASR` front contact: Proves no approaching train has been cleared toward this switch whose timer is still running down.
 - `HandSwitchLocked`: Proves the local electric switch lock is locked and secure.
-- **Rule**: If any condition fails, $\text{WLR} == \text{false}$. Power to the switch motor is cut off and the throw command is rejected.
+- **Rule**: If any contact opens, `1WLR` drops. Power to the switch motor is cut off and the throw command is rejected.
 
 ### 7.2 Switch Correspondence Relay (`KR`) — Are Points Locked in Line?
 Before any signal can clear over a switch, FieldUnit evaluates `sw->KR()`:
 
-$$\text{KR} = (\text{NormalCommanded} \land \text{NWCR}) \lor (\text{ReverseCommanded} \land \text{RWCR})$$
+```
+  Power Source
+  ───┬───[ Normal Commanded ]───[ 1NWCR Front ]───┬───( 1KR )
+     │   (Dispatcher Demand)    (Points Normal)   │
+     │                                            │
+     └───[ Reverse Commanded ]──[ 1RWCR Front ]───┘
+         (Dispatcher Demand)    (Points Reverse)
+```
+
+$$\text{KR} = (\text{Normal Commanded AND 1NWCR}) \text{ OR } (\text{Reverse Commanded AND 1RWCR})$$
 
 - Proves that the points physically made contact AND that they agree with what the plant commanded.
-- If points gap, bounce, or fail to travel within the motion timeout, $\text{KR} == \text{false}$.
-- No signal can display a permissive aspect over points when $\text{KR} == \text{false}$.
+- If points gap, bounce, or fail to travel within the motion timeout, `1KR` drops.
+- No signal can display a permissive aspect over points when `1KR` is dropped.
 
 ### 7.3 Crossover Proving Relay (`3KR`) — Are Both Crossover Switches Aligned?
 A crossover connects two main tracks via two physical switch machines (`SW3` and `SW3B`):
 
-$$\text{3KR} = \text{KR}_{\text{Switch 3}} \land \text{KR}_{\text{Switch 3B}}$$
+```
+  Power Source ───[ SW3 KR Front ]───[ SW3B KR Front ]───( 3KR )
+                  (MT1 Points)       (MT2 Points)
+```
+
+$$\text{3KR} = (\text{SW3 is KR}) \text{ AND } (\text{SW3B is KR})$$
 
 - Proves that *both* the MT1 points and the MT2 points have thrown and locked in the same position.
-- If either switch machine is lagging or gapped, $\text{3KR} == \text{false}$.
+- If either switch machine is lagging or gapped, `3KR` drops.
 - Prevents sending a train across a half-thrown crossover.
 
 ### 7.4 Home Relay (`HR`) — Can the Signal Clear?
 The Home Relay evaluates whether the immediate plant route is safe for train movement:
 
-$$\text{HR} = \text{HSR} \land \bigwedge \text{KR}_{\text{route switches}} \land \bigwedge \text{TR}_{\text{route blocks}} \land \bigwedge \text{ASR}_{\text{opposing signals}}$$
+```
+  Power Source
+  ───[ 2HSR Front ]───[ All Route KR Fronts ]───[ All Route TR Fronts ]───[ Opposing ASR Fronts ]───( 2HR )
+     (Dispatcher)     (Switches in Line)        (Track Blocks Clear)      (Opposing Held Stop)
+```
 
-- Dispatcher movement authority is active (`HSR` picked up).
+$$\text{HR} = (\text{2HSR active}) \text{ AND } (\text{All Route Switches in KR}) \text{ AND } (\text{All Route Blocks VACANT}) \text{ AND } (\text{Opposing Signals in ASR})$$
+
+- Dispatcher movement authority is active (`2HSR` picked up).
 - All switches along the path report correspondence (`KR` picked up).
 - All track circuits on the path are vacant and healthy (`TR` picked up).
 - All opposing / conflicting signals are locked at Stop (`ASR` picked up).
-- When $\text{HR} == \text{true}$, the entrance signal drops its red aspect and displays at least `APPROACH` or `RESTRICTING`.
+- When `2HR` picks up, the entrance signal drops its red aspect and displays at least `APPROACH` or `RESTRICTING`.
 
 ### 7.5 Distant Relay (`DR`) — Can the Signal Upgrade to Clear?
 The Distant Relay evaluates downstream block spacing (Automatic Block Signaling logic):
 
-$$\text{DR} = \text{HR} \land \text{TR}_{\text{advance block ahead}} \land \text{HR}_{\text{next downstream signal}}$$
+```
+  Power Source ───[ 2HR Front ]───[ Advance Block TR Front ]───[ Next Signal HR Front ]───( 2DR )
+                  (Plant Clear)   (Block Ahead Clear)         (Next Signal Permissive)
+```
 
-- When the block ahead is clear and the next signal is also permissive, $\text{DR} == \text{true}$.
+$$\text{DR} = (\text{2HR picked up}) \text{ AND } (\text{Advance Block VACANT}) \text{ AND } (\text{Next Downstream Signal Permissive})$$
+
+- When the block ahead is clear and the next signal is also permissive, `2DR` picks up.
 - Upgrades `APPROACH` (Yellow) to `CLEAR` (Green).
-- If the block ahead is occupied, $\text{DR} == \text{false}$, holding the aspect at `APPROACH` (Yellow) to warn the engineer to stop at the next signal.
+- If the block ahead is occupied, `2DR` drops, holding the aspect at `APPROACH` (Yellow) to warn the engineer to stop at the next signal.
 
 ### 7.6 Signal Knockdown and Stick Relay (`HSR`)
 The stick circuit ensures a signal protects the train that accepted it:
 
-$$\text{HSR}_{\text{next}} = \text{DispatcherCommand} \lor (\text{HSR} \land \text{TR}_{\text{entrance island}}) \lor \text{FSR}$$
+```
+                        Entrance Island TR Front
+  Dispatcher Code ──────[       ]───────┬───────────────────────────( 2HSR )
+                                        │
+         2HSR Front                     │
+     ┌──[    ]──────┐                   │
+     │              ├───────────────────┘
+     │  2FSR Front  │
+     └──[    ]──────┘
+```
+
+$$\text{HSR}_{\text{next}} = (\text{Dispatcher Code}) \text{ OR } ((\text{2HSR picked up}) \text{ AND } (\text{Entrance Island VACANT})) \text{ OR } (\text{2FSR active})$$
 
 - When the train shunts the entrance track circuit (`TR` drops), the stick path breaks.
-- `HSR` drops immediately to Stop.
-- If Fleeting (`FSR`) is off, `HSR` remains dropped even after the train leaves the plant.
+- `2HSR` drops immediately to Stop.
+- If Fleeting (`2FSR`) is off, `2HSR` remains dropped even after the train leaves the plant.
 - The signal cannot clear again until the dispatcher sends a new command.
 
 ### 7.7 Engine Return Stick Relay (`ERS`)
 The Engine Return circuit allows an engine to reverse direction back onto its train without tripping safety timers:
 
-$$\text{ERS}_{\text{pickup}} = \text{ForwardRouteActive} \land \text{TR}_{\text{island}} \text{ (dropped)} \land \text{TR}_{\text{exit track}} \text{ (dropped)}$$
-$$\text{ERS}_{\text{hold}} = \text{ERS} \land (\text{TR}_{\text{exit track}} == \text{OCCUPIED})$$
+```
+  Forward Exit Move Trigger
+  ───[ Route Active Front ]───[ Island TR Back ]───[ Exit Track TR Back ]───┐
+                                (On Points)        (Enters Exit)            │
+                                                                            ▼
+                                                                        [ 2ERS Coil ]
+  Hold-In Path (Stick)                                                      ▲
+  ───[ 2ERS Front ]───────────[ Exit Track TR Back ]────────────────────────┘
+                              (Held while cars remain)
+```
+
+$$\text{ERS}_{\text{pickup}} = (\text{Forward Route Active}) \text{ AND } (\text{Island TR is OCCUPIED}) \text{ AND } (\text{Exit Track is OCCUPIED})$$
+$$\text{ERS}_{\text{hold}} = (\text{2ERS picked up}) \text{ AND } (\text{Exit Track remains OCCUPIED})$$
 
 - Tracks the forward progression of the locomotive uncoupling and pulling past the points.
 - Energizes when the engine occupies the exit track.
@@ -387,11 +440,30 @@ To prevent this tragedy, the railroad uses **Approach Locking (`ASR`)**:
    Switches remain frozen until a safety countdown expires (30–60 seconds on model layouts, 3–5 minutes on prototype railroads).
    This guarantees the train has either come to a complete stop or passed safely through the plant before any points can move.
 
-### 8.4 Time Locking (`TER` - Time Element Relay)
+### 8.4 Time Locking (`TER` - Time Element Relay) and CTC Panel Indications
 Time locking is the vital countdown timer that runs whenever Approach Locking is tripped.
+
+#### What Happens in the Field:
+- The signal drops to Stop immediately (`2NGK = 0, 2SGK = 0`).
+- The Time Element relay energizes and begins timing (`2TEK = 1`).
 - While the timer counts down, all switches in the cancelled route remain locked.
 - Opposing signals remain locked at Stop.
 - When the timer reaches zero, `ASR` energizes (picks back up), freeing the switches for new movements.
+
+#### What the Dispatcher Sees on the CTC Machine Panel:
+1. **The Timer Lamp Flashes**:
+   Above the signal lever, the red Stop lamp illuminates, and the **Time Element lamp (`TE`) flashes or burns solid red**.
+   This visual indicator tells the dispatcher: *"Approach locking is in effect. Safety time is running down."*
+2. **Out-of-Correspondence (OOC) on the Switches**:
+   If the dispatcher attempts to throw Switch 1 while `2TEK` is active:
+   - The switch lever on the panel points to `Reverse`.
+   - The switch points in the field stay locked in `Normal`.
+   - The Normal indication lamp on the panel goes dark, but the Reverse lamp fails to light.
+   - The panel lights the **Transit / Out-of-Correspondence (OOC) alarm** (or sounds the panel chime), warning the dispatcher that the switch did not follow the lever.
+3. **Timer Expiry and Plant Release**:
+   - Once the timer reaches zero in the field, `2TEK` drops to 0.
+   - The flashing timer light goes dark.
+   - If the dispatcher sends a fresh code button transmission, the switch is now free to move, the points travel, and the correspondence lamp illuminates.
 
 ---
 
