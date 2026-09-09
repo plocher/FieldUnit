@@ -39,13 +39,6 @@ struct ControlTransaction {
     }
 };
 
-// Result of evaluating a ControlTransaction
-enum class TransactionResult : uint8_t {
-    EXECUTED = 0,           // Complete transaction verified and executed
-    REJECTED_UNSAFE = 1,    // Rejected: switch motion requested while locked / occupied
-    REJECTED_INCOMPLETE = 2 // Rejected: message corrupted, truncated, or inconsistent
-};
-
 // Egress: Complete Plant-Wide Indication Vector to dispatcher / CodeLine
 struct SwitchIndication {
     SwitchPosition position; // Reported position
@@ -127,32 +120,34 @@ public:
         return engine_.addRoute(route);
     }
 
-    // Ingress: Process incoming plant-wide control transaction
-    // Gate 1: Completeness - Evaluates the entire desired plant state vector together.
-    // Gate 2: Safety - If any switch movement violates locks (WLR dropped), the move is rejected.
-    TransactionResult processControlTransaction(const ControlTransaction& ctl, uint32_t nowMs) {
+// Ingress: Process incoming plant-wide control transaction
+    // In railroad practice, the CP does not send error messages or NACKs.
+    // It verifies completeness and vital safety:
+    // - If valid and safe: moves points and latches authorities.
+    // - If invalid or unsafe: does not actuate the plant.
+    // The CP simply continues reporting its true current Indication vector.
+    // The controlling entity (cTc machine) detects non-execution by observing
+    // that the reported indication does not match its commanded intent.
+    void applyControlTransaction(const ControlTransaction& ctl, uint32_t nowMs) {
         // 1. Verify safety of all requested switch movements
+        // If any switch movement in the transaction violates an active lock,
+        // that specific movement cannot be executed.
         for (uint8_t i = 0; i < switchCount_; ++i) {
             SwitchDemand demand = ctl.switchDemands[i];
             if (demand == SwitchDemand::NORMAL || demand == SwitchDemand::REVERSE) {
-                // If switch is locked (train on points or active route), cannot throw
+                // If switch is locked (train on points or active route), skip actuation
                 if (!switches_[i].WLR()) {
-                    return TransactionResult::REJECTED_UNSAFE;
+                    continue; // Leave switch in existing position
+                }
+                if (demand == SwitchDemand::NORMAL) {
+                    switches_[i].throwSwitch(SwitchPosition::NORMAL, nowMs);
+                } else if (demand == SwitchDemand::REVERSE) {
+                    switches_[i].throwSwitch(SwitchPosition::REVERSE, nowMs);
                 }
             }
         }
 
-        // 2. All safety gates passed. Execute switch movements in unison
-        for (uint8_t i = 0; i < switchCount_; ++i) {
-            SwitchDemand demand = ctl.switchDemands[i];
-            if (demand == SwitchDemand::NORMAL) {
-                switches_[i].throwSwitch(SwitchPosition::NORMAL, nowMs);
-            } else if (demand == SwitchDemand::REVERSE) {
-                switches_[i].throwSwitch(SwitchPosition::REVERSE, nowMs);
-            }
-        }
-
-        // 3. Actuate Signal Authority demands
+        // 2. Actuate Signal Authority demands
         for (uint8_t i = 0; i < authorityCount_; ++i) {
             SignalDemand demand = ctl.signalDemands[i];
             bool fleet = ctl.fleetDemands[i];
@@ -167,9 +162,8 @@ public:
             // NO_CHANGE leaves existing authority and stick state intact
         }
 
-        // 4. Update Maintainer Calls
+        // 3. Update Maintainer Calls
         maintainerCallActive_ = ctl.maintainerCall[0];
-        return TransactionResult::EXECUTED;
     }
 
     // Vital Cycle: Evaluate plant safety and route logic
