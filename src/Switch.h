@@ -37,22 +37,60 @@ public:
     // -------------------------------------------------------------
     // AAR Standard Relay Contact Logic
     // -------------------------------------------------------------
-    // NWCR: Normal Switch Correspondence Relay (picked up = locked Normal)
+
+    /**
+     * AAR Relay: NWCR (Normal Switch Correspondence Relay)
+     *
+     * In prototype interlocking plants:
+     * - Physical switch point circuit controller contacts close only when
+     *   points reach and mechanically lock in the Normal position.
+     * - NWCR energizes only when commanded Normal AND feedback verifies Normal.
+     *
+     * @return true if points are mechanically locked in Normal position.
+     */
     bool NWCR() const {
         return reported_ == SwitchPosition::NORMAL && inCorrespondence();
     }
 
-    // RWCR: Reverse Switch Correspondence Relay (picked up = locked Reverse)
+    /**
+     * AAR Relay: RWCR (Reverse Switch Correspondence Relay)
+     *
+     * In prototype interlocking plants:
+     * - Circuit controller contacts close only when points reach and lock Reverse.
+     * - RWCR energizes only when commanded Reverse AND feedback verifies Reverse.
+     *
+     * @return true if points are mechanically locked in Reverse position.
+     */
     bool RWCR() const {
         return reported_ == SwitchPosition::REVERSE && inCorrespondence();
     }
 
-    // KR: Switch Indication Relay (points locked in either Normal or Reverse)
+    /**
+     * AAR Relay: KR (Switch Indication Relay)
+     *
+     * Proves that the switch is locked in full correspondence (NWCR || RWCR).
+     * If the points are in motion, gapped, or out of correspondence, KR drops.
+     * Interlocking circuits require active KR before clearing any signal.
+     *
+     * @return true if points are locked in correspondence (either Normal or Reverse).
+     */
     bool KR() const {
         return inCorrespondence();
     }
 
-    // WLR: Switch Lock Relay (picked up = points free to throw)
+    /**
+     * AAR Relay: WLR / LR (Switch Lock Relay)
+     *
+     * In prototype relay signaling:
+     * - De-energizes (drops) when the switch is locked by:
+     *   1. Detector locking (train occupies island track circuit across points).
+     *   2. Route locking (an active cleared route reserves this switch).
+     *   3. Time locking (approach timer running down after signal cancellation).
+     * - Power to the switch motor is routed through a front contact of WLR.
+     * - If WLR drops, the motor cannot energize under any circumstances.
+     *
+     * @return true if switch is completely unlocked and free to throw.
+     */
     bool WLR() const {
         return isMovable();
     }

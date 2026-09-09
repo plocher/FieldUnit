@@ -23,7 +23,16 @@ public:
         return (state_.value == Occupancy::VACANT) && (state_.quality == Quality::GOOD);
     }
 
-    // AAR Relay Alias: TR (Track Relay) picked up = block is clear
+    /**
+     * AAR Relay Equivalent: TR (Track Relay)
+     *
+     * In prototype relay signaling:
+     * - TR is energized (picked up) when the rails are un-shunted (VACANT).
+     * - TR drops out by gravity when train wheels/axles shunt the rails (OCCUPIED).
+     * - Broken rails, power losses, or failed sensors drop TR fail-safe.
+     *
+     * @return true if the block is VACANT and communication quality is GOOD.
+     */
     bool TR() const {
         return isClear();
     }

@@ -30,17 +30,49 @@ public:
     // -------------------------------------------------------------
     // AAR Standard Relay Contact Logic
     // -------------------------------------------------------------
-    // HSR: Home Signal Stick Relay (picked up = signal clearance authority active)
+
+    /**
+     * AAR Relay: HSR (Home Signal Stick Relay)
+     *
+     * In prototype relay signaling:
+     * - Picks up when dispatcher transmits directional code authority.
+     * - Stays energized through its own front contact (stick path).
+     * - Drops immediately when a train enters the entrance track circuit (1TR).
+     * - Remains dropped until the dispatcher transmits a brand new code.
+     *
+     * @return true if movement authority is actively latched.
+     */
     bool HSR() const {
         return active_ != DirectionAuthority::STOP;
     }
 
-    // FSR: Fleet Stick Relay (picked up = fleeting mode active)
+    /**
+     * AAR Relay: FSR (Fleet Stick Relay)
+     *
+     * In prototype CTC:
+     * - Energized when dispatcher toggles Fleeting ON.
+     * - Bypasses the HSR stick-down requirement.
+     * - When a train departs and clears the route, the signal re-clears
+     *   automatically for following trains without dispatcher intervention.
+     *
+     * @return true if fleeting mode is active.
+     */
     bool FSR() const {
         return fleetMode_;
     }
 
-    // ASR: Approach Stick Relay (picked up = plant clear / time expired; dropped = time locked)
+    /**
+     * AAR Relay: ASR (Approach Stick Relay)
+     *
+     * Enforces Approach and Time Locking:
+     * - Picks up (energizes) when the plant is at rest (no permissive signals).
+     * - Drops when a signal clears, locking all route switches.
+     * - If the dispatcher cancels a clear signal before train arrival,
+     *   ASR stays dropped while a safety timer runs down (30-60s model, 3-5m proto).
+     * - While ASR is dropped, no switch can move and no opposing signal can clear.
+     *
+     * @return true if plant is free (time lock is NOT running).
+     */
     bool ASR() const {
         return !timeLockRunning_;
     }
