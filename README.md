@@ -98,6 +98,7 @@ Learn how to connect FieldUnit to your control plane:
 
 ### 4. Technical Architecture and Domain Reference
 Dive into the engineering foundation:
+- **[Inside the Bungalow: AAR Signaling Primer](docs/AAR_SIGNALING_PRIMER.md)**: An introduction to the mind of a railroad signal maintainer, explaining why every switch owns 6 relays and how fail-safe circuits work.
 - **[Control Point Architecture Specification](docs/CONTROL_POINT_ARCHITECTURE.md)**: Complete 4-tier architectural specification in ASD-STE100 style.
 - **[Signaling Nomenclature and Glossary](docs/GLOSSARY.md)**: Official AAR relay terms and operational definitions.
-- **[Example Sketches](examples/)**: Compilable, verified sketches including CP Christopher (MP 81).
+- **[Example Sketches](examples/)**: Compilable, verified sketches including CP Christopher (MP 81) and CP Corporal (MP 83).

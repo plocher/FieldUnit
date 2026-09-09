@@ -4,6 +4,8 @@
 This document defines standard Association of American Railroads (AAR) signaling terms and relay names used in FieldUnit.
 FieldUnit uses prototype relay abbreviations to maintain direct alignment with historical railroad circuit plans.
 
+For a complete conceptual walkthrough of how these relays interact inside a trackside bungalow, see **[Inside the Bungalow: An Introduction to AAR Signaling for Model Railroaders](AAR_SIGNALING_PRIMER.md)**.
+
 ---
 
 ## 2. Relay Naming Conventions and Contact Notation
