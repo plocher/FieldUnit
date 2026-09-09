@@ -9,5 +9,6 @@
 #include "ControlTable.h"
 #include "ControlPoint.h"
 #include "WireCodec.h"
+#include "CodeLine.h"
 
 #endif // FIELDUNIT_H
