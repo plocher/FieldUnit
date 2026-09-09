@@ -81,7 +81,8 @@ FieldUnit evaluates the route, checks switch correspondence, enforces detector l
 
 ### 1. New to FieldUnit? Start Here
 Learn how to turn a track diagram into working code:
-- **[Tutorial: Building Your First Control Point](docs/tutorials/01_building_your_first_cp.md)**: A step-by-step walkthrough using CP Corporal as an example.
+- **[Tutorial 0: Drawing Your Signaling Track Plan](docs/tutorials/00_drawing_your_signaling_track_plan.md)**: Learn where to place rail gaps (island blocks), how to position and name signals, and how to create a data collection sheet.
+- **[Tutorial 1: Building Your First Control Point](docs/tutorials/01_building_your_first_cp.md)**: A step-by-step walkthrough turning a plan into working C++ code using CP Corporal as an example.
 
 ### 2. Connecting Hardware
 Learn how to map physical hardware to FieldUnit appliances:
