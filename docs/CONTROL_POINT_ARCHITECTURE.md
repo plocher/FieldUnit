@@ -199,7 +199,27 @@ The architecture accommodates multiple North American operating regimes:
    Track circuits provide occupancy indications to dispatcher screens.
    Electric locks on switches enforce lock-and-block discipline.
 
-### 3.3 AAR Relay Contact Logic Equivalence
+### 3.3 Control Point Autonomy and the CodeLine Seam
+The CodeLine forms the single universal seam between the Control Plane and the Field:
+- The Control Plane (dispatcher or tower) sends plant-complete `ControlTransaction` vectors.
+- The Field Plane (Control Points) returns verified `IndicationVector` snapshots.
+- Control Points are strictly autonomous.
+- Control Points do not share pointers or private memory with other Control Points.
+- Boundary interaction between adjacent plants occurs only by observing published Indication snapshots.
+
+This strict boundary guarantees deployment equivalence across two distinct physical topologies:
+1. **Centralized Compute Topology (Classic Bruce Chubb Model)**:
+   All Control Points run on a single central host computer.
+   The CodeLine exists as an in-memory function call.
+   Hardware drivers bind directly to C/MRI input and output byte arrays through `ImageIOBus`.
+   Dumb field nodes (cpNodes) perform raw serial bit transport.
+2. **Distributed Compute Topology (Modern Modular Model)**:
+   Each Control Point runs on a dedicated micro-controller in a local trackside bungalow.
+   The CodeLine crosses the physical network through MQTT or serial packets.
+   Hardware drivers bind locally to onboard I2C expanders (`I2Cexpander`).
+   The Control Point logic code remains completely identical in both topologies.
+
+### 3.4 AAR Relay Contact Logic Equivalence
 FieldUnit maps Association of American Railroads (AAR) relay circuits directly to C++ code:
 - Series contacts map to logical AND (`&&`).
 - Parallel contacts map to logical OR (`||`).
