@@ -544,23 +544,23 @@ Northbound trains on single track `1NAT` face signal `2nab` at Switch 3:
 - Diverging onto `MT1` enters the track **against the current of traffic (Rule 251 reverse running)**, restricting the aspect to `DIVERGING_RESTRICTING`.
 Switch 1 provides access to the Beet Loader spur, protected by an automatic safety derail (`SW5`).
 
-Every block boundary is separated by an **Insulated Rail Joint (IRJ)** (`||`), and signals face the approaching train using standard schematic symbols:
-- **`|-O`** (or **`|-OO`**): Lamps point to the left (governs Eastward / Southbound moves).
-- **`O-|`** (or **`OO-|`**): Lamps point to the right (governs Westward / Northbound moves).
+Every block boundary is separated by an **Insulated Rail Joint (IRJ)** (`][`), and signals face the approaching engineer on the engineer's right-hand side using standard schematic symbols:
+- **`|-o`** (or **`|-oo`**): Below track, lamps face left (governs Eastward / Southbound moves).
+- **`o-|`** (or **`oo-|`**): Above track, lamps face right (governs Westward / Northbound moves).
 
 ```
 < Railroad West / North                  MP 83                  Railroad East / South >
   (Toward Gilroy)                                               (Toward Sargent)
 
                                DERAIL 5                  /─── IND3 ─── (Beet Loader 1)
-                                   \ 5T1      O-| 4na   /
+                                   \ 5T1      o-| 4na   /
                         /───────────\─────── IND1 ─────+───── IND2 ─── (Beet Loader 2)
-                    1T1/                 |-O 4sa     SW7 (Hand-throw with 7WLS Lock)
-  MT2 <══ 2SAT ═══════||═══════════════+═════════════════+════════||════ 1NAT ══════ 2NAT ══> (<->)
+                    1T1/                 |-o 4sa     SW7 (Hand-throw with 7WLS Lock)
+  MT2 <══ 2SAT ═══════][═══════════════+═════════════════+════════][════ 1NAT ══════ 2NAT ══> (<->)
        (Northbound)  IRJ               │                 │ 3T1    IRJ    (Single Track)
                                        │                / [SS]
-  MT1 >══ 1SAT ════════════════════════════════════════/ OO-| 2nab
-       (Southbound)    |-O 2sa         │                 (Two Heads)
+  MT1 >══ 1SAT ════════════════════════════════════════/ oo-| 2nab
+       (Southbound)    |-o 2sa         │                 (Two Heads)
                         (Dwarf)
 ```
 

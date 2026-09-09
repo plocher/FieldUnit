@@ -14,12 +14,14 @@ Every railroad signaling diagram uses four standard symbols:
 
 ```
 1. Track Rails:                    ═════════════════════════════════
-2. Insulated Rail Joint (IRJ):     //   (Electrical boundary between blocks)
+2. Insulated Rail Joint (IRJ):     ][   (Joint bars bolted across gap)
 3. Track Switch Points:            ═══════\═════════  (Normal straight,
                                            \          Reverse diverging)
-4. Wayside Signals:                |-O     (Facing Right / Eastward)
-                                   O-|     (Facing Left / Westward)
-                                   |-OO    (Facing Right, Two Heads)
+4. Wayside Signals:
+     Standing Below Track:         |-o     (Faces Eastbound trains on engineer's right)
+                                   |-oo    (Two Heads, faces Eastbound)
+     Standing Above Track:         o-|     (Faces Westbound trains on engineer's right)
+                                   oo-|    (Two Heads, faces Westbound)
 ```
 
 ---
@@ -46,9 +48,9 @@ You must insulate the switch into its own dedicated detection block called the *
 
 ```
        Approach Block 1SA           Island Block 1T1           Exit Block 1NA
-   ══════════════════════════//═════════════\══════════════//════════════════
-                             IRJ             \             IRJ
-                                              \════════════//════════════════
+   ══════════════════════════][═════════════\══════════════][════════════════
+                            IRJ              \             IRJ
+                                              \════════════][════════════════
                                               (d)          IRJ Exit Block 2NA
                                         Optical Sensor (d)
                                         at Fouling Point
@@ -90,13 +92,13 @@ Wayside signals protect the entrances to the interlocking.
 Place a signal at every entrance to the island block, outside the insulated rail joints:
 
 ```
-               Signal 2R                               Signal 2LA
-                 |-OO                                     O-|
-  <== West ════════//═══════════════════════\══════════════//════════ East ==>
-                  IRJ     1T1 Island        \             IRJ
-                                             \═════════════//════════ Siding
-                                                          IRJ    O-|
-                                                               Signal 2LB
+                                                           Signal 2LA
+                                                              o-| (Dwarf)
+  <== West ════════][═══════════════════════\══════════════][════════ East ==>
+                  IRJ     1T1 Island         \            IRJ
+                   |-oo                       \════════════][════════ Siding
+                Signal 2R                                 IRJ  o-|
+               (Two Heads)                                   Signal 2LB (Dwarf)
 ```
 
 #### Numbering Conventions: Panel Levers vs. Mileposts
@@ -146,18 +148,17 @@ Combining these rules gives the complete signaling diagram for a single-track pa
 ```
 < Railroad West (North)                              Railroad East (South) >
 
-                             Signal 2R
-                               |-OO (Two Heads)
-  Main Track <==== 1SA ══════════//═════════════════\══════════════//════ 1NA ====>
+                                                      Signal 2LA
+                                                         o-| (Dwarf)
+  Main Track <==== 1SA ══════════][═════════════════\══════════════][════ 1NA ====>
                   (Approach)    IRJ   1T1 Island     \            IRJ   (Exit Block)
-                                                      \
-                                                       \   Signal 2LA
-                                                        \     O-| (Dwarf)
-                                                         \
-  Siding Track <══════════════════════════════════════════\════════//════ 2NA ====>
-                                                          (d)     IRJ     O-|
-                                                        Optical        Signal 2LB
-                                                        Sensor          (Dwarf)
+                                 |-oo                 \
+                              Signal 2R                \
+                             (Two Heads)                \
+  Siding Track <═════════════════════════════════════════\═════════][════ 2NA ====>
+                                                         (d)      IRJ    o-|
+                                                       Optical        Signal 2LB
+                                                       Sensor          (Dwarf)
 ```
 
 ---
