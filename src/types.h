@@ -31,8 +31,8 @@ enum class Occupancy : uint8_t {
     OCCUPIED = 1
 };
 
-// Turnout physical positions and correspondence
-enum class TurnoutPosition : uint8_t {
+// Switch physical positions and correspondence (AAR Switch, not Turnout)
+enum class SwitchPosition : uint8_t {
     NORMAL = 1,
     REVERSE = 2,
     MOVING = 3,
@@ -40,8 +40,8 @@ enum class TurnoutPosition : uint8_t {
     UNKNOWN = 5
 };
 
-// Turnout lock reasons (bitmask)
-enum class TurnoutLock : uint8_t {
+// Switch lock reasons (bitmask)
+enum class SwitchLock : uint8_t {
     UNLOCKED        = 0x00,
     DETECTOR_LOCKED = 0x01,  // Track circuit over points is occupied
     ROUTE_LOCKED    = 0x02,  // Active cleared route reserves this switch
@@ -49,12 +49,12 @@ enum class TurnoutLock : uint8_t {
     HAND_UNLOCKED   = 0x08   // Local electric switch lock released
 };
 
-inline TurnoutLock operator|(TurnoutLock a, TurnoutLock b) {
-    return static_cast<TurnoutLock>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+inline SwitchLock operator|(SwitchLock a, SwitchLock b) {
+    return static_cast<SwitchLock>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
 }
 
-inline TurnoutLock operator&(TurnoutLock a, TurnoutLock b) {
-    return static_cast<TurnoutLock>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+inline SwitchLock operator&(SwitchLock a, SwitchLock b) {
+    return static_cast<SwitchLock>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
 }
 
 // Dispatcher traffic authority request

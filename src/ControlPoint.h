@@ -3,9 +3,9 @@
 
 #include "types.h"
 #include "TrackCircuit.h"
-#include "Turnout.h"
+#include "Switch.h"
 #include "SignalMast.h"
-#include "SignalAuthority.h"
+#include "SignalControl.h"
 #include "ControlTable.h"
 
 namespace FieldUnit {
@@ -13,9 +13,9 @@ namespace FieldUnit {
 static constexpr uint8_t MAX_APPLIANCES = 16;
 
 // Ingress: Control Snapshot from dispatcher / CodeLine
-struct TurnoutCommand {
-    uint8_t turnoutId;
-    TurnoutPosition position;
+struct SwitchCommand {
+    uint8_t switchId;
+    SwitchPosition position;
 };
 
 struct SignalCommand {
@@ -26,8 +26,8 @@ struct SignalCommand {
 };
 
 struct ControlSnapshot {
-    uint8_t turnoutCommandCount;
-    TurnoutCommand turnoutCommands[MAX_APPLIANCES];
+    uint8_t switchCommandCount;
+    SwitchCommand switchCommands[MAX_APPLIANCES];
 
     uint8_t signalCommandCount;
     SignalCommand signalCommands[MAX_APPLIANCES];
@@ -36,10 +36,10 @@ struct ControlSnapshot {
 };
 
 // Egress: Indication Snapshot to dispatcher / CodeLine
-struct TurnoutReport {
-    uint8_t turnoutId;
-    TurnoutPosition position;
-    TurnoutLock locks;
+struct SwitchReport {
+    uint8_t switchId;
+    SwitchPosition position;
+    SwitchLock locks;
 };
 
 struct TrackCircuitReport {
@@ -55,8 +55,8 @@ struct SignalMastReport {
 };
 
 struct IndicationSnapshot {
-    uint8_t turnoutCount;
-    TurnoutReport turnouts[MAX_APPLIANCES];
+    uint8_t switchCount;
+    SwitchReport switches[MAX_APPLIANCES];
 
     uint8_t trackCircuitCount;
     TrackCircuitReport trackCircuits[MAX_APPLIANCES];
@@ -73,7 +73,7 @@ public:
     ControlPoint(const char* name)
         : name_(name),
           trackCircuitCount_(0),
-          turnoutCount_(0),
+          switchCount_(0),
           authorityCount_(0),
           mastCount_(0),
           maintainerCallActive_(false),
@@ -87,15 +87,15 @@ public:
         return &trackCircuits_[trackCircuitCount_++];
     }
 
-    Turnout* addTurnout(const char* name) {
-        if (turnoutCount_ >= MAX_APPLIANCES) return nullptr;
-        turnouts_[turnoutCount_] = Turnout(name);
-        return &turnouts_[turnoutCount_++];
+    Switch* addSwitch(const char* name) {
+        if (switchCount_ >= MAX_APPLIANCES) return nullptr;
+        switches_[switchCount_] = Switch(name);
+        return &switches_[switchCount_++];
     }
 
-    SignalAuthority* addAuthority(const char* name) {
+    SignalControl* addSignalControl(const char* name) {
         if (authorityCount_ >= MAX_APPLIANCES) return nullptr;
-        authorities_[authorityCount_] = SignalAuthority(name);
+        authorities_[authorityCount_] = SignalControl(name);
         return &authorities_[authorityCount_++];
     }
 
@@ -105,8 +105,8 @@ public:
         return &masts_[mastCount_++];
     }
 
-    // Couple an OS track circuit to detector-lock a turnout
-    void bindDetectorLock(Turnout* sw, TrackCircuit* tc) {
+    // Couple an OS track circuit to detector-lock a switch
+    void bindDetectorLock(Switch* sw, TrackCircuit* tc) {
         if (detectorLockCouplingCount_ < MAX_APPLIANCES) {
             detectorLocks_[detectorLockCouplingCount_++] = {sw, tc};
         }
@@ -116,16 +116,16 @@ public:
         return engine_.addRoute(route);
     }
 
-    // Ingress: Process incoming control snapshot from dispatcher
+    // Ingress: Process incoming control snapshot from dispatcher or local tower
     // Binary rule: execute valid moves immediately, reject invalid moves immediately
     bool processControlSnapshot(const ControlSnapshot& ctl, uint32_t nowMs) {
         bool allAccepted = true;
 
-        // 1. Process Turnout commands
-        for (uint8_t i = 0; i < ctl.turnoutCommandCount; ++i) {
-            const TurnoutCommand& cmd = ctl.turnoutCommands[i];
-            if (cmd.turnoutId < turnoutCount_) {
-                bool ok = turnouts_[cmd.turnoutId].throwSwitch(cmd.position, nowMs);
+        // 1. Process Switch commands
+        for (uint8_t i = 0; i < ctl.switchCommandCount; ++i) {
+            const SwitchCommand& cmd = ctl.switchCommands[i];
+            if (cmd.switchId < switchCount_) {
+                bool ok = switches_[cmd.switchId].throwSwitch(cmd.position, nowMs);
                 if (!ok) {
                     allAccepted = false; // Rejected: switch is locked or in use
                 }
@@ -147,22 +147,22 @@ public:
     // Vital Cycle: Evaluate plant safety and route logic
     void tick(uint32_t nowMs) {
         // A. Clear and re-evaluate Detector Locks based on current track occupancy
-        for (uint8_t i = 0; i < turnoutCount_; ++i) {
-            turnouts_[i].removeLock(TurnoutLock::DETECTOR_LOCKED);
-            turnouts_[i].removeLock(TurnoutLock::ROUTE_LOCKED);
+        for (uint8_t i = 0; i < switchCount_; ++i) {
+            switches_[i].removeLock(SwitchLock::DETECTOR_LOCKED);
+            switches_[i].removeLock(SwitchLock::ROUTE_LOCKED);
         }
 
         for (uint8_t i = 0; i < detectorLockCouplingCount_; ++i) {
-            Turnout* sw = detectorLocks_[i].sw;
+            Switch* sw = detectorLocks_[i].sw;
             TrackCircuit* tc = detectorLocks_[i].tc;
             if (!tc->isClear()) {
-                sw->addLock(TurnoutLock::DETECTOR_LOCKED);
+                sw->addLock(SwitchLock::DETECTOR_LOCKED);
             }
         }
 
-        // B. Advance turnout travel and remote circuit staleness timers
-        for (uint8_t i = 0; i < turnoutCount_; ++i) {
-            turnouts_[i].tick(nowMs);
+        // B. Advance switch travel and remote circuit staleness timers
+        for (uint8_t i = 0; i < switchCount_; ++i) {
+            switches_[i].tick(nowMs);
         }
         for (uint8_t i = 0; i < trackCircuitCount_; ++i) {
             trackCircuits_[i].tick(nowMs);
@@ -187,12 +187,12 @@ public:
 
     // Egress: Generate self-consistent indication snapshot
     void exportIndicationSnapshot(IndicationSnapshot& ind) const {
-        ind.turnoutCount = turnoutCount_;
-        for (uint8_t i = 0; i < turnoutCount_; ++i) {
-            ind.turnouts[i] = {
+        ind.switchCount = switchCount_;
+        for (uint8_t i = 0; i < switchCount_; ++i) {
+            ind.switches[i] = {
                 i,
-                turnouts_[i].reportedPosition(),
-                turnouts_[i].activeLocks()
+                switches_[i].reportedPosition(),
+                switches_[i].activeLocks()
             };
         }
 
@@ -226,7 +226,7 @@ public:
 
 private:
     struct DetectorBinding {
-        Turnout* sw;
+        Switch* sw;
         TrackCircuit* tc;
     };
 
@@ -234,10 +234,10 @@ private:
     TrackCircuit trackCircuits_[MAX_APPLIANCES];
     uint8_t trackCircuitCount_;
 
-    Turnout turnouts_[MAX_APPLIANCES];
-    uint8_t turnoutCount_;
+    Switch switches_[MAX_APPLIANCES];
+    uint8_t switchCount_;
 
-    SignalAuthority authorities_[MAX_APPLIANCES];
+    SignalControl authorities_[MAX_APPLIANCES];
     uint8_t authorityCount_;
 
     SignalMast masts_[MAX_APPLIANCES];

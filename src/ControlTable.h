@@ -3,9 +3,9 @@
 
 #include "types.h"
 #include "TrackCircuit.h"
-#include "Turnout.h"
+#include "Switch.h"
 #include "SignalMast.h"
-#include "SignalAuthority.h"
+#include "SignalControl.h"
 
 namespace FieldUnit {
 
@@ -15,14 +15,14 @@ static constexpr uint8_t MAX_ROUTE_BLOCKS   = 8;
 static constexpr uint8_t MAX_ROUTES         = 32;
 
 struct SwitchRequirement {
-    Turnout* switchRef;
-    TurnoutPosition requiredPosition;
+    Switch* switchRef;
+    SwitchPosition requiredPosition;
 };
 
 // Route Definition: One row in the Interlocking Control Table
 struct RouteDef {
     const char*        name;
-    SignalAuthority*   authority;
+    SignalControl*     authority;
     DirectionAuthority direction;
     SignalMast*        mast;
     Indication         aspectCeiling;
@@ -147,7 +147,7 @@ private:
 
     void applyRouteLocks(const RouteDef& r) {
         for (uint8_t i = 0; i < r.switchCount; ++i) {
-            r.switches[i].switchRef->addLock(TurnoutLock::ROUTE_LOCKED);
+            r.switches[i].switchRef->addLock(SwitchLock::ROUTE_LOCKED);
         }
     }
 

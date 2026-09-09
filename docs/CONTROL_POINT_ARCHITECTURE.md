@@ -46,7 +46,7 @@ The architecture divides the Control Point into four decoupled tiers.
 +-------------------------------------------------------------+
 |               3. Logical Railroad Appliances                |
 |      - Track Circuit (Qualified Occupancy State)            |
-|      - Turnout (Point Correspondence and Lock State)        |
+|      - Switch (Point Correspondence and Lock State)         |
 |      - Signal Mast (Indication to Aspect Mapping)           |
 +-------------------------------------------------------------+
                               |
@@ -62,9 +62,9 @@ All processing operates on synchronized snapshots.
 The engine reads all field inputs at the start of each cycle to create a stable input snapshot.
 A Control packet arrives as an atomic snapshot of requested plant changes.
 The engine evaluates the request against active locks and current occupancy.
-The engine immediately evaluates all turnout motion commands.
-If a turnout command violates locks or occupancy, the engine rejects it immediately.
-The engine does not queue turnout movement requests.
+The engine immediately evaluates all switch motion commands.
+If a switch command violates locks or occupancy, the engine rejects it immediately.
+The engine does not queue switch movement requests.
 Certain signal authorities latch vital memory across cycles:
 - **Fleeting**: The signal re-clears automatically after a train clears the route.
 - **Call-On**: The engine permits a low-speed move into an occupied block under rulebook authority.
@@ -84,8 +84,8 @@ If an input pin drops or communication fails, quality becomes `LOST_COMMS`.
 The vital logic treats both `OCCUPIED` and `LOST_COMMS` as restrictive.
 The Indication message reports the distinct quality value to the dispatcher.
 
-##### B. Turnout Appliance (`Turnout`)
-The Turnout models track switch points.
+##### B. Switch Appliance (`Switch`)
+The Switch models track switch points (AAR standard: Switch, not Turnout).
 It manages motor movement and position feedback.
 It does not manage track fouling circuits directly.
 It has three attributes:
@@ -93,15 +93,15 @@ It has three attributes:
 - `reportedPosition`: `NORMAL`, `REVERSE`, `MOVING`, or `OUT_OF_CORRESPONDENCE`.
 - `lockState`: A bitfield containing `UNLOCKED`, `DETECTOR_LOCKED`, `ROUTE_LOCKED`, or `TIME_LOCKED`.
 
-The Turnout accepts a `throw(position)` command.
-If `lockState` is not `UNLOCKED`, the Turnout rejects the command.
-The Turnout does not energize motor outputs during a rejected command.
+The Switch accepts a `throwSwitch(position)` command.
+If `lockState` is not `UNLOCKED`, the Switch rejects the command.
+The Switch does not energize motor outputs during a rejected command.
 
 ##### C. Crossover Appliance (`Crossover`)
-A Crossover pairs two physical turnouts operated by one logical command.
-It issues movement commands to both turnouts in unison.
-It reports `NORMAL` only when both turnouts report `NORMAL`.
-It reports `REVERSE` only when both turnouts report `REVERSE`.
+A Crossover pairs two physical switches operated by one logical command.
+It issues movement commands to both switches in unison.
+It reports `NORMAL` only when both switches report `NORMAL`.
+It reports `REVERSE` only when both switches report `REVERSE`.
 If either switch moves or fails, the Crossover reports `MOVING` or `OUT_OF_CORRESPONDENCE`.
 
 ##### D. Signal Mast Appliance (`SignalMast`)
@@ -157,7 +157,7 @@ Each row in the table specifies:
 1. `RouteID`: Unique name for the route.
 2. `GoverningMast`: The entrance signal mast.
 3. `RequestedDirection`: Required traffic flow direction (`LEFT` or `RIGHT`).
-4. `SwitchAlignments`: Required position for each turnout in the path.
+4. `SwitchAlignments`: Required position for each switch in the path.
 5. `BlockCircuits`: Local track circuits that must be `VACANT`.
 6. `ApproachCircuits`: Downstream blocks that dictate speed aspects.
 7. `AspectCeiling`: Maximum permitted indication for this track geometry.
@@ -166,27 +166,65 @@ Each row in the table specifies:
 plant.addRoute({
     .name              = "MT2-MT1",
     .mast              = mast2N,
-    .direction         = Direction::LEFT,
+    .direction         = DirectionAuthority::LEFT,
     .aspectCeiling     = Indication::DIVERGING_CLEAR,
-    .switches          = { {xover3, Turnout::REVERSE}, {sw1, Turnout::NORMAL} },
+    .switches          = { {xover3, SwitchPosition::REVERSE}, {sw1, SwitchPosition::NORMAL} },
     .blockCircuits     = { tc3BT1, tc3T1, tc1T1 },
     .approachCircuits  = { tc1SA }
 });
 ```
 
+### 3.2 Operating Regimes and Methods of Operation
+The architecture accommodates multiple North American operating regimes:
+
+1. **Centralized Traffic Control (CTC)**:
+   The dispatcher controls the plant through network Control Snapshots.
+   Signals convey movement authority.
+   Power switch machines line routes remotely.
+
+2. **Interlocking Tower Control**:
+   The leverman operates local levers (pistol-grip or mechanical).
+   Local inputs feed the Control Point directly.
+   The same Interlocking Control Table evaluates safety rules.
+
+3. **Automatic Block Signaling (ABS / APB)**:
+   Signals provide block spacing and collision protection.
+   Timetable and Train Order (TT&TO) or Track Warrants provide movement authority.
+   Directional sticks (`ESR` and `WSR`) prevent opposing moves on single track.
+   Switches are hand-operated with electric switch locks (`WLR`).
+
+4. **Dark Territory (Direct Traffic Control / Track Warrant)**:
+   No wayside block signals govern movement.
+   Track circuits provide occupancy indications to dispatcher screens.
+   Electric locks on switches enforce lock-and-block discipline.
+
+### 3.3 AAR Relay Contact Logic Equivalence
+FieldUnit maps Association of American Railroads (AAR) relay circuits directly to C++ code:
+- Series contacts map to logical AND (`&&`).
+- Parallel contacts map to logical OR (`||`).
+- Front contacts (neutral closed when energized) map to `true`.
+- Back contacts (closed when de-energized) map to `!true`.
+- Stick circuits map to self-holding boolean state variables.
+
+```cpp
+// AAR Home Signal Relay (1HR) circuit equivalence:
+// 1HR = 1TR && 2TR && 1NWCR && 2ASR
+bool HR = tr1.TR() && tr2.TR() && sw1.NWCR() && sig2.ASR();
+```
+
 ---
 
-### 3.2 Interfaces
+### 3.4 Interfaces
 
 #### Ingress Interface (Control Message)
 The Control Point ingests a structured snapshot from the network codec:
-- Turnout command map: List of `(TurnoutId, CommandedPosition)`.
-- Signal authority map: List of `(SignalId, DirectionAuthority)`.
+- Switch command map: List of `(SwitchId, CommandedPosition)`.
+- Signal control map: List of `(SignalId, DirectionAuthority)`.
 - Auxiliary commands: List of `(AuxId, BooleanState)`.
 
 #### Egress Interface (Indication Message)
 The Control Point exports a structured snapshot to the network codec:
-- Turnout correspondence: Position and lock bitmask per switch.
+- Switch correspondence: Position and lock bitmask per switch.
 - Track occupancy: Occupancy state and quality flag per circuit.
 - Signal status: Displayed aspect and active time-lock status per mast.
 - System health: Local maintainer mode and communication status.

@@ -1,15 +1,16 @@
-#ifndef FIELDUNIT_SIGNAL_AUTHORITY_H
-#define FIELDUNIT_SIGNAL_AUTHORITY_H
+#ifndef FIELDUNIT_SIGNAL_CONTROL_H
+#define FIELDUNIT_SIGNAL_CONTROL_H
 
 #include "types.h"
 
 namespace FieldUnit {
 
-class SignalAuthority {
+// SignalControl appliance (AAR standard: HSR / Home Signal Stick and Authority)
+class SignalControl {
 public:
-    SignalAuthority() : SignalAuthority("") {}
+    SignalControl() : SignalControl("") {}
 
-    SignalAuthority(const char* name)
+    SignalControl(const char* name)
         : name_(name),
           commanded_(DirectionAuthority::STOP),
           active_(DirectionAuthority::STOP),
@@ -26,8 +27,10 @@ public:
     bool isFleet() const { return fleetMode_; }
     bool isTimeLocked() const { return timeLockRunning_; }
 
-    // AAR Relay Aliases:
-    // HSR: Home Signal Stick Relay (picked up = authority active)
+    // -------------------------------------------------------------
+    // AAR Standard Relay Contact Logic
+    // -------------------------------------------------------------
+    // HSR: Home Signal Stick Relay (picked up = signal clearance authority active)
     bool HSR() const {
         return active_ != DirectionAuthority::STOP;
     }
@@ -42,25 +45,25 @@ public:
         return !timeLockRunning_;
     }
 
-    // Called when a Control Message arrives from dispatcher
+    // Called when a Control Message arrives from dispatcher or local tower lever
     void updateCommand(DirectionAuthority req, bool fleet, uint32_t nowMs) {
         fleetMode_ = fleet;
 
-        // If dispatcher commands STOP while signal was actively cleared
+        // If operator commands STOP while signal was actively cleared
         if (req == DirectionAuthority::STOP && active_ != DirectionAuthority::STOP) {
             commanded_ = DirectionAuthority::STOP;
             active_ = DirectionAuthority::STOP;
             stickDropped_ = false;
-            // Initiate time locking to protect approaching trains
+            // Initiate ASR time locking to protect approaching trains
             timeLockRunning_ = true;
             timeLockExpiryMs_ = nowMs + timeLockDurationMs_;
             return;
         }
 
-        // Fresh code transmission from dispatcher
+        // Fresh code transmission or lever change
         commanded_ = req;
         if (req != DirectionAuthority::STOP) {
-            stickDropped_ = false; // Fresh code cycle re-picks up the stick
+            stickDropped_ = false; // Fresh code cycle re-picks up the HSR stick
             active_ = req;
         }
     }
@@ -70,8 +73,8 @@ public:
         if (active_ != DirectionAuthority::STOP) {
             active_ = DirectionAuthority::STOP;
             if (!fleetMode_) {
-                // Standard stick behavior: stick drops; will NOT re-clear
-                // until dispatcher sends a new code command
+                // Standard AAR HSR stick behavior: stick drops; will NOT re-clear
+                // until operator sends a new code command
                 stickDropped_ = true;
             }
         }
@@ -79,21 +82,21 @@ public:
 
     // Called every cycle by the interlocking engine
     void evaluate(bool plantClear, uint32_t nowMs) {
-        // Advance approach time lock timer
+        // Advance ASR approach time lock timer
         if (timeLockRunning_) {
             if (nowMs >= timeLockExpiryMs_) {
-                timeLockRunning_ = false; // Time expired, plant is freed
+                timeLockRunning_ = false; // Time expired, ASR picks back up
             }
         }
 
-        // If in fleeting mode and plant has cleared, automatically restore authority
+        // If in fleeting mode (FSR picked up) and plant has cleared, automatically restore authority
         if (fleetMode_ && commanded_ != DirectionAuthority::STOP && active_ == DirectionAuthority::STOP) {
             if (plantClear && !timeLockRunning_) {
                 active_ = commanded_; // Re-clear for following train
             }
         }
 
-        // If stick dropped and not fleeting, keep active at STOP
+        // If HSR stick dropped and not fleeting, keep active at STOP
         if (stickDropped_) {
             active_ = DirectionAuthority::STOP;
         }
@@ -116,4 +119,4 @@ private:
 
 } // namespace FieldUnit
 
-#endif // FIELDUNIT_SIGNAL_AUTHORITY_H
+#endif // FIELDUNIT_SIGNAL_CONTROL_H
