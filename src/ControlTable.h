@@ -25,6 +25,7 @@ struct RouteDef {
     SignalControl*     authority;
     DirectionAuthority direction;
     SignalMast*        mast;
+    uint8_t            targetHeadIndex; // 0 = top head, 1 = middle/lower head, etc.
     Indication         aspectCeiling;
 
     // Physical alignment
@@ -71,7 +72,7 @@ public:
             // A. Check if Engine Return applies
             if (r.isEngineReturn) {
                 if (evaluateEngineReturn(r)) {
-                    r.mast->setIndication(Indication::RESTRICTING);
+                    r.mast->setHeadIndication(r.targetHeadIndex, Indication::RESTRICTING);
                     applyRouteLocks(r);
                     continue; // Engine return route satisfied
                 }
@@ -119,7 +120,7 @@ public:
             }
 
             // Display aspect and lock turnouts
-            r.mast->setIndication(aspect);
+            r.mast->setHeadIndication(r.targetHeadIndex, aspect);
             applyRouteLocks(r);
         }
     }

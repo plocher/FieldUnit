@@ -39,13 +39,16 @@ void runTracerBulletTests() {
         .authority          = auth2,
         .direction         = DirectionAuthority::RIGHT,
         .mast              = mast2R,
+        .targetHeadIndex   = 0,
         .aspectCeiling     = Indication::CLEAR,
         .switchCount       = 1,
         .switches          = { {sw1, SwitchPosition::NORMAL} },
         .blockCount        = 1,
         .blocks            = { tcOS },
         .approachBlock     = tcAppr,
-        .isEngineReturn    = false
+        .isEngineReturn    = false,
+        .originBlock       = nullptr,
+        .osBlock           = nullptr
     });
 
     // Route 2: Rightward into Siding (Reverse switch)
@@ -54,13 +57,16 @@ void runTracerBulletTests() {
         .authority          = auth2,
         .direction         = DirectionAuthority::RIGHT,
         .mast              = mast2R,
+        .targetHeadIndex   = 1, // Diverging route targets lower head!
         .aspectCeiling     = Indication::DIVERGING_APPROACH,
         .switchCount       = 1,
         .switches          = { {sw1, SwitchPosition::REVERSE} },
         .blockCount        = 1,
         .blocks            = { tcOS },
         .approachBlock     = nullptr,
-        .isEngineReturn    = false
+        .isEngineReturn    = false,
+        .originBlock       = nullptr,
+        .osBlock           = nullptr
     });
 
     // Route 3: Engine Return from dark track onto cars standing on 1A
@@ -69,6 +75,7 @@ void runTracerBulletTests() {
         .authority          = nullptr, // Automatic vital condition, no dispatcher lever
         .direction         = DirectionAuthority::STOP,
         .mast              = mast2L,
+        .targetHeadIndex   = 0,
         .aspectCeiling     = Indication::RESTRICTING,
         .switchCount       = 1,
         .switches          = { {sw1, SwitchPosition::REVERSE} },

@@ -57,15 +57,21 @@ public:
         return isMovable();
     }
 
-    // Pair a crossover switch (moves in unison, both must correspond)
-    void pairCrossover(Switch* slave) {
-        pairedSwitch_ = slave;
+    // Pair a crossover switch (bidirectional: both move and lock together)
+    void pairCrossover(Switch* other) {
+        pairedSwitch_ = other;
+        if (other && other->pairedSwitch_ != this) {
+            other->pairedSwitch_ = this;
+        }
     }
 
     Switch* pairedSwitch() const { return pairedSwitch_; }
 
     // Lock arbitration (managed by Interlocking Control Table and OS detector track)
     void addLock(SwitchLock lock) {
+        if ((locks_ & lock) == lock) {
+            return; // Already has this lock, breaks recursion
+        }
         locks_ = locks_ | lock;
         if (pairedSwitch_) {
             pairedSwitch_->addLock(lock);
@@ -73,6 +79,9 @@ public:
     }
 
     void removeLock(SwitchLock lock) {
+        if ((locks_ & lock) == SwitchLock::UNLOCKED) {
+            return; // Already cleared, breaks recursion
+        }
         locks_ = static_cast<SwitchLock>(static_cast<uint8_t>(locks_) & ~static_cast<uint8_t>(lock));
         if (pairedSwitch_) {
             pairedSwitch_->removeLock(lock);
@@ -99,7 +108,7 @@ public:
         reported_ = SwitchPosition::MOVING;
         motionStartMs_ = nowMs;
 
-        if (pairedSwitch_) {
+        if (pairedSwitch_ && pairedSwitch_->commandedPosition() != target) {
             pairedSwitch_->throwSwitch(target, nowMs);
         }
 

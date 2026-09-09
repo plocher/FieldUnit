@@ -32,85 +32,51 @@ public:
     Aspect head2() const { return head2Aspect_; }
     Aspect head3() const { return head3Aspect_; }
 
-    // Vital action: update the displayed aspect based on derived indication
-    void setIndication(Indication ind) {
+    // Vital action: update the displayed aspect on a specific head
+    // Non-targeted heads display their STOP/RED marker
+    void setHeadIndication(uint8_t headIndex, Indication ind) {
+        forceStop(); // Reset all heads to red marker first
         currentIndication_ = ind;
-        mapIndicationToAspects(ind);
+
+        Aspect asp = mapIndicationToSingleHead(ind);
+        if (headIndex == 0) {
+            head1Aspect_ = asp;
+        } else if (headIndex == 1) {
+            head2Aspect_ = asp;
+        } else if (headIndex == 2) {
+            head3Aspect_ = asp;
+        }
+    }
+
+    // Single-head or whole-mast aspect update
+    void setIndication(Indication ind) {
+        setHeadIndication(0, ind);
     }
 
     void forceStop() {
-        setIndication(Indication::STOP);
+        currentIndication_ = Indication::STOP;
+        head1Aspect_ = Aspect::RED;
+        head2Aspect_ = (type_ >= MastType::TWO_HEAD) ? Aspect::RED : Aspect::DARK;
+        head3Aspect_ = (type_ >= MastType::THREE_HEAD) ? Aspect::RED : Aspect::DARK;
     }
 
 private:
-    // Standard North American 2-head / 1-head color-light rulebook mapping
-    void mapIndicationToAspects(Indication ind) {
-        switch (type_) {
-            case MastType::ONE_HEAD:
-            case MastType::DWARF:
-                switch (ind) {
-                    case Indication::CLEAR:
-                        head1Aspect_ = Aspect::GREEN;
-                        break;
-                    case Indication::APPROACH:
-                    case Indication::ADVANCE_APPROACH:
-                        head1Aspect_ = Aspect::YELLOW;
-                        break;
-                    case Indication::RESTRICTING:
-                    case Indication::DIVERGING_RESTRICTING:
-                        head1Aspect_ = Aspect::LUNAR; // or FLASHING_RED
-                        break;
-                    case Indication::STOP:
-                    default:
-                        head1Aspect_ = Aspect::RED;
-                        break;
-                }
-                head2Aspect_ = Aspect::DARK;
-                head3Aspect_ = Aspect::DARK;
-                break;
-
-            case MastType::TWO_HEAD:
-                switch (ind) {
-                    case Indication::CLEAR:
-                        head1Aspect_ = Aspect::GREEN;
-                        head2Aspect_ = Aspect::RED;
-                        break;
-                    case Indication::APPROACH:
-                        head1Aspect_ = Aspect::YELLOW;
-                        head2Aspect_ = Aspect::RED;
-                        break;
-                    case Indication::ADVANCE_APPROACH:
-                        head1Aspect_ = Aspect::FLASHING_YELLOW;
-                        head2Aspect_ = Aspect::RED;
-                        break;
-                    case Indication::DIVERGING_CLEAR:
-                        head1Aspect_ = Aspect::RED;
-                        head2Aspect_ = Aspect::GREEN;
-                        break;
-                    case Indication::DIVERGING_APPROACH:
-                        head1Aspect_ = Aspect::RED;
-                        head2Aspect_ = Aspect::YELLOW;
-                        break;
-                    case Indication::RESTRICTING:
-                    case Indication::DIVERGING_RESTRICTING:
-                        head1Aspect_ = Aspect::RED;
-                        head2Aspect_ = Aspect::LUNAR; // or RED_OVER_YELLOW on some lines
-                        break;
-                    case Indication::STOP:
-                    default:
-                        head1Aspect_ = Aspect::RED;
-                        head2Aspect_ = Aspect::RED;
-                        break;
-                }
-                head3Aspect_ = Aspect::DARK;
-                break;
-
-            case MastType::THREE_HEAD:
-                // Extendable for 3-head systems (e.g. Medium vs Slow vs Restricting)
-                head1Aspect_ = (ind == Indication::CLEAR) ? Aspect::GREEN : Aspect::RED;
-                head2Aspect_ = (ind == Indication::DIVERGING_CLEAR) ? Aspect::GREEN : Aspect::RED;
-                head3Aspect_ = Aspect::RED;
-                break;
+    static Aspect mapIndicationToSingleHead(Indication ind) {
+        switch (ind) {
+            case Indication::CLEAR:
+            case Indication::DIVERGING_CLEAR:
+                return Aspect::GREEN;
+            case Indication::APPROACH:
+            case Indication::DIVERGING_APPROACH:
+                return Aspect::YELLOW;
+            case Indication::ADVANCE_APPROACH:
+                return Aspect::FLASHING_YELLOW;
+            case Indication::RESTRICTING:
+            case Indication::DIVERGING_RESTRICTING:
+                return Aspect::LUNAR;
+            case Indication::STOP:
+            default:
+                return Aspect::RED;
         }
     }
 

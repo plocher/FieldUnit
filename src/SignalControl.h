@@ -49,15 +49,21 @@ public:
     void updateCommand(DirectionAuthority req, bool fleet, uint32_t nowMs) {
         fleetMode_ = fleet;
 
-        // If operator commands STOP while signal was actively cleared
-        if (req == DirectionAuthority::STOP && active_ != DirectionAuthority::STOP) {
-            commanded_ = DirectionAuthority::STOP;
-            active_ = DirectionAuthority::STOP;
+        // If direction changes while signal is actively cleared, or if commanded to STOP:
+        if (active_ != DirectionAuthority::STOP && req != active_) {
+            commanded_ = req;
+            active_ = DirectionAuthority::STOP; // Immediately cancel permissive aspect
             stickDropped_ = false;
-            // Initiate ASR time locking to protect approaching trains
+            // Initiate ASR approach time locking to protect approaching trains
             timeLockRunning_ = true;
             timeLockExpiryMs_ = nowMs + timeLockDurationMs_;
             return;
+        }
+
+        // If ASR time-lock is running, cannot clear in any direction until timer expires!
+        if (timeLockRunning_) {
+            commanded_ = req;
+            return; // Held at STOP
         }
 
         // Fresh code transmission or lever change
