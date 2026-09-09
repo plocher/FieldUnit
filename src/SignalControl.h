@@ -27,6 +27,11 @@ public:
     bool isFleet() const { return fleetMode_; }
     bool isTimeLocked() const { return timeLockRunning_; }
 
+    uint32_t approachTimeRemainingMs(uint32_t nowMs) const {
+        if (!timeLockRunning_ || nowMs >= timeLockExpiryMs_) return 0;
+        return timeLockExpiryMs_ - nowMs;
+    }
+
     // -------------------------------------------------------------
     // AAR Standard Relay Contact Logic
     // -------------------------------------------------------------
@@ -78,7 +83,10 @@ public:
     }
 
     // Called when a Control Message arrives from dispatcher or local tower lever
-    void updateCommand(DirectionAuthority req, bool fleet, uint32_t nowMs) {
+    // Implements prototype Approach Locking (ASR):
+    // - If cancelled while approach track is VACANT: plant releases immediately with zero delay.
+    // - If cancelled while approach track is OCCUPIED: ASR drops and engages countdown timer (TER).
+    void updateCommand(DirectionAuthority req, bool fleet, uint32_t nowMs, bool approachOccupied = true) {
         fleetMode_ = fleet;
 
         // If direction changes while signal is actively cleared, or if commanded to STOP:
@@ -86,9 +94,16 @@ public:
             commanded_ = req;
             active_ = DirectionAuthority::STOP; // Immediately cancel permissive aspect
             stickDropped_ = false;
-            // Initiate ASR approach time locking to protect approaching trains
-            timeLockRunning_ = true;
-            timeLockExpiryMs_ = nowMs + timeLockDurationMs_;
+
+            if (approachOccupied) {
+                // Hazardous cancellation: train is approaching, engage ASR time lock countdown
+                timeLockRunning_ = true;
+                timeLockExpiryMs_ = nowMs + timeLockDurationMs_;
+            } else {
+                // Safe cancellation: approach track is vacant, release plant immediately!
+                timeLockRunning_ = false;
+                timeLockExpiryMs_ = 0;
+            }
             return;
         }
 

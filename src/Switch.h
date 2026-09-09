@@ -29,6 +29,18 @@ public:
         return locks_ == SwitchLock::UNLOCKED;
     }
 
+    bool isDetectorLocked() const {
+        return (locks_ & SwitchLock::DETECTOR_LOCKED) == SwitchLock::DETECTOR_LOCKED;
+    }
+
+    bool isRouteLocked() const {
+        return (locks_ & SwitchLock::ROUTE_LOCKED) == SwitchLock::ROUTE_LOCKED;
+    }
+
+    bool isTimeLocked() const {
+        return (locks_ & SwitchLock::TIME_LOCKED) == SwitchLock::TIME_LOCKED;
+    }
+
     bool inCorrespondence() const {
         return (reported_ == commanded_) && 
                (reported_ == SwitchPosition::NORMAL || reported_ == SwitchPosition::REVERSE);

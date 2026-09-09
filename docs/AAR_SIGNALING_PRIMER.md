@@ -309,3 +309,86 @@ $$\text{ERS}_{\text{hold}} = \text{ERS} \land (\text{TR}_{\text{exit track}} == 
 - Bypasses the 5-minute approach locking timer (`ASR`).
 - Automatically displays a `RESTRICTING` aspect on the return signal.
 - Drops fail-safe to Stop if the cars on the exit track depart.
+
+---
+
+## 8. The 4 Interlocking Locking Regimes
+
+In railroad safety engineering, an interlocking does not use a single generic lock.
+It enforces four distinct, hierarchical **Locking Regimes**.
+Each regime protects against a specific physical hazard:
+
+```
++=============================================================================+
+|                      THE 4 PROTOTYPE LOCKING REGIMES                        |
++----+-------------------+--------------------+-------------------------------+
+| #  | Locking Regime    | AAR Relay Circuit  | What It Protects              |
++----+-------------------+--------------------+-------------------------------+
+| 1  | **Detector Lock** | `TR` (Island / OS) | Prevents throwing points      |
+|    |                   |                    | directly underneath a train.  |
++----+-------------------+--------------------+-------------------------------+
+| 2  | **Route Lock**    | `RSR` / `LR`       | Freezes points along a path   |
+|    |                   | (Sectional Route)  | once a signal displays Clear. |
++----+-------------------+--------------------+-------------------------------+
+| 3  | **Approach Lock** | `ASR`              | Prevents changing points if   |
+|    |                   |                    | a train is approaching Clear. |
++----+-------------------+--------------------+-------------------------------+
+| 4  | **Time Lock**     | `TER` / `TE`       | Enforces a safety countdown   |
+|    |                   |                    | if a Clear signal is revoked. |
++----+-------------------+--------------------+-------------------------------+
+```
+
+### 8.1 Detector Locking (Points Protection)
+- **The Physical Hazard**: Throwing switch points while a locomotive or car sits on top of them splits the train and causes an immediate derailment.
+- **The Vital Circuit**: Power to the switch motor passes through a front contact of the island track relay (`1TR`).
+- **The Rule**: As long as wheels shunt `1TR`, the switch is detector-locked.
+  The switch cannot move under any command.
+  When the last car clears the island block, the detector lock releases immediately.
+
+### 8.2 Route Locking (Path Reservation)
+- **The Physical Hazard**: Moving a trailing-point switch ahead of an oncoming train that has already entered the plant.
+- **The Vital Circuit**: When a signal displays a permissive aspect, every switch along that path asserts `ROUTE_LOCKED`.
+- **The Rule**: Route locking remains active until the train traverses the route.
+  In modern plants, switches release progressively as the train clears each individual fouling section (sectional route release).
+
+### 8.3 Approach Locking (The Hazardous Signal Revocation Hazard)
+- **The Physical Hazard**: The dispatcher clears a high-speed Green signal.
+  A heavy freight train approaches at 50 mph.
+  The dispatcher suddenly cancels the route and throws the switch for an opposing movement.
+  The heavy train cannot stop in time and derails over the moving points!
+
+To prevent this tragedy, the railroad uses **Approach Locking (`ASR`)**:
+
+```
+                              Approach Locking Circuit
+  Signal at STOP
+  ──────[ Signal Back Contact ]─────────────────────────────────────────┐
+        (Closed only when signal displays STOP)                         │
+                                                                        ▼
+                                                                   [ ASR Coil ]
+  Signal Cleared & Approach Track Clear                                 ▲
+  ──────[ Signal Front Contact ]──────[ Approach Track TR Front ]───────┘
+        (If train is approaching, contact opens; ASR drops and locks plant)
+```
+
+#### The Two Scenarios of Approach Locking:
+1. **Safe Cancellation (Immediate Release)**:
+   The dispatcher cancels a Clear signal.
+   The approach track circuit (`1SA`) is **`VACANT`**.
+   There is no train approaching.
+   The plant releases **immediately**!
+   The dispatcher can throw switches right away with zero delay.
+2. **Hazardous Cancellation (Timed Release)**:
+   The dispatcher cancels a Clear signal.
+   The approach track circuit (`1SA`) is **`OCCUPIED`** (a train is bearing down on the signal).
+   The approach contact opens.
+   `ASR` drops immediately!
+   The plant engages **Time Locking (`TER`)**.
+   Switches remain frozen until a safety countdown expires (30–60 seconds on model layouts, 3–5 minutes on prototype railroads).
+   This guarantees the train has either come to a complete stop or passed safely through the plant before any points can move.
+
+### 8.4 Time Locking (`TER` - Time Element Relay)
+Time locking is the vital countdown timer that runs whenever Approach Locking is tripped.
+- While the timer counts down, all switches in the cancelled route remain locked.
+- Opposing signals remain locked at Stop.
+- When the timer reaches zero, `ASR` energizes (picks back up), freeing the switches for new movements.
