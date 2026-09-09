@@ -3,6 +3,22 @@
  * Double-track mainline with high-speed facing-point crossover
  * and industry spur for Christopher Ranch.
  *
+ * Prototype Track Diagram:
+ *
+ * < Railroad West/North               MP 81                    Railroad East/South >
+ *   (Carneros/Luchessa)                                        (Corporal)
+ *
+ *                                                               Signal 2Nab
+ *                                             SW3B               [2Nab |==]
+ *  MT2 <══ 2SA ══════//═════════════════════════\══════════════════//════ 2NA ════< MT2
+ *                    IRJ       [==| 2Sc]        3BT1\             IRJ  (Exit/Appr)
+ *                           Signal 2Sc (Dwarf)       \
+ *                                  1T1                \  3T1       5T1   [2Nc |==]
+ *  MT1 >══ 1SA ══════//═════════════\══════════════════\════════════\════//════ 1NA ════> MT1
+ *          (Approach)IRJ  [==| 2Sab] \ SW1              SW3          SW5  IRJ  (Exit/Appr)
+ *                        Signal 2Sab  \═════════════════════════════/
+ *                        (Two Heads)              IND (Spur)
+ *
  * Wire schema:
  *   Controls (2 bytes):
  *     Byte 0: 1NW(b0), 1RW(b1), 3NW(b2), 3RW(b3), 3BNW(b4), 3BRW(b5), 5NW(b6), 5RW(b7)

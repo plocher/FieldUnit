@@ -85,9 +85,9 @@ public:
 
     const char* name() const { return name_; }
 
-    TrackCircuit* addTrackCircuit(const char* name) {
+    TrackCircuit* addTrackCircuit(const char* name, uint32_t dropoutDelayMs = 0) {
         if (trackCircuitCount_ >= MAX_APPLIANCES) return nullptr;
-        trackCircuits_[trackCircuitCount_] = TrackCircuit(name);
+        trackCircuits_[trackCircuitCount_] = TrackCircuit(name, dropoutDelayMs);
         return &trackCircuits_[trackCircuitCount_++];
     }
 

@@ -7,11 +7,15 @@ namespace FieldUnit {
 
 class TrackCircuit {
 public:
-    TrackCircuit() : TrackCircuit("") {}
+    TrackCircuit() : TrackCircuit("", 0) {}
 
-    TrackCircuit(const char* name)
+    TrackCircuit(const char* name, uint32_t dropoutDelayMs = 0)
         : name_(name),
           state_{Occupancy::OCCUPIED, Quality::GOOD, 0},
+          rawOccupancy_(Occupancy::OCCUPIED),
+          dropoutDelayMs_(dropoutDelayMs),
+          clearanceStartMs_(0),
+          clearingActive_(false),
           stalenessTimeoutMs_(5000),
           lastUpdateMs_(0) {}
 
@@ -41,22 +45,53 @@ public:
     const Qualified<Occupancy>& state() const { return state_; }
 
     // Update from local sensor driver or network packet
+    // Shunting to OCCUPIED happens immediately.
+    // Clearing to VACANT applies dropoutDelayMs to bridge inter-car optical sensor gaps.
     void update(Occupancy occ, Quality quality = Quality::GOOD, uint32_t nowMs = 0) {
-        state_.value = occ;
+        rawOccupancy_ = occ;
         state_.quality = quality;
-        state_.ageMs = 0;
         lastUpdateMs_ = nowMs;
+
+        if (occ == Occupancy::OCCUPIED) {
+            // Immediate vital occupancy: cancel any clearance countdown
+            state_.value = Occupancy::OCCUPIED;
+            clearingActive_ = false;
+            state_.ageMs = 0;
+        } else {
+            // Sensor reports vacant
+            if (dropoutDelayMs_ == 0) {
+                state_.value = Occupancy::VACANT;
+                clearingActive_ = false;
+            } else if (state_.value == Occupancy::OCCUPIED && !clearingActive_) {
+                // Start dropout delay countdown
+                clearingActive_ = true;
+                clearanceStartMs_ = nowMs;
+            }
+        }
     }
 
-    // Advance clock to detect lost communication on remote approach circuits
+    // Advance clock to evaluate dropout delay and remote staleness
     void tick(uint32_t nowMs) {
+        // Evaluate dropout delay (hysteresis) for optical sensors
+        if (clearingActive_) {
+            if (nowMs - clearanceStartMs_ >= dropoutDelayMs_) {
+                state_.value = Occupancy::VACANT;
+                clearingActive_ = false;
+                state_.ageMs = 0;
+            }
+        }
+
+        // Remote approach circuit staleness detection
         if (lastUpdateMs_ > 0 && (nowMs - lastUpdateMs_ > stalenessTimeoutMs_)) {
-            // Remote CP stopped broadcasting heartbeat / indications
             state_.quality = Quality::LOST_COMMS;
         }
         if (lastUpdateMs_ > 0) {
             state_.ageMs = nowMs - lastUpdateMs_;
         }
+    }
+
+    void setDropoutDelay(uint32_t delayMs) {
+        dropoutDelayMs_ = delayMs;
     }
 
     void setStalenessTimeout(uint32_t timeoutMs) {
@@ -66,6 +101,10 @@ public:
 private:
     const char* name_;
     Qualified<Occupancy> state_;
+    Occupancy rawOccupancy_;
+    uint32_t dropoutDelayMs_;
+    uint32_t clearanceStartMs_;
+    bool clearingActive_;
     uint32_t stalenessTimeoutMs_;
     uint32_t lastUpdateMs_;
 };

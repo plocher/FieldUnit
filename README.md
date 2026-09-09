@@ -24,7 +24,10 @@ The controller acts as the local safety guard between the dispatcher and your tr
 4. **Moves the plant**: If the move is safe, the Control Point drives the physical switch motors and displays the signal aspect on the rails.
 5. **Reports reality**: The Control Point continuously sends verified plant status back to the dispatcher.
 
-FieldUnit brings this exact prototype behavior to model railroad microcontrollers (ESP32, RP2040, AVR), connecting directly to onboard GPIO or I2C port expanders (MCP23017, cpNode-IOX).
+FieldUnit brings this exact prototype behavior to model railroad control:
+- **Distributed Microcontrollers**: Run autonomous field units on small microcontrollers (ESP32, RP2040, AVR) directly connected to GPIO or I2C port expanders (MCP23017, cpNode-IOX).
+- **Centralized Hosts**: Run multiple interlocking plants together on a central computer or processor, driving remote I/O nodes through C/MRI input and output byte arrays.
+- **Interlocking Towers**: Model local tower plants where a human leverman operates mechanical or pistol-grip levers under vital safety rules.
 
 ```
 [ Dispatcher (JMRI / CTC Panel / CodeLine) ]
@@ -59,8 +62,8 @@ cp.route("MAIN_TO_SIDING")
   .approaching(tc2NA);
 ```
 
-You do not write nested `if` statements or manage manual timer loops.
-FieldUnit evaluates the route, checks switch correspondence, enforces detector locks, derives aspects, and manages signal knockdown automatically.
+FieldUnit manages the low-level safety details automatically: route evaluation, switch point correspondence, detector locking, multi-head aspect derivation, and signal knockdown.
+This allows you to focus on expressing your railroad's operational routes and rules.
 
 ---
 
@@ -81,8 +84,8 @@ FieldUnit evaluates the route, checks switch correspondence, enforces detector l
 
 ### 1. New to FieldUnit? Start Here
 Learn how to turn a track diagram into working code:
-- **[Tutorial 0: Drawing Your Signaling Track Plan](docs/tutorials/00_drawing_your_signaling_track_plan.md)**: Learn where to place rail gaps (island blocks), how to position and name signals, and how to create a data collection sheet.
-- **[Tutorial 1: Building Your First Control Point](docs/tutorials/01_building_your_first_cp.md)**: A step-by-step walkthrough turning a plan into working C++ code using CP Corporal as an example.
+- **[Tutorial 1: Drawing Your Signaling Track Plan](docs/tutorials/01_drawing_your_signaling_track_plan.md)**: Learn where to place rail gaps (island blocks), how to position and name signals, and how to create a data collection sheet.
+- **[Tutorial 2: Building Your First Control Point](docs/tutorials/02_building_your_first_cp.md)**: A step-by-step walkthrough turning a plan into working C++ code using CP Corporal as an example.
 
 ### 2. Connecting Hardware
 Learn how to map physical hardware to FieldUnit appliances:

@@ -1,40 +1,37 @@
-# Tutorial 1: Building Your First Control Point
+# Tutorial 2: Building Your First Control Point
 
-This tutorial teaches you how to construct a complete, working railroad Control Point.
+In **[Tutorial 1: Drawing Your Signaling Track Plan](01_drawing_your_signaling_track_plan.md)**, you learned how to place rail gaps, position signals, and extract data collection tables.
+In this tutorial, you will turn that physical data into a complete, working railroad Control Point.
+
 We will use **CP Corporal** (Southern Pacific Coast Line MP 83) as our working example.
-By the end of this tutorial, you will have a plant that evaluates routes and enforces prototype safety rules.
+By the end of this tutorial, you will have an autonomous field unit that evaluates routes, enforces detector locks, and reports verified indications.
 
 The code in this tutorial matches the verified example in `examples/CP_Corporal/CP_Corporal.ino`.
 
 ---
 
-## Step 1: Draw the Track Diagram
+## Step 1: Review the Track Diagram and Data Tables
 
-Every Control Point starts with a track plan.
-Identify every track, switch, signal, and detector boundary.
-
-Here is the track diagram for CP Corporal:
+Here is the signaling diagram for CP Corporal using the standard symbols from Tutorial 1:
 
 ```
-< Railroad West/North               MP 83                    Railroad East/South >
+< Railroad West/North                    MP 83               Railroad East/South >
 
                          DERAIL                     /---IND3---DARK Beet Loader 1
-                                \ 5T1 O-| 4na   M  /
-                      /----------+-------IND1---+---IND2-------DARK Beet Loader 2
-                  1T1/                O-| 2nab   [MC]
-  MT2 <== 2SAT ======+===============+=== == 1NAT ============= == 2NAT == (<->)
-              |-O 4sa            3T1/
-  MT1 >== 1SAT ====================/
-              |-O 2sa
+                                \ 5T1   [==| 4na]  /
+                      /----------\\-------IND1----+---IND2-------DARK Beet Loader 2
+                  1T1/                [4sa |==]   [MC]
+  MT2 <== 2SAT ══════\\═══════════════\\══════════//════ 1NAT ═══════════ 2NAT ==> (<->)
+             [==| 2sa]           3T1/            IRJ                    (Approach)
+  MT1 >== 1SAT ════════════════════/  [2nab |==]
+          (Approach)                  (Two Heads)
 ```
 
-### What This Plant Does
-- Double track from the north (`MT1` and `MT2`) converges into single track via **Switch 3**.
-- **Switch 1** provides access to the Beet Loader industry spur.
-- **Switch 5** is an automatic safety derail on the industry lead.
-  It prevents runaway cars from rolling onto Main Track 2.
-- **Signal 2** governs mainline movements.
-- **Signal 4** governs movements into and out of the industry track.
+### Review Your Data Collection Tables
+From this plan, you have:
+1. **Three Switches**: Switch 1 (Industry), Switch 3 (Double-track merge), Switch 5 (Derail).
+2. **Seven Track Circuits**: Island blocks `1T1`, `3T1`, `5T1`; approach blocks `1SAT`, `2SAT`, `1NAT`, `2NAT`.
+3. **Four Signal Masts**: Mainline 2-head mast `S2NAB`, dwarf `S2SA`, industry signals `S4NA` and `S4SA`.
 
 ---
 
