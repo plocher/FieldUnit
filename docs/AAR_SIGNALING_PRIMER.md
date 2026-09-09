@@ -532,3 +532,63 @@ $$\text{Commanded Intent} \stackrel{?}{=} \text{Observed Ground Truth}$$
 
 This separation guarantees that the dispatcher's panel can never hallucinate a safe plant state.
 The field reports truth; the office observes agreement.
+
+---
+
+## 10. The Complete Command and Indication Taxonomy (Vital vs. Non-Vital)
+
+In railroad safety engineering, every command sent across the CodeLine and every indication reported back falls into one of two safety classifications:
+- **Vital (Safety-Critical)**:
+  Commands and indications that affect train separation, switch points, and movement authority.
+  If a vital circuit fails, it could cause a collision or derailment.
+  Vital commands require strict validation, correspondence checking, and fail-safe defaults.
+- **Non-Vital (Operational / Supervisory / Environmental)**:
+  Auxiliary commands and indications that provide convenience or maintenance alerts.
+  If a non-vital circuit fails, it causes operational delays, but **cannot cause a collision or derailment**.
+  Non-vital commands bypass interlocking locks and do not require safety redundancy.
+
+---
+
+### 10.1 Ingress Command Taxonomy (Dispatcher / Office to Field)
+
+| Domain | Command Mnemonic | Prototype Function | Safety Class | Precondition / Safety Checks |
+|---|---|---|---|---|
+| **Switch** | `1NWS` | Command Switch 1 Normal | **VITAL** | Must satisfy `WLR` (detector lock `1TR` vacant, route free, no active approach time-lock). |
+| **Switch** | `1RWS` | Command Switch 1 Reverse | **VITAL** | Must satisfy `WLR` (detector lock `1TR` vacant, route free, no active approach time-lock). |
+| **Signal** | `2NGS` / `2L` | Clear Signal 2 North/Left | **VITAL** | Must satisfy `HR` (switches in `KR`, blocks `TR` clear, opposing held in `ASR`). |
+| **Signal** | `2SGS` / `2R` | Clear Signal 2 South/Right | **VITAL** | Must satisfy `HR` (switches in `KR`, blocks `TR` clear, opposing held in `ASR`). |
+| **Signal** | `2HS` | Force Signal 2 Stop / Cancel | **VITAL** | Always accepted; trips `ASR` approach locking if train is approaching. |
+| **Electric Lock**| `7WLS` | Release Electric Switch Lock 7 | **VITAL** | Mainline signals over switch 7 must be at Stop and approach timer expired. |
+| **Fleeting** | `2FS` | Toggle Fleeting on Signal 2 | **NON-VITAL** | Informational; conditions `FSR` stick bypass. |
+| **Call-On** | `2COS` | Authorize Low-Speed Call-On | **VITAL** | Requires explicit dispatcher button; allows `RESTRICTING` into occupied block. |
+| **Maintainer** | `MC1S` | Maintainer Call Lamp ON/OFF | **NON-VITAL** | Always accepted immediately; zero safety interlocks. |
+| **Auxiliary** | `SNOWS` | Switch Heater / Snow Melter | **NON-VITAL** | Always accepted; environmental auxiliary. |
+| **Auxiliary** | `GENS` | Backup Generator Start/Stop | **NON-VITAL** | Always accepted; environmental auxiliary. |
+
+---
+
+### 10.2 Egress Indication Taxonomy (Field to Dispatcher / Office)
+
+| Domain | Indication Mnemonic | Prototype Meaning | Safety Class | Source of Truth |
+|---|---|---|---|---|
+| **Switch** | `1NWK` | Switch 1 Locked in Normal | **VITAL** | `1NWCR` circuit controller contact closed. |
+| **Switch** | `1RWK` | Switch 1 Locked in Reverse | **VITAL** | `1RWCR` circuit controller contact closed. |
+| **Switch** | `1OOK` / Transit | Switch 1 Out of Correspondence | **NON-VITAL** | Derived: both `NWK` and `RWK` are 0 (in motion or failed). |
+| **Track** | `1T1K` | Track Circuit 1T1 Occupied | **VITAL** | `1TR` track relay dropped (wheels shunting rails). |
+| **Track** | `1SAK` | Approach Block 1SA Occupied | **VITAL** | `1SATR` track relay dropped. |
+| **Signal** | `2NGK` | Signal 2 Northward Permissive | **VITAL** | Signal lamp current sensor verifies green/yellow lit. |
+| **Signal** | `2SGK` | Signal 2 Southward Permissive | **VITAL** | Signal lamp current sensor verifies green/yellow lit. |
+| **Signal** | `2TEK` | Signal 2 Time Lock Running | **NON-VITAL** | `2TER` timer relay picked up (drives panel blinking light). |
+| **Electric Lock**| `7WLK` | Electric Lock 7 Unlocked | **VITAL** | Proves lock solenoid is energized and points can move. |
+| **Maintainer** | `MC1K` | Maintainer Call Lamp Lit | **NON-VITAL** | Current sensor on maintainer call lamp fixture. |
+| **Power** | `PORK` | Power Off (Commercial AC Loss) | **NON-VITAL** | Commercial AC power loss relay (`POR` dropped, running on battery). |
+| **Security** | `DOORK` | Bungalow Door Opened | **NON-VITAL** | Door intrusion contact switch. |
+
+---
+
+### 10.3 The Execution Boundary Rule
+When a `ControlTransaction` arrives at a FieldUnit:
+1. **Vital Switch and Signal commands** pass through the interlocking safety checks.
+   If a switch is locked, its movement command is rejected.
+2. **Non-Vital commands** (such as Maintainer Call `MC1S`) execute immediately regardless of interlocking lock state.
+   This guarantees that a dispatcher can always summon a maintainer even if a derailment or broken rail has locked down the vital interlocking logic.

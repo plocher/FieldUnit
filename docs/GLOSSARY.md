@@ -28,6 +28,13 @@ FieldUnit uses each term with one precise meaning:
   The electronic controller inside the bungalow that executes vital safety logic and connects the plant to the CodeLine. (This library!)
 - **The Field**:
   Generic term for **everything trackside** outside the central dispatcher's office.
+- **Vital Circuit / Command**:
+  Safety-critical circuits, commands, and indications that affect train separation, switch points, and movement authority.
+  Failures must result in a fail-safe restrictive condition.
+- **Non-Vital Circuit / Command**:
+  Auxiliary supervisory circuits and commands (such as Maintainer Call `MC`, snow melters, and power alarms).
+  Failures cannot cause a collision or derailment.
+  Non-vital commands bypass interlocking locks.
 
 ---
 
