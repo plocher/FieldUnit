@@ -262,6 +262,82 @@ void runCPChristopherTests() {
     assert((ind5.switches[1].locks & SwitchLock::DETECTOR_LOCKED) == SwitchLock::DETECTOR_LOCKED);
     printf("  -> PASS: Indication confirms crossover did not move; points remain locked in Reverse\n\n");
 
+    // -------------------------------------------------------------
+    // TEST 6: CodeLine Wire Codec Bit-Level Pack/Unpack (AAR Wire Mapping)
+    // -------------------------------------------------------------
+    printf("[TEST 6] CodeLine Wire Codec: Unpack raw bytes and pack indications\n");
+    // Christopher wire layout from CP_Christopher.xml:
+    // Controls: 2 bytes
+    // Byte 0: 1NW(b0), 1RW(b1), 3NW(b2), 3RW(b3), 3BNW(b4), 3BRW(b5), 5NW(b6), 5RW(b7)
+    // Byte 1: 2SG(b0), 2NG(b1), 2H(b2), MC1(b5), MC2(b6)
+    // Indications: 4 bytes
+    // Byte 0: 1NWK(b0), 1RWK(b1), 3NWK(b2), 3RWK(b3), 3BNWK(b4), 3BRWK(b5), 5NWK(b6), 5RWK(b7)
+    // Byte 1: 1T1(b0), 3T1(b1), 3BT1(b2), 5T1(b3), 1SA(b4), 2SA(b5), 1NA(b6), 2NA(b7)
+    // Byte 2: 2SGK(b0), 2NGK(b1), 2TEK(b2), MC1(b4), MC2(b5)
+    // Byte 3: IND(b0)
+    CodeLineCodec codec(2, 4);
+    codec.mapSwitchControl(0, 0, 0, 0, 1); // SW1: b0=1NW, b1=1RW
+    codec.mapSwitchControl(1, 0, 2, 0, 3); // SW3: b2=3NW, b3=3RW
+    codec.mapSwitchControl(2, 0, 4, 0, 5); // SW3B: b4=3BNW, b5=3BRW
+    codec.mapSwitchControl(3, 0, 6, 0, 7); // SW5: b6=5NW, b7=5RW
+    codec.mapSignalControl(0, 1, 0, 1, 2); // SIG2: b0=2SG, b1=2NG, b2=2H
+    codec.mapMaintainerControl(0, 1, 5);   // MC1: b5
+
+    codec.mapSwitchIndication(0, 0, 0, 0, 1); // 1NWK, 1RWK
+    codec.mapSwitchIndication(1, 0, 2, 0, 3); // 3NWK, 3RWK
+    codec.mapSwitchIndication(2, 0, 4, 0, 5); // 3BNWK, 3BRWK
+    codec.mapSwitchIndication(3, 0, 6, 0, 7); // 5NWK, 5RWK
+    codec.mapTrackIndication(0, 1, 0);        // 1T1
+    codec.mapTrackIndication(2, 1, 2);        // 3BT1
+    codec.mapSignalIndication(0, 2, 0, 1, 2); // 2SGK, 2NGK, 2TEK
+
+    // Unpack raw wire packet:
+    // Byte 0 = 0x55 (01010101 binary: 1NW=1, 3NW=1, 3BNW=1, 5NW=1 -> All Normal!)
+    // Byte 1 = 0x02 (00000010 binary: 2NG=1 -> Northbound Left authority)
+    uint8_t rawControlBytes[2] = { 0x55, 0x02 };
+    ControlTransaction wireCtl;
+    bool unpackedOk = codec.unpackControls(rawControlBytes, sizeof(rawControlBytes), wireCtl);
+    assert(unpackedOk);
+    assert(wireCtl.switchDemands[0] == SwitchDemand::NORMAL);
+    assert(wireCtl.switchDemands[1] == SwitchDemand::NORMAL);
+    assert(wireCtl.signalDemands[0] == SignalDemand::LEFT);
+
+    // Clear track occupancy from Test 5 and advance clock past time-lock to clear detector locks
+    tc3BT1->update(Occupancy::VACANT);
+    clockMs += 35000; // Let approach time lock from Test 4 expire
+    cp.tick(clockMs);
+
+    cp.applyControlTransaction(wireCtl, clockMs);
+    cp.tick(clockMs);
+
+    // While switches are in motion, indication bits must be DARK (0)
+    IndicationVector movingInd;
+    cp.exportIndicationVector(movingInd);
+    uint8_t movingIndBytes[4] = {0};
+    codec.packIndications(movingInd, movingIndBytes, sizeof(movingIndBytes));
+    assert((movingIndBytes[0] & 0x0C) == 0 && "Crossover NWK bits must be dark while moving");
+    printf("  -> Switch points moving: indication bits are dark (out of correspondence)\n");
+
+    // Points complete travel and lock in Normal position
+    sw3->updateFeedback(SwitchPosition::NORMAL);
+    sw3B->updateFeedback(SwitchPosition::NORMAL);
+    sw1->updateFeedback(SwitchPosition::NORMAL);
+    sw5->updateFeedback(SwitchPosition::NORMAL);
+    cp.tick(clockMs);
+
+    // Export settled indications and pack into raw bytes
+    IndicationVector settledInd;
+    cp.exportIndicationVector(settledInd);
+    uint8_t rawIndicationBytes[4] = {0};
+    bool packedOk = codec.packIndications(settledInd, rawIndicationBytes, sizeof(rawIndicationBytes));
+    assert(packedOk);
+
+    // Byte 0 must have all Normal correspondence bits set (0x55)
+    assert(rawIndicationBytes[0] == 0x55);
+    // Byte 2 must have 2NGK bit set (bit 1 = 0x02)
+    assert((rawIndicationBytes[2] & 0x02) != 0);
+    printf("  -> PASS: Raw wire byte decoding matches XML schema; Indication packet correctly formatted\n\n");
+
     printf("====================================================\n");
     printf("   CP CHRISTOPHER ALL PROTO TESTS PASSED!           \n");
     printf("====================================================\n");

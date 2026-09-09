@@ -60,16 +60,17 @@ The architecture divides the Control Point into four decoupled tiers.
 #### Snapshot Execution Model
 All processing operates on synchronized snapshots.
 The engine reads all field inputs at the start of each cycle to create a stable input snapshot.
-A Control packet arrives as an atomic snapshot of requested plant changes.
-The engine evaluates the request against active locks and current occupancy.
-The engine immediately evaluates all switch motion commands.
-If a switch command violates locks or occupancy, the engine rejects it immediately.
-The engine does not queue switch movement requests.
+A Control packet arrives as a complete, plant-wide transaction vector specifying desired state for all appliances.
+The engine evaluates the entire transaction against active locks and current occupancy:
+- If a switch movement violates locks or occupancy, the engine does not move that switch.
+- The engine does not send error packets, NACKs, or conversational text.
+- The engine does not queue switch movement requests.
+The engine continually emits an Indication vector reporting verified plant reality.
+The controlling client detects non-execution by comparing its commanded intent against the reported indications.
 Certain signal authorities latch vital memory across cycles:
 - **Fleeting**: The signal re-clears automatically after a train clears the route.
 - **Call-On**: The engine permits a low-speed move into an occupied block under rulebook authority.
 - **Engine Return (Stick Relay Conditioning)**: The engine remembers authority to let an engine return to its train after switching moves.
-The engine emits an Indication snapshot when plant state changes or when a heartbeat timer expires.
 
 #### Appliance Contracts and Functional Interfaces
 

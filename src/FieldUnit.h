@@ -8,5 +8,6 @@
 #include "SignalMast.h"
 #include "ControlTable.h"
 #include "ControlPoint.h"
+#include "WireCodec.h"
 
 #endif // FIELDUNIT_H
