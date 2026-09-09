@@ -97,3 +97,10 @@ AAR relay names use a structured combination of functional letters:
   Electrical locking preventing route changes after a train passes the approach signal.
 - **Time Locking**:
   A safety timer running down after an operator cancels a permissive signal.
+- **Slotting (The Slot)**:
+  A cooperative electrical circuit between a dispatcher and a tower operator.
+  Signals connecting tower territory to CTC territory require both entities to grant authority.
+  The signal clears only when both contacts close in series.
+- **Interlocking Tower**:
+  A local control facility where a leverman lines switches and clears signals manually.
+  Operates as an autonomous plant using the same vital safety rules as remote CTC.

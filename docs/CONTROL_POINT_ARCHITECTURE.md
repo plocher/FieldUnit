@@ -207,7 +207,7 @@ The CodeLine forms the single universal seam between the Control Plane and the F
 - Control Points do not share pointers or private memory with other Control Points.
 - Boundary interaction between adjacent plants occurs only by observing published Indication snapshots.
 
-This strict boundary guarantees deployment equivalence across two distinct physical topologies:
+This strict boundary guarantees deployment equivalence across three physical topologies:
 1. **Centralized Compute Topology (Classic Bruce Chubb Model)**:
    All Control Points run on a single central host computer.
    The CodeLine exists as an in-memory function call.
@@ -218,8 +218,28 @@ This strict boundary guarantees deployment equivalence across two distinct physi
    The CodeLine crosses the physical network through MQTT or serial packets.
    Hardware drivers bind locally to onboard I2C expanders (`I2Cexpander`).
    The Control Point logic code remains completely identical in both topologies.
+3. **Hybrid Topology (Mixed Regional Centralization)**:
+   Dense terminal yards run centralized compute over C/MRI racks.
+   Remote passing sidings run distributed compute on local micro-controllers.
+   All units exchange status through the CodeLine seam without private backchannels.
 
-### 3.4 AAR Relay Contact Logic Equivalence
+### 3.4 Interlocking Tower Control as a Hybrid Model
+An Interlocking Tower combines elements of both a Control Plane and a Control Point:
+- **External View (To Dispatcher)**:
+  The Tower is a field plant.
+  The dispatcher does not directly throw tower switches.
+  The dispatcher sends movement requests to the tower.
+- **Internal View (To Leverman)**:
+  The Tower acts as a local human Control Plane.
+  The leverman pulls local mechanical or electric levers.
+  The levers feed directly into the Control Point engine.
+- **Cooperative Locking (The Slot)**:
+  Signals connecting tower territory to dispatcher territory require a cooperative handshake.
+  The dispatcher grants authority.
+  The leverman lines the local route.
+  The signal clears only when both the dispatcher and the leverman agree.
+
+### 3.5 AAR Relay Contact Logic Equivalence
 FieldUnit maps Association of American Railroads (AAR) relay circuits directly to C++ code:
 - Series contacts map to logical AND (`&&`).
 - Parallel contacts map to logical OR (`||`).
@@ -235,7 +255,7 @@ bool HR = tr1.TR() && tr2.TR() && sw1.NWCR() && sig2.ASR();
 
 ---
 
-### 3.4 Interfaces
+### 3.6 Interfaces
 
 #### Ingress Interface (Control Message)
 The Control Point ingests a structured snapshot from the network codec:
