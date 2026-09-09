@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "../src/FieldUnit.h"
+#include "../src/drivers/CmriIOBus.h"
 
 using namespace FieldUnit;
 
@@ -42,8 +43,8 @@ void runCentralizedChubbPatternTest() {
     uint8_t CMRI_IB[4] = {0};
     uint8_t CMRI_OB[4] = {0};
 
-    // Bind ImageIOBus directly to C/MRI byte arrays
-    ImageIOBus cmriBus(CMRI_IB, sizeof(CMRI_IB), CMRI_OB, sizeof(CMRI_OB));
+    // Bind CmriIOBus directly to C/MRI byte arrays
+    CmriIOBus cmriBus(CMRI_IB, sizeof(CMRI_IB), CMRI_OB, sizeof(CMRI_OB));
 
     // 3. Hardware Drivers mapped to C/MRI Image bytes and bits
     // Input mapping:

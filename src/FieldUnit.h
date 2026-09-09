@@ -10,12 +10,15 @@
 #include "ControlPoint.h"
 #include "WireCodec.h"
 #include "CodeLine.h"
+
+// Core hardware driver interfaces
 #include "drivers/IOPin.h"
 #include "drivers/IOBus.h"
-#include "drivers/ImageIOBus.h"
-#include "drivers/I2CexpanderIOBus.h"
 #include "drivers/TrackCircuitDriver.h"
 #include "drivers/SwitchDriver.h"
 #include "drivers/SignalMastDriver.h"
+
+// Specific physical IOBus implementations (CmriIOBus, I2CexpanderIOBus, etc.)
+// are leaf headers included individually by the sketches that choose them.
 
 #endif // FIELDUNIT_H

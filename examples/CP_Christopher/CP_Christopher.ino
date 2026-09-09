@@ -179,6 +179,7 @@ void executeCycle(CodeLine& line, uint32_t nowMs) {
 #ifdef ARDUINO
 #include <Wire.h>
 #include <I2Cexpander.h>
+#include <drivers/I2CexpanderIOBus.h>
 
 // Physical I2C Expanders (MCP23017 on cpNode-IOX)
 // Dev 0: 0x20 (Switches 1 & 5)
