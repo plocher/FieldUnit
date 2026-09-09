@@ -538,22 +538,29 @@ Let us examine how all these concepts unite in a real, compilable sketch: **CP C
 
 ### 11.1 The Track Diagram
 Double track from the north (`MT1` and `MT2`) converges into single track through Switch 3.
-Switch 3 is operated as a **Spring Switch (`[SS]`)**: Southbound trains on `MT1` trail through the spring points onto single track without needing motor alignment.
-Switch 1 provides access to the Beet Loader spur, protected by an automatic safety derail (`SW5`):
+Switch 3 is operated as a **Spring Switch (`[SS]`)**: Southbound trains on `MT1` make a trailing-point move through the spring points onto single track without needing motor alignment.
+Northbound trains on single track `1NAT` face signal `2nab` at Switch 3:
+- Moving straight onto `MT2` follows the current of traffic (right-hand running).
+- Diverging onto `MT1` enters the track **against the current of traffic (Rule 251 reverse running)**, restricting the aspect to `DIVERGING_RESTRICTING`.
+Switch 1 provides access to the Beet Loader spur, protected by an automatic safety derail (`SW5`).
+
+Every block boundary is separated by an **Insulated Rail Joint (IRJ)** (`||`), and signals face the approaching train using standard schematic symbols:
+- **`|-O`** (or **`|-OO`**): Lamps point to the left (governs Eastward / Southbound moves).
+- **`O-|`** (or **`OO-|`**): Lamps point to the right (governs Westward / Northbound moves).
 
 ```
 < Railroad West / North                  MP 83                  Railroad East / South >
   (Toward Gilroy)                                               (Toward Sargent)
 
                                DERAIL 5                  /─── IND3 ─── (Beet Loader 1)
-                                   \ 5T1   [==| 4na]    /
+                                   \ 5T1      O-| 4na   /
                         /───────────\─────── IND1 ─────+───── IND2 ─── (Beet Loader 2)
-                    1T1/                 [4sa |==]   SW7 (Hand-throw with 7WLS Lock)
+                    1T1/                 |-O 4sa     SW7 (Hand-throw with 7WLS Lock)
   MT2 <══ 2SAT ═══════||═══════════════+═════════════════+════════||════ 1NAT ══════ 2NAT ══> (<->)
        (Northbound)  IRJ               │                 │ 3T1    IRJ    (Single Track)
                                        │                / [SS]
-  MT1 >══ 1SAT ════════════════════════════════════════/ [2nab |==]
-       (Southbound)    [==| 2sa]       │                 (Two Heads)
+  MT1 >══ 1SAT ════════════════════════════════════════/ OO-| 2nab
+       (Southbound)    |-O 2sa         │                 (Two Heads)
                         (Dwarf)
 ```
 

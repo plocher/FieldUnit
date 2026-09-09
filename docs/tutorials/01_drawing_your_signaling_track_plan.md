@@ -17,8 +17,9 @@ Every railroad signaling diagram uses four standard symbols:
 2. Insulated Rail Joint (IRJ):     //   (Electrical boundary between blocks)
 3. Track Switch Points:            ═══════\═════════  (Normal straight,
                                            \          Reverse diverging)
-4. Wayside Signals:                [==| 2L]   (Governs Westward / Left)
-                                   [2R |==]   (Governs Eastward / Right)
+4. Wayside Signals:                |-O     (Facing Right / Eastward)
+                                   O-|     (Facing Left / Westward)
+                                   |-OO    (Facing Right, Two Heads)
 ```
 
 ---
@@ -90,11 +91,11 @@ Place a signal at every entrance to the island block, outside the insulated rail
 
 ```
                Signal 2R                               Signal 2LA
-                [2R |==]                                [==| 2LA]
+                 |-OO                                     O-|
   <== West ════════//═══════════════════════\══════════════//════════ East ==>
                   IRJ     1T1 Island        \             IRJ
                                              \═════════════//════════ Siding
-                                                          IRJ   [==| 2LB]
+                                                          IRJ    O-|
                                                                Signal 2LB
 ```
 
@@ -122,9 +123,9 @@ When a signal governs a facing-point switch, a train can proceed along two diffe
 The mast requires multiple heads:
 
 ```
-  [2R |==]  Signal 2R (Two-Head Mast):
-     (O)    Top Head (A): Governs the straight mainline path.
-     (O)    Lower Head (B): Governs the diverging siding path.
+  |-OO  Signal 2R (Two-Head Mast):
+    O   Top Head (A): Governs the straight mainline path.
+    O   Lower Head (B): Governs the diverging siding path.
 ```
 
 The meaning of multiple heads depends on your railroad's signaling regime:
@@ -146,15 +147,15 @@ Combining these rules gives the complete signaling diagram for a single-track pa
 < Railroad West (North)                              Railroad East (South) >
 
                              Signal 2R
-                              [2R |==] (Two Heads)
+                               |-OO (Two Heads)
   Main Track <==== 1SA ══════════//═════════════════\══════════════//════ 1NA ====>
                   (Approach)    IRJ   1T1 Island     \            IRJ   (Exit Block)
                                                       \
                                                        \   Signal 2LA
-                                                        \   [==| 2LA] (Dwarf)
+                                                        \     O-| (Dwarf)
                                                          \
   Siding Track <══════════════════════════════════════════\════════//════ 2NA ====>
-                                                          (d)     IRJ   [==| 2LB]
+                                                          (d)     IRJ     O-|
                                                         Optical        Signal 2LB
                                                         Sensor          (Dwarf)
 ```

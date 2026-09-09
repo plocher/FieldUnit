@@ -19,14 +19,14 @@ Here is the signaling diagram for CP Corporal using the standard symbols from Tu
   (Toward Gilroy)                                               (Toward Sargent)
 
                                DERAIL 5                  /─── IND3 ─── (Beet Loader 1)
-                                   \ 5T1   [==| 4na]    /
+                                   \ 5T1      O-| 4na   /
                         /───────────\─────── IND1 ─────+───── IND2 ─── (Beet Loader 2)
-                    1T1/                 [4sa |==]   SW7 (Hand-throw with 7WLS Lock)
+                    1T1/                 |-O 4sa     SW7 (Hand-throw with 7WLS Lock)
   MT2 <══ 2SAT ═══════||═══════════════+═════════════════+════════||════ 1NAT ══════ 2NAT ══> (<->)
        (Northbound)  IRJ               │                 │ 3T1    IRJ    (Single Track)
                                        │                / [SS]
-  MT1 >══ 1SAT ════════════════════════════════════════/ [2nab |==]
-       (Southbound)    [==| 2sa]       │                 (Two Heads)
+  MT1 >══ 1SAT ════════════════════════════════════════/ OO-| 2nab
+       (Southbound)    |-O 2sa         │                 (Two Heads)
                         (Dwarf)
 ```
 
