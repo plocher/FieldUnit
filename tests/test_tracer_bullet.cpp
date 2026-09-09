@@ -93,14 +93,12 @@ void runTracerBulletTests() {
     // TEST 1: Baseline Check & Route Alignment
     // -------------------------------------------------------------
     printf("[TEST 1] Dispatcher commands SIG2 RIGHT with SW1 NORMAL\n");
-    ControlSnapshot ctl1{};
-    ctl1.switchCommandCount = 1;
-    ctl1.switchCommands[0] = {0, SwitchPosition::NORMAL};
-    ctl1.signalCommandCount = 1;
-    ctl1.signalCommands[0] = {0, DirectionAuthority::RIGHT, false, false}; // No fleet
+    ControlTransaction ctl1;
+    ctl1.switchDemands[0] = SwitchDemand::NORMAL;
+    ctl1.signalDemands[0] = SignalDemand::RIGHT; // No fleet
 
-    bool ok = cp.processControlSnapshot(ctl1, clockMs);
-    assert(ok && "Control snapshot should be accepted");
+    TransactionResult res = cp.processControlTransaction(ctl1, clockMs);
+    assert(res == TransactionResult::EXECUTED && "Control transaction should execute");
 
     cp.tick(clockMs);
     assert(mast2R->currentIndication() == Indication::CLEAR);
@@ -135,15 +133,14 @@ void runTracerBulletTests() {
     printf("  -> PASS: Signal 2R immediately knocks down to STOP\n\n");
 
     // -------------------------------------------------------------
-    // TEST 4: Detector Locking (Rejection of Unsafe Switch Command)
+    // TEST 4: Detector Locking (Rejection of Unsafe Switch Demand)
     // -------------------------------------------------------------
     printf("[TEST 4] Dispatcher attempts to throw SW1 while OS track is occupied\n");
-    ControlSnapshot ctlUnsafe{};
-    ctlUnsafe.switchCommandCount = 1;
-    ctlUnsafe.switchCommands[0] = {0, SwitchPosition::REVERSE};
+    ControlTransaction ctlUnsafe;
+    ctlUnsafe.switchDemands[0] = SwitchDemand::REVERSE;
 
-    ok = cp.processControlSnapshot(ctlUnsafe, clockMs);
-    assert(!ok && "Unsafe command MUST be rejected");
+    res = cp.processControlTransaction(ctlUnsafe, clockMs);
+    assert(res == TransactionResult::REJECTED_UNSAFE && "Unsafe transaction MUST be rejected");
     assert(sw1->reportedPosition() == SwitchPosition::NORMAL && "Switch MUST NOT move under train");
     printf("  -> PASS: Unsafe switch move rejected; points remain locked in Normal\n\n");
 
@@ -163,11 +160,11 @@ void runTracerBulletTests() {
     // TEST 6: Fleeting Mode (Automatic Re-clear)
     // -------------------------------------------------------------
     printf("[TEST 6] Dispatcher commands SIG2 RIGHT with FLEETING enabled\n");
-    ControlSnapshot ctlFleet{};
-    ctlFleet.signalCommandCount = 1;
-    ctlFleet.signalCommands[0] = {0, DirectionAuthority::RIGHT, true, false}; // FLEET = TRUE
+    ControlTransaction ctlFleet;
+    ctlFleet.signalDemands[0] = SignalDemand::RIGHT;
+    ctlFleet.fleetDemands[0] = true; // FLEET = TRUE
 
-    cp.processControlSnapshot(ctlFleet, clockMs);
+    cp.processControlTransaction(ctlFleet, clockMs);
     tcAppr->update(Occupancy::VACANT); // Clear down the line
     cp.tick(clockMs);
 
@@ -193,18 +190,16 @@ void runTracerBulletTests() {
     // -------------------------------------------------------------
     printf("[TEST 7] Engine Return Scenario\n");
     // Cancel route on 2R
-    ControlSnapshot ctlStop{};
-    ctlStop.signalCommandCount = 1;
-    ctlStop.signalCommands[0] = {0, DirectionAuthority::STOP, false, false};
-    cp.processControlSnapshot(ctlStop, clockMs);
+    ControlTransaction ctlStop;
+    ctlStop.signalDemands[0] = SignalDemand::STOP;
+    cp.processControlTransaction(ctlStop, clockMs);
     clockMs += 40000; // Let time lock expire
     cp.tick(clockMs);
 
     // Engine diverges into siding/spur: SW1 thrown REVERSE
-    ControlSnapshot ctlRev{};
-    ctlRev.switchCommandCount = 1;
-    ctlRev.switchCommands[0] = {0, SwitchPosition::REVERSE};
-    cp.processControlSnapshot(ctlRev, clockMs);
+    ControlTransaction ctlRev;
+    ctlRev.switchDemands[0] = SwitchDemand::REVERSE;
+    cp.processControlTransaction(ctlRev, clockMs);
     sw1->updateFeedback(SwitchPosition::REVERSE); // Points complete travel
 
     // Train cars left standing on main/approach block 1A
@@ -232,10 +227,9 @@ void runTracerBulletTests() {
     // -------------------------------------------------------------
     printf("[TEST 8] Injected Time & Non-Blocking Switch Travel Timeout\n");
     // Dispatcher commands SW1 Normal
-    ControlSnapshot ctlNorm{};
-    ctlNorm.switchCommandCount = 1;
-    ctlNorm.switchCommands[0] = {0, SwitchPosition::NORMAL};
-    cp.processControlSnapshot(ctlNorm, clockMs);
+    ControlTransaction ctlNorm;
+    ctlNorm.switchDemands[0] = SwitchDemand::NORMAL;
+    cp.processControlTransaction(ctlNorm, clockMs);
     assert(sw1->reportedPosition() == SwitchPosition::MOVING);
 
     // Advance simulated time by 2000 ms (less than 5000 ms timeout)
@@ -252,10 +246,9 @@ void runTracerBulletTests() {
     printf("  -> At t+6000ms: Switch timed out to OUT_OF_CORRESPONDENCE\n");
 
     // Dispatcher attempts to clear signal over jammed switch
-    ControlSnapshot ctlClear{};
-    ctlClear.signalCommandCount = 1;
-    ctlClear.signalCommands[0] = {0, DirectionAuthority::RIGHT, false, false};
-    cp.processControlSnapshot(ctlClear, clockMs);
+    ControlTransaction ctlClear;
+    ctlClear.signalDemands[0] = SignalDemand::RIGHT;
+    cp.processControlTransaction(ctlClear, clockMs);
     cp.tick(clockMs);
     assert(mast2R->currentIndication() == Indication::STOP);
     printf("  -> PASS: Signal refused to clear over out-of-correspondence switch\n\n");

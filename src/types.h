@@ -57,6 +57,21 @@ inline SwitchLock operator&(SwitchLock a, SwitchLock b) {
     return static_cast<SwitchLock>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
 }
 
+// Dispatcher switch demand in a control transaction
+enum class SwitchDemand : uint8_t {
+    NO_CHANGE = 0, // 00 on wire: leave switch in existing state
+    NORMAL    = 1, // 10 on wire: command switch to Normal
+    REVERSE   = 2  // 01 on wire: command switch to Reverse
+};
+
+// Dispatcher signal demand in a control transaction
+enum class SignalDemand : uint8_t {
+    NO_CHANGE = 0, // 000 on wire: leave signal authority unchanged
+    STOP      = 1, // 001 on wire (H bit): drop signal to STOP
+    LEFT      = 2, // 010 on wire (NG/L bit): grant Leftward/Northward authority
+    RIGHT     = 3  // 100 on wire (SG/R bit): grant Rightward/Southward authority
+};
+
 // Dispatcher traffic authority request
 enum class DirectionAuthority : uint8_t {
     STOP = 0,

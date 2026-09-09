@@ -12,60 +12,71 @@ namespace FieldUnit {
 
 static constexpr uint8_t MAX_APPLIANCES = 16;
 
-// Ingress: Control Snapshot from dispatcher / CodeLine
-struct SwitchCommand {
-    uint8_t switchId;
-    SwitchPosition position;
+// Ingress: Complete Plant-Wide Control Transaction from dispatcher / CodeLine
+// In railroad vital logic, safety cannot be evaluated on isolated commands;
+// the entire desired plant state must be verified together as a single atomic vector.
+struct ControlTransaction {
+    // Desired state for every switch in this Control Point
+    SwitchDemand switchDemands[MAX_APPLIANCES];
+
+    // Desired movement authority for every signal in this Control Point
+    SignalDemand signalDemands[MAX_APPLIANCES];
+
+    // Fleeting mode toggle for each signal
+    bool fleetDemands[MAX_APPLIANCES];
+
+    // Maintainer call lamps
+    bool maintainerCall[MAX_APPLIANCES];
+
+    // Constructor clears all demands to safe NO_CHANGE / neutral defaults
+    ControlTransaction() {
+        for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
+            switchDemands[i] = SwitchDemand::NO_CHANGE;
+            signalDemands[i] = SignalDemand::NO_CHANGE;
+            fleetDemands[i] = false;
+            maintainerCall[i] = false;
+        }
+    }
 };
 
-struct SignalCommand {
-    uint8_t signalId;
-    DirectionAuthority direction;
-    bool fleet;
-    bool callOn;
+// Result of evaluating a ControlTransaction
+enum class TransactionResult : uint8_t {
+    EXECUTED = 0,           // Complete transaction verified and executed
+    REJECTED_UNSAFE = 1,    // Rejected: switch motion requested while locked / occupied
+    REJECTED_INCOMPLETE = 2 // Rejected: message corrupted, truncated, or inconsistent
 };
 
-struct ControlSnapshot {
-    uint8_t switchCommandCount;
-    SwitchCommand switchCommands[MAX_APPLIANCES];
-
-    uint8_t signalCommandCount;
-    SignalCommand signalCommands[MAX_APPLIANCES];
-
-    bool maintainerCall;
+// Egress: Complete Plant-Wide Indication Vector to dispatcher / CodeLine
+struct SwitchIndication {
+    SwitchPosition position; // Reported position
+    bool inCorrespondence;   // AAR KR
+    SwitchLock locks;        // Active locks (AAR WLR dropped if locked)
 };
 
-// Egress: Indication Snapshot to dispatcher / CodeLine
-struct SwitchReport {
-    uint8_t switchId;
-    SwitchPosition position;
-    SwitchLock locks;
+struct TrackCircuitIndication {
+    Occupancy occupancy;     // AAR TR (Vacant vs Occupied)
+    Quality quality;         // GOOD, LOST_COMMS, DEFECT
 };
 
-struct TrackCircuitReport {
-    uint8_t circuitId;
-    Occupancy occupancy;
-    Quality quality;
+struct SignalIndication {
+    DirectionAuthority activeAuthority; // AAR HSR
+    bool fleeting;                      // AAR FSR
+    bool timeLocked;                    // AAR ASR (timer running down)
+    Indication rulebookIndication;      // Operational rule
+    Aspect displayedAspect;             // Physical visual lamps
 };
 
-struct SignalMastReport {
-    uint8_t mastId;
-    Indication indication;
-    Aspect aspect;
-};
-
-struct IndicationSnapshot {
+struct IndicationVector {
     uint8_t switchCount;
-    SwitchReport switches[MAX_APPLIANCES];
+    SwitchIndication switches[MAX_APPLIANCES];
 
     uint8_t trackCircuitCount;
-    TrackCircuitReport trackCircuits[MAX_APPLIANCES];
+    TrackCircuitIndication trackCircuits[MAX_APPLIANCES];
 
-    uint8_t mastCount;
-    SignalMastReport masts[MAX_APPLIANCES];
+    uint8_t signalCount;
+    SignalIndication signals[MAX_APPLIANCES];
 
-    bool maintainerCall;
-    bool timeLockActive;
+    bool maintainerCall[MAX_APPLIANCES];
 };
 
 class ControlPoint {
@@ -116,32 +127,49 @@ public:
         return engine_.addRoute(route);
     }
 
-    // Ingress: Process incoming control snapshot from dispatcher or local tower
-    // Binary rule: execute valid moves immediately, reject invalid moves immediately
-    bool processControlSnapshot(const ControlSnapshot& ctl, uint32_t nowMs) {
-        bool allAccepted = true;
-
-        // 1. Process Switch commands
-        for (uint8_t i = 0; i < ctl.switchCommandCount; ++i) {
-            const SwitchCommand& cmd = ctl.switchCommands[i];
-            if (cmd.switchId < switchCount_) {
-                bool ok = switches_[cmd.switchId].throwSwitch(cmd.position, nowMs);
-                if (!ok) {
-                    allAccepted = false; // Rejected: switch is locked or in use
+    // Ingress: Process incoming plant-wide control transaction
+    // Gate 1: Completeness - Evaluates the entire desired plant state vector together.
+    // Gate 2: Safety - If any switch movement violates locks (WLR dropped), the move is rejected.
+    TransactionResult processControlTransaction(const ControlTransaction& ctl, uint32_t nowMs) {
+        // 1. Verify safety of all requested switch movements
+        for (uint8_t i = 0; i < switchCount_; ++i) {
+            SwitchDemand demand = ctl.switchDemands[i];
+            if (demand == SwitchDemand::NORMAL || demand == SwitchDemand::REVERSE) {
+                // If switch is locked (train on points or active route), cannot throw
+                if (!switches_[i].WLR()) {
+                    return TransactionResult::REJECTED_UNSAFE;
                 }
             }
         }
 
-        // 2. Process Signal authority commands
-        for (uint8_t i = 0; i < ctl.signalCommandCount; ++i) {
-            const SignalCommand& cmd = ctl.signalCommands[i];
-            if (cmd.signalId < authorityCount_) {
-                authorities_[cmd.signalId].updateCommand(cmd.direction, cmd.fleet, nowMs);
+        // 2. All safety gates passed. Execute switch movements in unison
+        for (uint8_t i = 0; i < switchCount_; ++i) {
+            SwitchDemand demand = ctl.switchDemands[i];
+            if (demand == SwitchDemand::NORMAL) {
+                switches_[i].throwSwitch(SwitchPosition::NORMAL, nowMs);
+            } else if (demand == SwitchDemand::REVERSE) {
+                switches_[i].throwSwitch(SwitchPosition::REVERSE, nowMs);
             }
         }
 
-        maintainerCallActive_ = ctl.maintainerCall;
-        return allAccepted;
+        // 3. Actuate Signal Authority demands
+        for (uint8_t i = 0; i < authorityCount_; ++i) {
+            SignalDemand demand = ctl.signalDemands[i];
+            bool fleet = ctl.fleetDemands[i];
+
+            if (demand == SignalDemand::STOP) {
+                authorities_[i].updateCommand(DirectionAuthority::STOP, fleet, nowMs);
+            } else if (demand == SignalDemand::LEFT) {
+                authorities_[i].updateCommand(DirectionAuthority::LEFT, fleet, nowMs);
+            } else if (demand == SignalDemand::RIGHT) {
+                authorities_[i].updateCommand(DirectionAuthority::RIGHT, fleet, nowMs);
+            }
+            // NO_CHANGE leaves existing authority and stick state intact
+        }
+
+        // 4. Update Maintainer Calls
+        maintainerCallActive_ = ctl.maintainerCall[0];
+        return TransactionResult::EXECUTED;
     }
 
     // Vital Cycle: Evaluate plant safety and route logic
@@ -185,13 +213,13 @@ public:
         engine_.evaluate();
     }
 
-    // Egress: Generate self-consistent indication snapshot
-    void exportIndicationSnapshot(IndicationSnapshot& ind) const {
+    // Egress: Generate complete, self-consistent plant-wide indication vector
+    void exportIndicationVector(IndicationVector& ind) const {
         ind.switchCount = switchCount_;
         for (uint8_t i = 0; i < switchCount_; ++i) {
             ind.switches[i] = {
-                i,
                 switches_[i].reportedPosition(),
+                switches_[i].KR(),
                 switches_[i].activeLocks()
             };
         }
@@ -199,28 +227,24 @@ public:
         ind.trackCircuitCount = trackCircuitCount_;
         for (uint8_t i = 0; i < trackCircuitCount_; ++i) {
             ind.trackCircuits[i] = {
-                i,
                 trackCircuits_[i].state().value,
                 trackCircuits_[i].state().quality
             };
         }
 
-        ind.mastCount = mastCount_;
-        for (uint8_t i = 0; i < mastCount_; ++i) {
-            ind.masts[i] = {
-                i,
-                masts_[i].currentIndication(),
-                masts_[i].head1()
+        ind.signalCount = authorityCount_;
+        for (uint8_t i = 0; i < authorityCount_; ++i) {
+            ind.signals[i] = {
+                authorities_[i].activeDirection(),
+                authorities_[i].isFleet(),
+                authorities_[i].isTimeLocked(),
+                (i < mastCount_) ? masts_[i].currentIndication() : Indication::STOP,
+                (i < mastCount_) ? masts_[i].head1() : Aspect::RED
             };
         }
 
-        ind.maintainerCall = maintainerCallActive_;
-        ind.timeLockActive = false;
-        for (uint8_t i = 0; i < authorityCount_; ++i) {
-            if (authorities_[i].isTimeLocked()) {
-                ind.timeLockActive = true;
-                break;
-            }
+        for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
+            ind.maintainerCall[i] = (i == 0) ? maintainerCallActive_ : false;
         }
     }
 

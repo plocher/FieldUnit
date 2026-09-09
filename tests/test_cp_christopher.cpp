@@ -155,13 +155,16 @@ void runCPChristopherTests() {
     // -------------------------------------------------------------
     // TEST 1: Northbound Mainline Straight Move (MT2-MT2)
     // -------------------------------------------------------------
-    printf("[TEST 1] Dispatcher lines SIG2 LEFT with Crossover Normal\n");
-    ControlSnapshot ctl1{};
-    ctl1.signalCommandCount = 1;
-    ctl1.signalCommands[0] = {0, DirectionAuthority::LEFT, false, false}; // Northbound
+    printf("[TEST 1] Dispatcher sends complete control transaction: SIG2 LEFT with all switches Normal\n");
+    ControlTransaction ctl1;
+    ctl1.switchDemands[0] = SwitchDemand::NORMAL; // 1NW
+    ctl1.switchDemands[1] = SwitchDemand::NORMAL; // 3NW
+    ctl1.switchDemands[2] = SwitchDemand::NORMAL; // 3BNW
+    ctl1.switchDemands[3] = SwitchDemand::NORMAL; // 5NW
+    ctl1.signalDemands[0] = SignalDemand::LEFT;   // 2NG
 
-    bool ok = cp.processControlSnapshot(ctl1, clockMs);
-    assert(ok);
+    TransactionResult res = cp.processControlTransaction(ctl1, clockMs);
+    assert(res == TransactionResult::EXECUTED);
     cp.tick(clockMs);
 
     // Mast 2Nab should show Green over Red (Clear on MT2)
@@ -174,20 +177,20 @@ void runCPChristopherTests() {
     // TEST 2: Crossover Operation (SW3 pairs with SW3B)
     // -------------------------------------------------------------
     printf("[TEST 2] Line crossover: Command SW3 REVERSE -> SW3B must also throw\n");
-    // Drop signal first
-    ControlSnapshot ctlStop{};
-    ctlStop.signalCommandCount = 1;
-    ctlStop.signalCommands[0] = {0, DirectionAuthority::STOP, false, false};
-    cp.processControlSnapshot(ctlStop, clockMs);
+    // Drop signal first via complete transaction
+    ControlTransaction ctlStop;
+    ctlStop.signalDemands[0] = SignalDemand::STOP; // 2H
+    cp.processControlTransaction(ctlStop, clockMs);
     clockMs += 35000; // Let time-lock expire
     cp.tick(clockMs);
 
-    // Command SW3 Reverse
-    ControlSnapshot ctlXover{};
-    ctlXover.switchCommandCount = 1;
-    ctlXover.switchCommands[0] = {1, SwitchPosition::REVERSE}; // Switch ID 1 = SW3
-    ok = cp.processControlSnapshot(ctlXover, clockMs);
-    assert(ok);
+    // Command SW3 Reverse in complete transaction
+    ControlTransaction ctlXover;
+    ctlXover.switchDemands[0] = SwitchDemand::NORMAL;  // SW1 stays Normal
+    ctlXover.switchDemands[1] = SwitchDemand::REVERSE; // SW3 Reverse
+    ctlXover.switchDemands[3] = SwitchDemand::NORMAL;  // SW5 stays Normal
+    res = cp.processControlTransaction(ctlXover, clockMs);
+    assert(res == TransactionResult::EXECUTED);
 
     // Verify SW3 and SW3B both started moving
     assert(sw3->reportedPosition() == SwitchPosition::MOVING);
@@ -205,10 +208,9 @@ void runCPChristopherTests() {
     // TEST 3: Diverging Route across Crossover (MT2 -> MT1)
     // -------------------------------------------------------------
     printf("[TEST 3] Clear SIG2 LEFT across Crossover (MT2 -> MT1)\n");
-    ControlSnapshot ctlCrossoverSig{};
-    ctlCrossoverSig.signalCommandCount = 1;
-    ctlCrossoverSig.signalCommands[0] = {0, DirectionAuthority::LEFT, false, false};
-    cp.processControlSnapshot(ctlCrossoverSig, clockMs);
+    ControlTransaction ctlCrossoverSig;
+    ctlCrossoverSig.signalDemands[0] = SignalDemand::LEFT; // 2NG
+    cp.processControlTransaction(ctlCrossoverSig, clockMs);
     cp.tick(clockMs);
 
     // Diverging route targets LOWER head H2NB -> Red over Green!
@@ -225,14 +227,13 @@ void runCPChristopherTests() {
     // TEST 4: Opposing Move Prevention (Interlocking Mutex)
     // -------------------------------------------------------------
     printf("[TEST 4] Dispatcher attempts to clear opposing Southbound SIG2 RIGHT\n");
-    ControlSnapshot ctlOpposing{};
-    ctlOpposing.signalCommandCount = 1;
-    ctlOpposing.signalCommands[0] = {0, DirectionAuthority::RIGHT, false, false}; // Opposing!
-    cp.processControlSnapshot(ctlOpposing, clockMs);
+    ControlTransaction ctlOpposing;
+    ctlOpposing.signalDemands[0] = SignalDemand::RIGHT; // 2SG (Opposing!)
+    cp.processControlTransaction(ctlOpposing, clockMs);
     cp.tick(clockMs);
 
-    // Since Signal 2 direction flipped, previous Northbound route drops,
-    // and approach locking starts; opposing Southbound signals stay strictly at STOP!
+    // Since Signal 2 direction flipped while cleared, approach locking tripped
+    // and opposing Southbound signals stay strictly at STOP!
     assert(mast2S->currentIndication() == Indication::STOP);
     assert(mast2S->head1() == Aspect::RED);
     assert(mast2S->head2() == Aspect::RED);
@@ -249,7 +250,13 @@ void runCPChristopherTests() {
     assert(sw3B->activeLocks() == SwitchLock::DETECTOR_LOCKED);
     assert(!sw3->isMovable());
     assert(!sw3B->isMovable());
-    printf("  -> PASS: Both crossover switches detector-locked while train occupies points\n\n");
+
+    // Dispatcher attempts to throw crossover while occupied -> REJECTED_UNSAFE!
+    ControlTransaction ctlUnsafeXover;
+    ctlUnsafeXover.switchDemands[1] = SwitchDemand::NORMAL;
+    res = cp.processControlTransaction(ctlUnsafeXover, clockMs);
+    assert(res == TransactionResult::REJECTED_UNSAFE);
+    printf("  -> PASS: Crossover throw rejected with REJECTED_UNSAFE while train occupies points\n\n");
 
     printf("====================================================\n");
     printf("   CP CHRISTOPHER ALL PROTO TESTS PASSED!           \n");
