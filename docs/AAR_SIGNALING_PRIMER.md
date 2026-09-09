@@ -478,17 +478,29 @@ Railroad signaling operates on a completely different, asynchronous foundation.
 ### 9.1 The Control Packet is an Atomic Plant Transaction
 A dispatcher does not send isolated commands to individual devices.
 The dispatcher lines all the levers for a plant on their desk:
-- Switch 1 lever to Reverse.
-- Switch 3 lever to Normal.
-- Signal 2 lever to Right.
+- Switch 1 lever to Normal (unchanged).
+- Switch 3 lever to Reverse (commanded to throw).
+- Switch 5 lever to Normal (unchanged).
+- Signal 2 lever to Right (unchanged / Stop).
 - Maintainer Call toggle to Off.
 
 The dispatcher then presses the **Code Button**.
-The office transmits **one complete, atomic snapshot of desired reality** across the CodeLine:
-`[ 1RWS, 3NWS, 2RGS, MC1S ]`
+The office transmits **one complete, atomic snapshot of desired reality** across the CodeLine.
+In railroad notation:
+- **Unparenthesized token (`3RWS`)**: The function is **asserted** (active command to throw or clear).
+- **Parenthesized token (`(1NWS)`)**: The function is **unasserted** (confirmation that this device should not change).
 
-Safety cannot be evaluated on an isolated command.
-The field unit evaluates the entire desired plant state vector together as a single atomic transaction.
+If the dispatcher wants to throw *only* Switch 3 to Reverse, the office does not send a lone `3RWS` command.
+It transmits the **entire plant vector containing both asserted and unasserted states**:
+
+```
+[ (1NWS), (1RWS), (3NWS), 3RWS, (5NWS), (5RWS), (2SGS), (2NGS), (2HS), (MC1S) ]
+```
+
+Why must the unasserted items be present?
+- `(1NWS)` and `(1RWS)` explicitly confirm: *"Leave Switch 1 alone in its existing position."*
+- If those tokens were missing, the field unit could not tell whether Switch 1 was supposed to be untouched or if the packet was truncated by line noise.
+- Transmitting the whole of everything is what proves the transaction is complete, authentic, and safe to evaluate.
 
 ### 9.2 The Indication Stream Reports Ground Truth
 The Control Point in the field does not send "error packets," "NACKs," or conversational replies.
