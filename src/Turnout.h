@@ -14,7 +14,9 @@ public:
           commanded_(TurnoutPosition::NORMAL),
           reported_(TurnoutPosition::NORMAL),
           locks_(TurnoutLock::UNLOCKED),
-          pairedSwitch_(nullptr) {}
+          pairedSwitch_(nullptr),
+          motionStartMs_(0),
+          travelTimeoutMs_(5000) {}
 
     const char* name() const { return name_; }
 
@@ -75,7 +77,7 @@ public:
     }
 
     // Command execution: Binary rule (execute if unlocked, reject immediately if locked)
-    bool throwSwitch(TurnoutPosition target) {
+    bool throwSwitch(TurnoutPosition target, uint32_t nowMs = 0) {
         if (target != TurnoutPosition::NORMAL && target != TurnoutPosition::REVERSE) {
             return false;
         }
@@ -91,12 +93,27 @@ public:
 
         commanded_ = target;
         reported_ = TurnoutPosition::MOVING;
+        motionStartMs_ = nowMs;
 
         if (pairedSwitch_) {
-            pairedSwitch_->throwSwitch(target);
+            pairedSwitch_->throwSwitch(target, nowMs);
         }
 
         return true;
+    }
+
+    // Advance non-blocking travel timer
+    void tick(uint32_t nowMs) {
+        if (reported_ == TurnoutPosition::MOVING) {
+            if (travelTimeoutMs_ > 0 && (nowMs - motionStartMs_ > travelTimeoutMs_)) {
+                // Points failed to make contact within timeout
+                reported_ = TurnoutPosition::OUT_OF_CORRESPONDENCE;
+            }
+        }
+    }
+
+    void setTravelTimeout(uint32_t timeoutMs) {
+        travelTimeoutMs_ = timeoutMs;
     }
 
     // Called by hardware driver when point detector contacts settle
@@ -110,6 +127,8 @@ private:
     TurnoutPosition reported_;
     TurnoutLock locks_;
     Turnout* pairedSwitch_;
+    uint32_t motionStartMs_;
+    uint32_t travelTimeoutMs_;
 };
 
 } // namespace FieldUnit

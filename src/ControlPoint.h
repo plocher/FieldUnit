@@ -125,7 +125,7 @@ public:
         for (uint8_t i = 0; i < ctl.turnoutCommandCount; ++i) {
             const TurnoutCommand& cmd = ctl.turnoutCommands[i];
             if (cmd.turnoutId < turnoutCount_) {
-                bool ok = turnouts_[cmd.turnoutId].throwSwitch(cmd.position);
+                bool ok = turnouts_[cmd.turnoutId].throwSwitch(cmd.position, nowMs);
                 if (!ok) {
                     allAccepted = false; // Rejected: switch is locked or in use
                 }
@@ -160,7 +160,10 @@ public:
             }
         }
 
-        // B. Advance remote circuit staleness timers
+        // B. Advance turnout travel and remote circuit staleness timers
+        for (uint8_t i = 0; i < turnoutCount_; ++i) {
+            turnouts_[i].tick(nowMs);
+        }
         for (uint8_t i = 0; i < trackCircuitCount_; ++i) {
             trackCircuits_[i].tick(nowMs);
         }

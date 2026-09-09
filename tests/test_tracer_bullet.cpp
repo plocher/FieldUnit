@@ -220,6 +220,39 @@ void runTracerBulletTests() {
     assert(mast2L->head1() == Aspect::RED);
     printf("  -> PASS: Dwarf 2L immediately drops to STOP fail-safe when cars are no longer present\n\n");
 
+    // -------------------------------------------------------------
+    // TEST 8: Injected Time & Non-Blocking Switch Travel Timeout
+    // -------------------------------------------------------------
+    printf("[TEST 8] Injected Time & Non-Blocking Switch Travel Timeout\n");
+    // Dispatcher commands SW1 Normal
+    ControlSnapshot ctlNorm{};
+    ctlNorm.turnoutCommandCount = 1;
+    ctlNorm.turnoutCommands[0] = {0, TurnoutPosition::NORMAL};
+    cp.processControlSnapshot(ctlNorm, clockMs);
+    assert(sw1->reportedPosition() == TurnoutPosition::MOVING);
+
+    // Advance simulated time by 2000 ms (less than 5000 ms timeout)
+    clockMs += 2000;
+    cp.tick(clockMs);
+    assert(sw1->reportedPosition() == TurnoutPosition::MOVING);
+    printf("  -> At t+2000ms: Switch is still MOVING\n");
+
+    // Advance simulated time past 5000 ms timeout without contacts making
+    clockMs += 4000; // total 6000 ms
+    cp.tick(clockMs);
+    assert(sw1->reportedPosition() == TurnoutPosition::OUT_OF_CORRESPONDENCE);
+    assert(!sw1->inCorrespondence());
+    printf("  -> At t+6000ms: Switch timed out to OUT_OF_CORRESPONDENCE\n");
+
+    // Dispatcher attempts to clear signal over jammed switch
+    ControlSnapshot ctlClear{};
+    ctlClear.signalCommandCount = 1;
+    ctlClear.signalCommands[0] = {0, DirectionAuthority::RIGHT, false, false};
+    cp.processControlSnapshot(ctlClear, clockMs);
+    cp.tick(clockMs);
+    assert(mast2R->currentIndication() == Indication::STOP);
+    printf("  -> PASS: Signal refused to clear over out-of-correspondence turnout\n\n");
+
     printf("====================================================\n");
     printf("   ALL TRACER BULLET TESTS PASSED SUCCESSFULLY!    \n");
     printf("====================================================\n");
