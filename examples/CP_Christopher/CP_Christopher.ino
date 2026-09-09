@@ -177,13 +177,107 @@ void executeCycle(CodeLine& line, uint32_t nowMs) {
 }
 
 #ifdef ARDUINO
+#include <Wire.h>
+#include <I2Cexpander.h>
+
+// Physical I2C Expanders (MCP23017 on cpNode-IOX)
+// Dev 0: 0x20 (Switches 1 & 5)
+// Dev 1: 0x21 (Switches 3 & 3B Crossover)
+// Dev 2: 0x22 (Signal Mast 2Nab and 2Sab Heads)
+// Dev 3: 0x23 (Signal Masts 2Nc and 2Sc Dwarfs)
+// Dev 4: 0x24 (Approach & Aux Inputs)
+I2Cexpander expanders[5];
+I2CexpanderIOBus hardwareBus(expanders, 5);
+
+// Physical Hardware Drivers
+TrackCircuitDriver tc1T1_drv;
+TrackCircuitDriver tc3T1_drv;
+TrackCircuitDriver tc3BT1_drv;
+TrackCircuitDriver tc5T1_drv;
+
+SwitchDriver sw1_drv;
+SwitchDriver sw3_drv;
+SwitchDriver sw3B_drv;
+SwitchDriver sw5_drv;
+
+SignalMastDriver mast2N_drv;
+SignalMastDriver mast2S_drv;
+
+void configureHardwareDrivers() {
+    // Track Circuits (DCCOD active-low detectors)
+    tc1T1_drv  = TrackCircuitDriver(tc1T1,  IOPin(0, 2), /*activeLow=*/true);
+    tc3T1_drv  = TrackCircuitDriver(tc3T1,  IOPin(1, 2), /*activeLow=*/true);
+    tc3BT1_drv = TrackCircuitDriver(tc3BT1, IOPin(1, 6), /*activeLow=*/true);
+    tc5T1_drv  = TrackCircuitDriver(tc5T1,  IOPin(0, 6), /*activeLow=*/true);
+
+    // Switches (Tortoise motor + Normal & Reverse feedback microswitches)
+    sw1_drv  = SwitchDriver(sw1,  IOPin(0, 3) /*Motor*/, IOPin(0, 1) /*NW*/, IOPin(0, 0) /*RW*/);
+    sw5_drv  = SwitchDriver(sw5,  IOPin(0, 7) /*Motor*/, IOPin(0, 5) /*NW*/, IOPin(0, 4) /*RW*/);
+    sw3_drv  = SwitchDriver(sw3,  IOPin(1, 3) /*Motor*/, IOPin(1, 1) /*NW*/, IOPin(1, 0) /*RW*/);
+    sw3B_drv = SwitchDriver(sw3B, IOPin(1, 7) /*Motor*/, IOPin(1, 5) /*NW*/, IOPin(1, 4) /*RW*/);
+
+    // Signal Masts (Color-Light 2-Head LED Driving on Expander 2)
+    mast2N_drv = SignalMastDriver(mast2N);
+    mast2N_drv.addHead(IOPin(2, 0) /*H2NA Red*/, IOPin(2, 1) /*Yellow*/, IOPin(2, 2) /*Green*/);
+    mast2N_drv.addHead(IOPin(2, 3) /*H2NB Red*/, IOPin(2, 4) /*Yellow*/, IOPin(2, 5) /*Green*/);
+
+    mast2S_drv = SignalMastDriver(mast2S);
+    mast2S_drv.addHead(IOPin(2, 6) /*H2SA Red*/, IOPin(2, 7) /*Yellow*/, IOPin(2, 8) /*Green*/);
+    mast2S_drv.addHead(IOPin(2, 9) /*H2SB Red*/, IOPin(2, 10) /*Yellow*/, IOPin(2, 11) /*Green*/);
+}
+
+void samplePhysicalInputs(IOBus& bus, uint32_t nowMs) {
+    tc1T1_drv.sample(bus, nowMs);
+    tc3T1_drv.sample(bus, nowMs);
+    tc3BT1_drv.sample(bus, nowMs);
+    tc5T1_drv.sample(bus, nowMs);
+
+    sw1_drv.sample(bus);
+    sw3_drv.sample(bus);
+    sw3B_drv.sample(bus);
+    sw5_drv.sample(bus);
+}
+
+void drivePhysicalOutputs(IOBus& bus, uint32_t nowMs) {
+    sw1_drv.drive(bus);
+    sw3_drv.drive(bus);
+    sw3B_drv.drive(bus);
+    sw5_drv.drive(bus);
+
+    mast2N_drv.drive(bus, nowMs);
+    mast2S_drv.drive(bus, nowMs);
+}
+
+// Stand-in MockCodeLine for Arduino serial debugging until network driver attached
+MockCodeLine localDebugLine;
+
 void setup() {
     Serial.begin(115200);
+    Wire.begin();
+
+    // Initialize MCP23017 expanders (addresses 0x20 .. 0x24)
+    for (uint8_t i = 0; i < 5; ++i) {
+        expanders[i].init(i, I2Cexpander::MCP23017, 0xFFFF /* pull-ups */);
+    }
+
     configurePlant();
+    configureHardwareDrivers();
+
+    Serial.println(F("CP Christopher FieldUnit Initialized and Running"));
 }
 
 void loop() {
-    // In Arduino environment, driven by real CodeLine transport (CMRInet or MQTT)
-    // executeCycle(transport, millis());
+    uint32_t nowMs = millis();
+
+    // 1. Sample physical track detectors and limit switches
+    samplePhysicalInputs(hardwareBus, nowMs);
+
+    // 2. Ingress & Vital Interlocking Cycle
+    executeCycle(localDebugLine, nowMs);
+
+    // 3. Drive physical switch motors and signal LED pins
+    drivePhysicalOutputs(hardwareBus, nowMs);
+
+    delay(20); // 50 Hz non-blocking scan rate
 }
 #endif

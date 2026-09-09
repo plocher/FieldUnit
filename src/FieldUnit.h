@@ -13,6 +13,7 @@
 #include "drivers/IOPin.h"
 #include "drivers/IOBus.h"
 #include "drivers/ImageIOBus.h"
+#include "drivers/I2CexpanderIOBus.h"
 #include "drivers/TrackCircuitDriver.h"
 #include "drivers/SwitchDriver.h"
 #include "drivers/SignalMastDriver.h"
