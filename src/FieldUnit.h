@@ -10,5 +10,10 @@
 #include "ControlPoint.h"
 #include "WireCodec.h"
 #include "CodeLine.h"
+#include "drivers/IOPin.h"
+#include "drivers/IOBus.h"
+#include "drivers/TrackCircuitDriver.h"
+#include "drivers/SwitchDriver.h"
+#include "drivers/SignalMastDriver.h"
 
 #endif // FIELDUNIT_H
