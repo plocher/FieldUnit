@@ -13,14 +13,18 @@ However, the dispatcher cannot throw switches or clear signals directly.
 The dispatcher sends a request to the local Control Point in the field.
 
 FieldUnit lets you build that local field controller.
-It acts as the local safety guard:
+It includes the physical connection to the devices on your layout:
+- **Sensors (Inputs)**: Reads block occupancy detectors (DCCOD, optical sensors) and switch point limit switches.
+- **Actuators (Outputs)**: Drives switch motors (Tortoise, servos) and signal lamps (LEDs, searchlights).
+
+The controller acts as the local safety guard between the dispatcher and your track:
 1. **Checks the switches**: Are the switch points locked in position?
 2. **Checks the tracks**: Is there a train already occupying the points?
 3. **Checks opposing signals**: Are conflicting train routes held at Stop?
-4. **Moves the plant**: If the move is safe, the Control Point throws the switches and displays a green or yellow signal aspect.
+4. **Moves the plant**: If the move is safe, the Control Point drives the physical switch motors and displays the signal aspect on the rails.
 5. **Reports reality**: The Control Point continuously sends verified plant status back to the dispatcher.
 
-FieldUnit brings this exact prototype behavior to model railroad microcontrollers (ESP32, RP2040, AVR).
+FieldUnit brings this exact prototype behavior to model railroad microcontrollers (ESP32, RP2040, AVR), connecting directly to onboard GPIO or I2C port expanders (MCP23017, cpNode-IOX).
 
 ```
 [ Dispatcher (JMRI / CTC Panel / CodeLine) ]
