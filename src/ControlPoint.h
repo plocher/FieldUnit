@@ -116,8 +116,8 @@ public:
         }
     }
 
-    bool addRoute(const RouteDef& route) {
-        return engine_.addRoute(route);
+    Route& route(const char* name) {
+        return engine_.addRoute(name);
     }
 
 // Ingress: Process incoming plant-wide control transaction

@@ -1,6 +1,7 @@
 #ifndef FIELDUNIT_CONTROL_TABLE_H
 #define FIELDUNIT_CONTROL_TABLE_H
 
+#include <initializer_list>
 #include "types.h"
 #include "TrackCircuit.h"
 #include "Switch.h"
@@ -9,7 +10,6 @@
 
 namespace FieldUnit {
 
-// Maximum limits for an individual route (no dynamic allocation)
 static constexpr uint8_t MAX_ROUTE_SWITCHES = 8;
 static constexpr uint8_t MAX_ROUTE_BLOCKS   = 8;
 static constexpr uint8_t MAX_ROUTES         = 32;
@@ -19,72 +19,162 @@ struct SwitchRequirement {
     SwitchPosition requiredPosition;
 };
 
-// Route Definition: One row in the Interlocking Control Table
-struct RouteDef {
-    const char*        name;
-    SignalControl*     authority;
-    DirectionAuthority direction;
-    SignalMast*        mast;
-    uint8_t            targetHeadIndex; // 0 = top head, 1 = middle/lower head, etc.
-    Indication         aspectCeiling;
+// Fluent Route Definition in the Interlocking Control Table
+class Route {
+public:
+    Route()
+        : name_(""),
+          authority_(nullptr),
+          direction_(DirectionAuthority::STOP),
+          mast_(nullptr),
+          targetHeadIndex_(0),
+          aspectCeiling_(Indication::STOP),
+          switchCount_(0),
+          blockCount_(0),
+          approachBlock_(nullptr),
+          isEngineReturn_(false),
+          originBlock_(nullptr),
+          osBlock_(nullptr) {}
 
-    // Physical alignment
-    uint8_t            switchCount;
-    SwitchRequirement  switches[MAX_ROUTE_SWITCHES];
+    Route& name(const char* n) {
+        name_ = n;
+        return *this;
+    }
 
-    // Track circuits on the route path (must be clear for normal moves)
-    uint8_t            blockCount;
-    TrackCircuit*      blocks[MAX_ROUTE_BLOCKS];
+    Route& governedBy(SignalControl* auth, DirectionAuthority dir) {
+        authority_ = auth;
+        direction_ = dir;
+        return *this;
+    }
 
-    // Downstream approach circuit (if occupied, downgrades CLEAR to APPROACH)
-    TrackCircuit*      approachBlock;
+    Route& displays(SignalMast* mast, uint8_t headIndex, Indication maxIndication) {
+        mast_ = mast;
+        targetHeadIndex_ = headIndex;
+        aspectCeiling_ = maxIndication;
+        return *this;
+    }
 
-    // Engine Return: If true, permits Restricting into occupied originBlock
-    bool               isEngineReturn;
-    TrackCircuit*      originBlock;    // Must continue to be occupied
-    TrackCircuit*      osBlock;        // Interlocking points (must be clear)
+    Route& displays(SignalMast* mast, Indication maxIndication) {
+        return displays(mast, 0, maxIndication);
+    }
+
+    Route& aligns(std::initializer_list<SwitchRequirement> swList) {
+        switchCount_ = 0;
+        for (const auto& s : swList) {
+            if (switchCount_ < MAX_ROUTE_SWITCHES) {
+                switches_[switchCount_++] = s;
+            }
+        }
+        return *this;
+    }
+
+    Route& clears(std::initializer_list<TrackCircuit*> tcList) {
+        blockCount_ = 0;
+        for (auto tc : tcList) {
+            if (blockCount_ < MAX_ROUTE_BLOCKS) {
+                blocks_[blockCount_++] = tc;
+            }
+        }
+        return *this;
+    }
+
+    Route& approaching(TrackCircuit* tc) {
+        approachBlock_ = tc;
+        return *this;
+    }
+
+    // Engine Return: Permits Restricting back onto cars standing on originBlock
+    Route& engineReturn(TrackCircuit* standingCarsBlock, TrackCircuit* islandBlock) {
+        isEngineReturn_ = true;
+        originBlock_ = standingCarsBlock;
+        osBlock_ = islandBlock;
+        return *this;
+    }
+
+    // Accessors for vital evaluation
+    const char* name() const { return name_; }
+    SignalControl* authority() const { return authority_; }
+    DirectionAuthority direction() const { return direction_; }
+    SignalMast* mast() const { return mast_; }
+    uint8_t targetHeadIndex() const { return targetHeadIndex_; }
+    Indication aspectCeiling() const { return aspectCeiling_; }
+
+    uint8_t switchCount() const { return switchCount_; }
+    const SwitchRequirement& switchReq(uint8_t idx) const { return switches_[idx]; }
+
+    uint8_t blockCount() const { return blockCount_; }
+    TrackCircuit* block(uint8_t idx) const { return blocks_[idx]; }
+    TrackCircuit* approachBlock() const { return approachBlock_; }
+
+    bool isEngineReturn() const { return isEngineReturn_; }
+    TrackCircuit* originBlock() const { return originBlock_; }
+    TrackCircuit* osBlock() const { return osBlock_; }
+
+private:
+    const char*        name_;
+    SignalControl*     authority_;
+    DirectionAuthority direction_;
+    SignalMast*        mast_;
+    uint8_t            targetHeadIndex_;
+    Indication         aspectCeiling_;
+
+    uint8_t            switchCount_;
+    SwitchRequirement  switches_[MAX_ROUTE_SWITCHES];
+
+    uint8_t            blockCount_;
+    TrackCircuit*      blocks_[MAX_ROUTE_BLOCKS];
+
+    TrackCircuit*      approachBlock_;
+
+    bool               isEngineReturn_;
+    TrackCircuit*      originBlock_;
+    TrackCircuit*      osBlock_;
 };
 
 class InterlockingEngine {
 public:
     InterlockingEngine() : routeCount_(0) {}
 
-    bool addRoute(const RouteDef& route) {
+    Route& addRoute(const char* name) {
         if (routeCount_ >= MAX_ROUTES) {
-            return false;
+            return dummyRoute_;
         }
-        routes_[routeCount_++] = route;
-        return true;
+        Route& r = routes_[routeCount_++];
+        r = Route();
+        r.name(name);
+        return r;
     }
 
-    // Main vital evaluation cycle (called once per control point tick)
+    // Main vital evaluation cycle
     void evaluate() {
         // Reset all signal masts to STOP initially
-        // The active matching route will elevate the governing mast
         for (uint8_t i = 0; i < routeCount_; ++i) {
-            routes_[i].mast->forceStop();
+            if (routes_[i].mast() != nullptr) {
+                routes_[i].mast()->forceStop();
+            }
         }
 
-        // 1. Evaluate each route in priority order
+        // Evaluate each route in priority order
         for (uint8_t i = 0; i < routeCount_; ++i) {
-            const RouteDef& r = routes_[i];
+            Route& r = routes_[i];
+            if (r.mast() == nullptr) continue;
 
             // A. Check if Engine Return applies
-            if (r.isEngineReturn) {
+            if (r.isEngineReturn()) {
                 if (evaluateEngineReturn(r)) {
-                    r.mast->setHeadIndication(r.targetHeadIndex, Indication::RESTRICTING);
+                    r.mast()->setHeadIndication(r.targetHeadIndex(), Indication::RESTRICTING);
                     applyRouteLocks(r);
-                    continue; // Engine return route satisfied
+                    continue;
                 }
             }
 
             // B. Standard Dispatcher-Governed Route
-            if (r.authority == nullptr) {
+            if (r.authority() == nullptr) {
                 continue;
             }
 
             // Check if dispatcher granted authority in this direction
-            if (r.authority->activeDirection() != r.direction) {
+            if (r.authority()->activeDirection() != r.direction()) {
                 continue;
             }
 
@@ -97,8 +187,8 @@ public:
             bool pathClear = checkBlocksClear(r);
 
             // Check if train has entered the plant (knockdown)
-            if (!r.blocks[0]->isClear()) {
-                r.authority->knockdown();
+            if (r.blockCount() > 0 && !r.block(0)->isClear()) {
+                r.authority()->knockdown();
                 continue; // Train entered, signal must stay at STOP
             }
 
@@ -107,11 +197,11 @@ public:
             }
 
             // Route is aligned, locked, and clear. Derive aspect.
-            Indication aspect = r.aspectCeiling;
+            Indication aspect = r.aspectCeiling();
 
             // ABS / Intermediate block check:
             // If approach circuit ahead is occupied, drop Clear to Approach
-            if (r.approachBlock != nullptr && !r.approachBlock->isClear()) {
+            if (r.approachBlock() != nullptr && !r.approachBlock()->isClear()) {
                 if (aspect == Indication::CLEAR) {
                     aspect = Indication::APPROACH;
                 } else if (aspect == Indication::DIVERGING_CLEAR) {
@@ -119,16 +209,16 @@ public:
                 }
             }
 
-            // Display aspect and lock turnouts
-            r.mast->setHeadIndication(r.targetHeadIndex, aspect);
+            // Display aspect and lock switches
+            r.mast()->setHeadIndication(r.targetHeadIndex(), aspect);
             applyRouteLocks(r);
         }
     }
 
 private:
-    bool checkSwitchesAligned(const RouteDef& r) const {
-        for (uint8_t i = 0; i < r.switchCount; ++i) {
-            const SwitchRequirement& req = r.switches[i];
+    bool checkSwitchesAligned(const Route& r) const {
+        for (uint8_t i = 0; i < r.switchCount(); ++i) {
+            const SwitchRequirement& req = r.switchReq(i);
             if (!req.switchRef->inCorrespondence() || 
                 req.switchRef->reportedPosition() != req.requiredPosition) {
                 return false;
@@ -137,48 +227,45 @@ private:
         return true;
     }
 
-    bool checkBlocksClear(const RouteDef& r) const {
-        for (uint8_t i = 0; i < r.blockCount; ++i) {
-            if (!r.blocks[i]->isClear()) {
+    bool checkBlocksClear(const Route& r) const {
+        for (uint8_t i = 0; i < r.blockCount(); ++i) {
+            if (!r.block(i)->isClear()) {
                 return false;
             }
         }
         return true;
     }
 
-    void applyRouteLocks(const RouteDef& r) {
-        for (uint8_t i = 0; i < r.switchCount; ++i) {
-            r.switches[i].switchRef->addLock(SwitchLock::ROUTE_LOCKED);
+    void applyRouteLocks(const Route& r) {
+        for (uint8_t i = 0; i < r.switchCount(); ++i) {
+            r.switchReq(i).switchRef->addLock(SwitchLock::ROUTE_LOCKED);
         }
     }
 
-    // Engine Return: Automatic Restricting back onto left-behind cars
-    bool evaluateEngineReturn(const RouteDef& r) const {
-        if (r.originBlock == nullptr || r.osBlock == nullptr) {
+    bool evaluateEngineReturn(const Route& r) const {
+        if (r.originBlock() == nullptr || r.osBlock() == nullptr) {
             return false;
         }
 
-        // Turnout must be in correspondence
         if (!checkSwitchesAligned(r)) {
             return false;
         }
 
-        // OS circuit over points must be clear
-        if (!r.osBlock->isClear()) {
+        if (!r.osBlock()->isClear()) {
             return false;
         }
 
-        // Cars left behind MUST continue to occupy origin block!
-        // If cars departed, origin is vacant -> ER drops to STOP fail-safe
-        if (r.originBlock->state().value != Occupancy::OCCUPIED) {
+        // Cars left behind MUST continue to occupy origin block
+        if (r.originBlock()->state().value != Occupancy::OCCUPIED) {
             return false;
         }
 
         return true;
     }
 
-    RouteDef routes_[MAX_ROUTES];
+    Route routes_[MAX_ROUTES];
     uint8_t routeCount_;
+    Route dummyRoute_;
 };
 
 } // namespace FieldUnit

@@ -73,82 +73,42 @@ void runCPChristopherTests() {
     // -------------------------------------------------------------
 
     // Route 1: Northbound Straight on MT2 (SW3B Normal) -> Top Head H2NA CLEAR
-    cp.addRoute({
-        .name              = "MT2-MT2-STRAIGHT",
-        .authority          = sig2,
-        .direction         = DirectionAuthority::LEFT, // Northbound
-        .mast              = mast2N,
-        .targetHeadIndex   = 0,                        // Top head (H2NA)
-        .aspectCeiling     = Indication::CLEAR,
-        .switchCount       = 1,
-        .switches          = { {sw3B, SwitchPosition::NORMAL} },
-        .blockCount        = 1,
-        .blocks            = { tc3BT1 },
-        .approachBlock     = tc2SA,                    // Block ahead on MT2
-        .isEngineReturn    = false,
-        .originBlock       = nullptr,
-        .osBlock           = nullptr
-    });
+    cp.route("MT2-MT2-STRAIGHT")
+      .governedBy(sig2, DirectionAuthority::LEFT)
+      .displays(mast2N, 0, Indication::CLEAR)
+      .aligns({ {sw3B, SwitchPosition::NORMAL} })
+      .clears({ tc3BT1 })
+      .approaching(tc2SA);
 
     // Route 2: Northbound Crossover MT2 -> MT1 (SW3/3B Reverse) -> Lower Head H2NB DIVERGING_CLEAR
-    cp.addRoute({
-        .name              = "MT2-MT1-CROSSOVER",
-        .authority          = sig2,
-        .direction         = DirectionAuthority::LEFT, // Northbound
-        .mast              = mast2N,
-        .targetHeadIndex   = 1,                        // Lower head (H2NB)
-        .aspectCeiling     = Indication::DIVERGING_CLEAR,
-        .switchCount       = 3,
-        .switches          = { {sw3, SwitchPosition::REVERSE},
-                               {sw3B, SwitchPosition::REVERSE},
-                               {sw1, SwitchPosition::NORMAL} },
-        .blockCount        = 3,
-        .blocks            = { tc3BT1, tc3T1, tc1T1 },
-        .approachBlock     = tc1SA,                    // Block ahead on MT1
-        .isEngineReturn    = false,
-        .originBlock       = nullptr,
-        .osBlock           = nullptr
-    });
+    cp.route("MT2-MT1-CROSSOVER")
+      .governedBy(sig2, DirectionAuthority::LEFT)
+      .displays(mast2N, 1, Indication::DIVERGING_CLEAR)
+      .aligns({ {sw3, SwitchPosition::REVERSE},
+                {sw3B, SwitchPosition::REVERSE},
+                {sw1, SwitchPosition::NORMAL} })
+      .clears({ tc3BT1, tc3T1, tc1T1 })
+      .approaching(tc1SA);
 
     // Route 3: Southbound Straight on MT1 (SW1=N, SW3=N, SW5=N) -> Top Head H2SA CLEAR
-    cp.addRoute({
-        .name              = "MT1-MT1-STRAIGHT",
-        .authority          = sig2,
-        .direction         = DirectionAuthority::RIGHT, // Southbound
-        .mast              = mast2S,
-        .targetHeadIndex   = 0,                         // Top head (H2SA)
-        .aspectCeiling     = Indication::CLEAR,
-        .switchCount       = 3,
-        .switches          = { {sw1, SwitchPosition::NORMAL},
-                               {sw3, SwitchPosition::NORMAL},
-                               {sw5, SwitchPosition::NORMAL} },
-        .blockCount        = 3,
-        .blocks            = { tc1T1, tc3T1, tc5T1 },
-        .approachBlock     = tc1NA,                     // Block ahead on MT1
-        .isEngineReturn    = false,
-        .originBlock       = nullptr,
-        .osBlock           = nullptr
-    });
+    cp.route("MT1-MT1-STRAIGHT")
+      .governedBy(sig2, DirectionAuthority::RIGHT)
+      .displays(mast2S, 0, Indication::CLEAR)
+      .aligns({ {sw1, SwitchPosition::NORMAL},
+                {sw3, SwitchPosition::NORMAL},
+                {sw5, SwitchPosition::NORMAL} })
+      .clears({ tc1T1, tc3T1, tc5T1 })
+      .approaching(tc1NA);
 
     // Route 4: Southbound Crossover MT1 -> MT2 (SW1=N, SW3/3B=R) -> Lower Head H2SB DIVERGING_CLEAR
-    cp.addRoute({
-        .name              = "MT1-MT2-CROSSOVER",
-        .authority          = sig2,
-        .direction         = DirectionAuthority::RIGHT, // Southbound
-        .mast              = mast2S,
-        .targetHeadIndex   = 1,                         // Lower head (H2SB)
-        .aspectCeiling     = Indication::DIVERGING_CLEAR,
-        .switchCount       = 3,
-        .switches          = { {sw1, SwitchPosition::NORMAL},
-                               {sw3, SwitchPosition::REVERSE},
-                               {sw3B, SwitchPosition::REVERSE} },
-        .blockCount        = 2,
-        .blocks            = { tc1T1, tc3T1 },
-        .approachBlock     = tc2NA,                     // Block ahead on MT2
-        .isEngineReturn    = false,
-        .originBlock       = nullptr,
-        .osBlock           = nullptr
-    });
+    cp.route("MT1-MT2-CROSSOVER")
+      .governedBy(sig2, DirectionAuthority::RIGHT)
+      .displays(mast2S, 1, Indication::DIVERGING_CLEAR)
+      .aligns({ {sw1, SwitchPosition::NORMAL},
+                {sw3, SwitchPosition::REVERSE},
+                {sw3B, SwitchPosition::REVERSE} })
+      .clears({ tc1T1, tc3T1 })
+      .approaching(tc2NA);
 
     uint32_t clockMs = 1000;
 
