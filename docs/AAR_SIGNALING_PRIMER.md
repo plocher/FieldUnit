@@ -392,3 +392,51 @@ Time locking is the vital countdown timer that runs whenever Approach Locking is
 - While the timer counts down, all switches in the cancelled route remain locked.
 - Opposing signals remain locked at Stop.
 - When the timer reaches zero, `ASR` energizes (picks back up), freeing the switches for new movements.
+
+---
+
+## 9. The CodeLine: Asynchronous Truth vs. Remote Procedure Calls
+
+Modern software developers often think in Remote Procedure Calls (RPC) or REST APIs:
+`response = client.call("throwSwitch", 1, REVERSE);`
+They expect immediate return codes, error messages, or NACKs.
+
+Railroad signaling operates on a completely different, asynchronous foundation.
+
+### 9.1 The Control Packet is an Atomic Plant Transaction
+A dispatcher does not send isolated commands to individual devices.
+The dispatcher lines all the levers for a plant on their desk:
+- Switch 1 lever to Reverse.
+- Switch 3 lever to Normal.
+- Signal 2 lever to Right.
+- Maintainer Call toggle to Off.
+
+The dispatcher then presses the **Code Button**.
+The office transmits **one complete, atomic snapshot of desired reality** across the CodeLine:
+`[ 1RWS, 3NWS, 2RGS, MC1S ]`
+
+Safety cannot be evaluated on an isolated command.
+The field unit evaluates the entire desired plant state vector together as a single atomic transaction.
+
+### 9.2 The Indication Stream Reports Ground Truth
+The Control Point in the field does not send "error packets," "NACKs," or conversational replies.
+The Control Point simply reports verified physical reality.
+
+- If the dispatcher commands Switch 1 to Reverse while a train sits on the points:
+  - The Control Point does not move the motor.
+  - The Control Point does not send an error text message.
+  - The Control Point continues reporting its true Indication Vector:
+    `[ 1NWK=1, 1RWK=0, 1T1K=1 ]` (Points remain in Normal correspondence; detector track is occupied).
+
+### 9.3 Correspondence: The State of Mind
+The dispatcher's machine detects non-execution by comparing its commanded intent against the reported indications:
+
+$$\text{Commanded Intent} \stackrel{?}{=} \text{Observed Ground Truth}$$
+
+- When points are in motion, the indication light is **dark** (out of correspondence).
+- When points lock in the commanded position, the indication lamp lights up.
+- If a switch is locked or obstructed, the indication lamp **remains dark** or lights an transit alarm.
+- The dispatcher sees: *"The plant did not move."*
+
+This separation guarantees that the dispatcher's panel can never hallucinate a safe plant state.
+The field reports truth; the office observes agreement.
