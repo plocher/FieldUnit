@@ -51,17 +51,17 @@ void runCentralizedChubbPatternTest() {
     //   IB[0] bit 0 = 3BT1 detector (active-low DCCOD)
     //   IB[0] bit 1 = SW3 Normal sense microswitch (active-low)
     //   IB[0] bit 2 = SW3 Reverse sense microswitch (active-low)
-    IOPin pin3BT1(0, 0);
-    IOPin pinSW3_N(0, 1);
-    IOPin pinSW3_R(0, 2);
-    TrackCircuitDriver tc3BT1_Driver(tc3BT1, pin3BT1, /*activeLow=*/true);
-    SwitchDriver sw3_Driver(sw3, IOPin(0, 3) /*motor OB[0] b3*/, pinSW3_N, pinSW3_R, /*activeLow=*/true);
+    InputBit  pin3BT1(0, 0, 0, Polarity::INVERTED);
+    InputBit  pinSW3_N(0, 0, 1, Polarity::INVERTED);
+    InputBit  pinSW3_R(0, 0, 2, Polarity::INVERTED);
+    TrackCircuitDriver tc3BT1_Driver(tc3BT1, pin3BT1);
+    SwitchDriver sw3_Driver(sw3, OutputBit(0, 0, 3) /*motor OB[0] b3*/, pinSW3_N, pinSW3_R);
 
     // Output mapping:
     //   OB[1] bit 0 = Mast 2N Top Head RED
     //   OB[1] bit 1 = Mast 2N Top Head GREEN
     SignalMastDriver mastDriver(mast2N);
-    mastDriver.addHead(IOPin(1, 0) /*Red*/, IOPin(), IOPin(1, 1) /*Green*/);
+    mastDriver.addHead(OutputBit(0, 1, 0) /*Red*/, OutputBit(), OutputBit(0, 1, 1) /*Green*/);
 
     uint32_t clockMs = 1000;
 

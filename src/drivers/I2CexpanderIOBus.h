@@ -22,18 +22,22 @@ public:
         count_ = count;
     }
 
-    bool readBit(IOPin pin) override {
-        if (!pin.isValid() || !expanders_ || pin.device >= count_) {
+    bool readBit(InputBit b) override {
+        if (!b.isValid() || !expanders_ || b.device >= count_) {
             return false;
         }
-        return expanders_[pin.device].digitalRead(pin.pin) != 0;
+        uint8_t pinIndex = (b.offset * 8) + b.bitIndex;
+        bool raw = expanders_[b.device].digitalRead(pinIndex) != 0;
+        return (b.polarity == Polarity::INVERTED) ? !raw : raw;
     }
 
-    void writeBit(IOPin pin, bool value) override {
-        if (!pin.isValid() || !expanders_ || pin.device >= count_) {
+    void writeBit(OutputBit b, bool value) override {
+        if (!b.isValid() || !expanders_ || b.device >= count_) {
             return;
         }
-        expanders_[pin.device].digitalWrite(pin.pin, value ? 1 : 0);
+        uint8_t pinIndex = (b.offset * 8) + b.bitIndex;
+        bool actual = (b.polarity == Polarity::INVERTED) ? !value : value;
+        expanders_[b.device].digitalWrite(pinIndex, actual ? 1 : 0);
     }
 
 private:

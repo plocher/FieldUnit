@@ -12,7 +12,7 @@
 #include "CodeLine.h"
 
 // Core hardware driver interfaces
-#include "drivers/IOPin.h"
+#include "drivers/IOBit.h"
 #include "drivers/IOBus.h"
 #include "drivers/TrackCircuitDriver.h"
 #include "drivers/SwitchDriver.h"

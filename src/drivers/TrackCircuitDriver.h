@@ -8,24 +8,23 @@ namespace FieldUnit {
 
 class TrackCircuitDriver {
 public:
-    TrackCircuitDriver() : tc_(nullptr), pin_{}, activeLow_(true) {}
+    TrackCircuitDriver() : tc_(nullptr), sensor_{} {}
 
-    TrackCircuitDriver(TrackCircuit* tc, IOPin pin, bool activeLow = true)
-        : tc_(tc), pin_(pin), activeLow_(activeLow) {}
+    TrackCircuitDriver(TrackCircuit* tc, InputBit sensor)
+        : tc_(tc), sensor_(sensor) {}
 
     void sample(IOBus& io, uint32_t nowMs = 0) {
-        if (!tc_ || !pin_.isValid()) return;
+        if (!tc_ || !sensor_.isValid()) return;
 
-        bool rawBit = io.readBit(pin_);
-        bool isOccupied = activeLow_ ? !rawBit : rawBit;
+        // readBit handles polarity inversion automatically
+        bool isOccupied = io.readBit(sensor_);
 
         tc_->update(isOccupied ? Occupancy::OCCUPIED : Occupancy::VACANT, Quality::GOOD, nowMs);
     }
 
 private:
     TrackCircuit* tc_;
-    IOPin pin_;
-    bool activeLow_;
+    InputBit      sensor_;
 };
 
 } // namespace FieldUnit

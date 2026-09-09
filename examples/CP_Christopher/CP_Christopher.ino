@@ -221,26 +221,26 @@ SignalMastDriver mast2N_drv;
 SignalMastDriver mast2S_drv;
 
 void configureHardwareDrivers() {
-    // Track Circuits (DCCOD active-low detectors)
-    tc1T1_drv  = TrackCircuitDriver(tc1T1,  IOPin(0, 2), /*activeLow=*/true);
-    tc3T1_drv  = TrackCircuitDriver(tc3T1,  IOPin(1, 2), /*activeLow=*/true);
-    tc3BT1_drv = TrackCircuitDriver(tc3BT1, IOPin(1, 6), /*activeLow=*/true);
-    tc5T1_drv  = TrackCircuitDriver(tc5T1,  IOPin(0, 6), /*activeLow=*/true);
+    // Track Circuits (DCCOD active-low detectors on Port A = offset 0)
+    tc1T1_drv  = TrackCircuitDriver(tc1T1,  InputBit(0, 0, 2, Polarity::INVERTED));
+    tc3T1_drv  = TrackCircuitDriver(tc3T1,  InputBit(1, 0, 2, Polarity::INVERTED));
+    tc3BT1_drv = TrackCircuitDriver(tc3BT1, InputBit(1, 0, 6, Polarity::INVERTED));
+    tc5T1_drv  = TrackCircuitDriver(tc5T1,  InputBit(0, 0, 6, Polarity::INVERTED));
 
     // Switches (Tortoise motor + Normal & Reverse feedback microswitches)
-    sw1_drv  = SwitchDriver(sw1,  IOPin(0, 3) /*Motor*/, IOPin(0, 1) /*NW*/, IOPin(0, 0) /*RW*/);
-    sw5_drv  = SwitchDriver(sw5,  IOPin(0, 7) /*Motor*/, IOPin(0, 5) /*NW*/, IOPin(0, 4) /*RW*/);
-    sw3_drv  = SwitchDriver(sw3,  IOPin(1, 3) /*Motor*/, IOPin(1, 1) /*NW*/, IOPin(1, 0) /*RW*/);
-    sw3B_drv = SwitchDriver(sw3B, IOPin(1, 7) /*Motor*/, IOPin(1, 5) /*NW*/, IOPin(1, 4) /*RW*/);
+    sw1_drv  = SwitchDriver(sw1,  OutputBit(0, 0, 3), InputBit(0, 0, 1, Polarity::INVERTED), InputBit(0, 0, 0, Polarity::INVERTED));
+    sw5_drv  = SwitchDriver(sw5,  OutputBit(0, 0, 7), InputBit(0, 0, 5, Polarity::INVERTED), InputBit(0, 0, 4, Polarity::INVERTED));
+    sw3_drv  = SwitchDriver(sw3,  OutputBit(1, 0, 3), InputBit(1, 0, 1, Polarity::INVERTED), InputBit(1, 0, 0, Polarity::INVERTED));
+    sw3B_drv = SwitchDriver(sw3B, OutputBit(1, 0, 7), InputBit(1, 0, 5, Polarity::INVERTED), InputBit(1, 0, 4, Polarity::INVERTED));
 
     // Signal Masts (Color-Light 2-Head LED Driving on Expander 2)
     mast2N_drv = SignalMastDriver(mast2N);
-    mast2N_drv.addHead(IOPin(2, 0) /*H2NA Red*/, IOPin(2, 1) /*Yellow*/, IOPin(2, 2) /*Green*/);
-    mast2N_drv.addHead(IOPin(2, 3) /*H2NB Red*/, IOPin(2, 4) /*Yellow*/, IOPin(2, 5) /*Green*/);
+    mast2N_drv.addHead(OutputBit(2, 0, 0) /*H2NA Red*/, OutputBit(2, 0, 1) /*Yellow*/, OutputBit(2, 0, 2) /*Green*/);
+    mast2N_drv.addHead(OutputBit(2, 0, 3) /*H2NB Red*/, OutputBit(2, 0, 4) /*Yellow*/, OutputBit(2, 0, 5) /*Green*/);
 
     mast2S_drv = SignalMastDriver(mast2S);
-    mast2S_drv.addHead(IOPin(2, 6) /*H2SA Red*/, IOPin(2, 7) /*Yellow*/, IOPin(2, 8) /*Green*/);
-    mast2S_drv.addHead(IOPin(2, 9) /*H2SB Red*/, IOPin(2, 10) /*Yellow*/, IOPin(2, 11) /*Green*/);
+    mast2S_drv.addHead(OutputBit(2, 0, 6) /*H2SA Red*/, OutputBit(2, 0, 7) /*Yellow*/, OutputBit(2, 1, 0) /*Green*/);
+    mast2S_drv.addHead(OutputBit(2, 1, 1) /*H2SB Red*/, OutputBit(2, 1, 2) /*Yellow*/, OutputBit(2, 1, 3) /*Green*/);
 }
 
 void samplePhysicalInputs(IOBus& bus, uint32_t nowMs) {

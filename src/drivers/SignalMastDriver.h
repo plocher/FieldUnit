@@ -7,10 +7,10 @@
 namespace FieldUnit {
 
 struct HeadPins {
-    IOPin redPin;
-    IOPin yellowPin;
-    IOPin greenPin;
-    IOPin lunarPin;
+    OutputBit redPin;
+    OutputBit yellowPin;
+    OutputBit greenPin;
+    OutputBit lunarPin;
 };
 
 // Driver for multi-head color-light signal masts
@@ -20,7 +20,7 @@ public:
 
     SignalMastDriver(SignalMast* mast) : mast_(mast), headCount_(0) {}
 
-    void addHead(IOPin red, IOPin yellow, IOPin green, IOPin lunar = IOPin()) {
+    void addHead(OutputBit red, OutputBit yellow, OutputBit green, OutputBit lunar = OutputBit()) {
         if (headCount_ < 3) {
             heads_[headCount_++] = {red, yellow, green, lunar};
         }

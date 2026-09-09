@@ -7,19 +7,18 @@
 namespace FieldUnit {
 
 // Standard Tortoise / motor switch machine driver
-// Controls 1 motor output pin (Normal=HIGH/Reverse=LOW)
-// Reads 2 contact sense pins (Normal closed, Reverse closed)
+// Controls 1 motor output bit (Normal=true, Reverse=false)
+// Reads 2 contact sense input bits (Normal closed, Reverse closed)
 class SwitchDriver {
 public:
     SwitchDriver()
-        : sw_(nullptr), motorPin_{}, normalSensePin_{}, reverseSensePin_{}, activeLowSense_(true) {}
+        : sw_(nullptr), motor_{}, normalSense_{}, reverseSense_{} {}
 
-    SwitchDriver(Switch* sw, IOPin motorPin, IOPin normalSense, IOPin reverseSense, bool activeLowSense = true)
+    SwitchDriver(Switch* sw, OutputBit motor, InputBit normalSense, InputBit reverseSense)
         : sw_(sw),
-          motorPin_(motorPin),
-          normalSensePin_(normalSense),
-          reverseSensePin_(reverseSense),
-          activeLowSense_(activeLowSense) {}
+          motor_(motor),
+          normalSense_(normalSense),
+          reverseSense_(reverseSense) {}
 
     // Sample physical limit switches / point detector contacts
     void sample(IOBus& io) {
@@ -28,14 +27,12 @@ public:
         bool nClosed = false;
         bool rClosed = false;
 
-        if (normalSensePin_.isValid()) {
-            bool rawN = io.readBit(normalSensePin_);
-            nClosed = activeLowSense_ ? !rawN : rawN;
+        if (normalSense_.isValid()) {
+            nClosed = io.readBit(normalSense_);
         }
 
-        if (reverseSensePin_.isValid()) {
-            bool rawR = io.readBit(reverseSensePin_);
-            rClosed = activeLowSense_ ? !rawR : rawR;
+        if (reverseSense_.isValid()) {
+            rClosed = io.readBit(reverseSense_);
         }
 
         if (nClosed && !rClosed) {
@@ -51,20 +48,19 @@ public:
         }
     }
 
-    // Drive physical motor pin
+    // Drive physical motor bit
     void drive(IOBus& io) {
-        if (!sw_ || !motorPin_.isValid()) return;
+        if (!sw_ || !motor_.isValid()) return;
 
         bool motorVal = (sw_->commandedPosition() == SwitchPosition::NORMAL);
-        io.writeBit(motorPin_, motorVal);
+        io.writeBit(motor_, motorVal);
     }
 
 private:
-    Switch* sw_;
-    IOPin motorPin_;
-    IOPin normalSensePin_;
-    IOPin reverseSensePin_;
-    bool  activeLowSense_;
+    Switch*   sw_;
+    OutputBit motor_;
+    InputBit  normalSense_;
+    InputBit  reverseSense_;
 };
 
 } // namespace FieldUnit

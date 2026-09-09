@@ -26,24 +26,26 @@ public:
     }
 
     // Read an input bit (from C/MRI IB[] array)
-    // pin.device maps to byte index; pin.pin maps to bit index (0..7)
-    bool readBit(IOPin pin) override {
-        if (!pin.isValid() || !ib_ || pin.device >= ibLen_) {
+    // b.offset maps to byte index in IB[]; b.bitIndex maps to bit index (0..7)
+    bool readBit(InputBit b) override {
+        if (!b.isValid() || !ib_ || b.offset >= ibLen_) {
             return false;
         }
-        return (ib_[pin.device] & (1 << pin.pin)) != 0;
+        bool raw = (ib_[b.offset] & (1 << b.bitIndex)) != 0;
+        return (b.polarity == Polarity::INVERTED) ? !raw : raw;
     }
 
     // Write an output bit (to C/MRI OB[] array)
-    // pin.device maps to byte index; pin.pin maps to bit index (0..7)
-    void writeBit(IOPin pin, bool value) override {
-        if (!pin.isValid() || !ob_ || pin.device >= obLen_) {
+    // b.offset maps to byte index in OB[]; b.bitIndex maps to bit index (0..7)
+    void writeBit(OutputBit b, bool value) override {
+        if (!b.isValid() || !ob_ || b.offset >= obLen_) {
             return;
         }
-        if (value) {
-            ob_[pin.device] |= (1 << pin.pin);
+        bool actual = (b.polarity == Polarity::INVERTED) ? !value : value;
+        if (actual) {
+            ob_[b.offset] |= (1 << b.bitIndex);
         } else {
-            ob_[pin.device] &= ~(1 << pin.pin);
+            ob_[b.offset] &= ~(1 << b.bitIndex);
         }
     }
 
