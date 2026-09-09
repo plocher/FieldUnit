@@ -49,9 +49,9 @@ You must insulate the switch into its own dedicated detection block called the *
 ```
        Approach Block 1SA           Island Block 1T1           Exit Block 1NA
    ══════════════════════════][═════════════\══════════════][════════════════
-                            IRJ              \             IRJ
+                                             \
                                               \════════════][════════════════
-                                              (d)          IRJ Exit Block 2NA
+                                              (d)              Exit Block 2NA
                                         Optical Sensor (d)
                                         at Fouling Point
 ```
@@ -95,9 +95,9 @@ Place a signal at every entrance to the island block, outside the insulated rail
                                                            Signal 2LA
                                                               o-| (Dwarf)
   <== West ════════][═══════════════════════\══════════════][════════ East ==>
-                  IRJ     1T1 Island         \            IRJ
+                    1T1 Island               \
                    |-oo                       \════════════][════════ Siding
-                Signal 2R                                 IRJ  o-|
+                Signal 2R                                      o-|
                (Two Heads)                                   Signal 2LB (Dwarf)
 ```
 
@@ -151,12 +151,12 @@ Combining these rules gives the complete signaling diagram for a single-track pa
                                                       Signal 2LA
                                                          o-| (Dwarf)
   Main Track <==== 1SA ══════════][═════════════════\══════════════][════ 1NA ====>
-                  (Approach)    IRJ   1T1 Island     \            IRJ   (Exit Block)
+                  (Approach)          1T1 Island     \                  (Exit Block)
                                  |-oo                 \
                               Signal 2R                \
                              (Two Heads)                \
   Siding Track <═════════════════════════════════════════\═════════][════ 2NA ====>
-                                                         (d)      IRJ    o-|
+                                                         (d)             o-|
                                                        Optical        Signal 2LB
                                                        Sensor          (Dwarf)
 ```
