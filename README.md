@@ -31,17 +31,19 @@ FieldUnit brings this exact prototype behavior to model railroad control:
 
 ```
 [ Dispatcher (JMRI / CTC Panel / CodeLine) ]
-                     |
-         (Desires: "Line Route 1")
+                     │
+          (Seam "A": Supervisory CodeLine)  <-- AAR Snapshots: 1NWS, 2NGS <-> 1NWK, 1T1K
+                     │
                      v
        +----------------------------+
-       |   Control Point Engine     |  <-- FieldUnit
-       |  (Evaluates Safety Rules)  |
+       |   Control Point Engine     |  <-- FieldUnit Vital Interlocking Logic
+       |  (Evaluates Safety Rules)  |      (Zero Heap Allocation, O(1) Execution)
        +----------------------------+
-                     |
-          (Drives physical pins)
+                     │
+          (Seam "B": Appliance I/O Bus)     <-- I2C, C/MRI, GPIO, Servos, MQTT
+                     │
                      v
-    [ Track Switches, Detectors, Signals ]
+    [ Track Switches, Detectors, Signals, Semaphores ]
 ```
 
 ---
@@ -51,32 +53,48 @@ FieldUnit brings this exact prototype behavior to model railroad control:
 FieldUnit replaces complex procedural code with readable, declarative routes:
 
 ```cpp
-// Siding Route: Diverging move over Crossover SW3 into Siding
+// Siding Route: Diverging move over Crossover 3 into Siding
 cp.route("MAIN_TO_SIDING")
-  .governedBy(sig2, DirectionAuthority::RIGHT)
-  .displays(mast2S, 1 /* Lower Head */, Indication::DIVERGING_CLEAR)
-  .aligns({ {sw1, SwitchPosition::NORMAL}, 
-            {sw3, SwitchPosition::REVERSE}, 
-            {sw3B, SwitchPosition::REVERSE} })
-  .clears({ tc1T1, tc3T1 })
-  .approaching(tc2NA);
+  .governedBy("2", DirectionAuthority::RIGHT)
+  .displays("2S", 1 /* Lower Head */, Indication::DIVERGING_CLEAR)
+  .aligns({ {"1", SwitchPosition::NORMAL}, 
+            {"3", SwitchPosition::REVERSE} }) // Crossover 3 aligns both machines
+  .clears({ "1T1", "3T1" })
+  .entrance("1T1")
+  .approaching("2NA");
 ```
 
-FieldUnit manages the low-level safety details automatically: route evaluation, switch point correspondence, detector locking, multi-head aspect derivation, and signal knockdown.
-This allows you to focus on expressing your railroad's operational routes and rules.
+FieldUnit manages the low-level safety details automatically: route evaluation, switch point correspondence, detector locking, approach time locking, aspect derivation, and signal knockdown.
+All appliance names resolve once during startup, preserving $O(1)$ raw pointer dereferencing with zero heap allocation during runtime cycles.
 
 ---
 
 ## Core Features
 
 - **Prototype Accuracy**: Uses standard Association of American Railroads (AAR) relay logic (`TR`, `WR`, `KR`, `HSR`, `ASR`, `ERS`).
-- **Vital Safety**: Automatically prevents throwing switches under standing trains (detector locking) and prevents opposing moves.
-- **Zero Heap Allocation After Startup**: Safe for long operating sessions without memory leaks or fragmentation.
+- **Vital Interlocking Safety**:
+  - Automatically enforces detector locking over switch points.
+  - Enforces route locking and opposing move prevention.
+  - Enforces approach time locking (`SwitchLock::TIME_LOCKED`) with safe immediate cancellation when approach tracks are vacant.
+  - Automatic signal knockdown with standard one-shot stick memory.
+- **Pluggable Aspect Policies (`SignalAspectPolicy.h`)**:
+  - Configure rulebooks plant-wide or per-mast: Southern Pacific (1969 Lunar and 1985 Flashing Red at 1 Hz), GCOR Speed, NYC 3-Head Speed, PRR Position Lights, and Semaphores.
+  - Supports custom rulebook resolver lambdas.
+- **First-Class Crossovers (`Crossover.h`)**:
+  - Coordinates dual physical switch machines and limit switches under a single logical crossover appliance.
+- **Mechanical Semaphores (`SemaphoreDriver.h`)**:
+  - Drives hobby servos (PCA9685 / PWM) to calibrated stop, approach, and clear angles for upper- and lower-quadrant blades.
+- **Electric Switch Locks (`WLS` / `WLK`)**:
+  - Dispatcher unlock commands (`WLS`) and verified field unlock indications (`WLK`) with automatic signal-safety interlocks.
+- **Zero Heap Allocation After Startup**: Safe for operating sessions without memory leaks or fragmentation.
+- **Declarative String Wiring**: Eliminates file-scope pointer handles while keeping $O(1)$ runtime execution.
+- **Two-Seam Architecture**:
+  - **Seam "A" (Supervisory)**: Protocol independence via `AarTextCodec`, `BitPackedCodec` (C/MRI), `StreamCodeLine` (Serial/RS-485), and `MqttCodeLine`.
+  - **Seam "B" (Appliance I/O)**: Hardware independence via `IOBus` (onboard GPIO, MCP23017 I2C expanders, C/MRI byte arrays, and servos).
 - **Deployment Flexibility**:
-  - Run **distributed** on small boards (Xiao, ESP32) inside local trackside bungalows.
-  - Run **centralized** on a single computer driving remote C/MRI input/output racks.
-  - Run **hybrid** layouts mixing local boards with central staging yards.
-- **Protocol Independence**: Works with CMRInet serial lines, MQTT brokers, or local memory calls.
+  - Run **distributed** on microcontrollers (ESP32, RP2040, AVR) inside local bungalows.
+  - Run **centralized** on a single computer driving remote C/MRI racks or cpNodes.
+  - Run in automated **CI/CD test runners** with `MockCodeLine` and `MockIOBus`.
 
 ---
 
