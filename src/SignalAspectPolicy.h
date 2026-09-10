@@ -10,12 +10,13 @@ struct MastAspects {
     Aspect head1;
     Aspect head2;
     Aspect head3;
+    uint8_t markers; // Bitmask of CplMarker flags (for B&O CPL or position-light markers)
 
     constexpr MastAspects()
-        : head1(Aspect::RED), head2(Aspect::DARK), head3(Aspect::DARK) {}
+        : head1(Aspect::RED), head2(Aspect::DARK), head3(Aspect::DARK), markers(0) {}
 
-    constexpr MastAspects(Aspect h1, Aspect h2 = Aspect::DARK, Aspect h3 = Aspect::DARK)
-        : head1(h1), head2(h2), head3(h3) {}
+    constexpr MastAspects(Aspect h1, Aspect h2 = Aspect::DARK, Aspect h3 = Aspect::DARK, uint8_t m = 0)
+        : head1(h1), head2(h2), head3(h3), markers(m) {}
 };
 
 // Signature for pluggable rulebook policies:
@@ -158,6 +159,7 @@ inline MastAspects nycSpeed(Indication ind, uint8_t headCount, bool isDwarf) {
             case Indication::APPROACH:
             case Indication::MEDIUM_APPROACH:
             case Indication::SLOW_APPROACH:
+            case Indication::APPROACH_SLOW:
             case Indication::RESTRICTING:
             case Indication::DIVERGING_RESTRICTING:
                 return MastAspects(Aspect::YELLOW);
@@ -182,6 +184,7 @@ inline MastAspects nycSpeed(Indication ind, uint8_t headCount, bool isDwarf) {
             case Indication::DIVERGING_CLEAR:
                 return MastAspects(Aspect::RED, Aspect::GREEN);
             case Indication::APPROACH:
+            case Indication::APPROACH_SLOW:
                 return MastAspects(Aspect::YELLOW, Aspect::RED);
             case Indication::MEDIUM_APPROACH:
             case Indication::DIVERGING_APPROACH:
@@ -208,6 +211,8 @@ inline MastAspects nycSpeed(Indication ind, uint8_t headCount, bool isDwarf) {
             return MastAspects(Aspect::RED, Aspect::GREEN, Aspect::RED);
         case Indication::APPROACH:
             return MastAspects(Aspect::YELLOW, Aspect::RED, Aspect::RED);
+        case Indication::APPROACH_SLOW:
+            return MastAspects(Aspect::YELLOW, Aspect::RED, Aspect::GREEN);
         case Indication::MEDIUM_APPROACH:
         case Indication::DIVERGING_APPROACH:
             return MastAspects(Aspect::RED, Aspect::YELLOW, Aspect::RED);
@@ -281,6 +286,108 @@ inline MastAspects prrPositionLight(Indication ind, uint8_t headCount, bool isDw
  */
 inline MastAspects upperQuadrantSemaphore(Indication ind, uint8_t headCount, bool isDwarf) {
     return defaultRoute(ind, headCount, isDwarf);
+}
+
+/**
+ * Baltimore & Ohio (B&O) Color-Position-Light (CPL) Policy
+ *
+ * Central Disk:
+ * - Red (horizontal pair): Stop (Rule 292)
+ * - Yellow (45 deg diagonal pair): Approach (Rule 285)
+ * - Green (vertical pair): Clear (Rule 281)
+ * - Lunar (135 deg diagonal pair): Restricting (Rule 290)
+ * - Flashing Yellow (45 deg diagonal pair): Advance Approach (Rule 282A)
+ *
+ * Orbital Markers:
+ * - 12 o'clock (top): Normal Speed route
+ * - 2 o'clock (upper right): Medium Speed route
+ * - 4 o'clock (lower right): Limited Speed route
+ * - 6 o'clock (bottom): Slow Speed route / Stop & Proceed
+ * - 10 o'clock (upper left): Cab Speed route
+ *
+ * High Signal Rules:
+ * - Rule 281 Clear: Vertical Green + Top (12 o'clock) marker
+ * - Rule 281A Cab Speed: Vertical Green + Upper Left (10 o'clock) marker
+ * - Rule 282 Approach Medium: Diagonal Yellow + Upper Right (2 o'clock) marker
+ * - Rule 282A Advance Approach: Flashing Diagonal Yellow + Top (12 o'clock) marker
+ * - Rule 283 Medium Clear: Vertical Green + Upper Right (2 o'clock) marker
+ * - Rule 284 Approach Slow: Diagonal Yellow + Bottom (6 o'clock) marker
+ * - Rule 285 Approach: Diagonal Yellow + Top (12 o'clock) marker
+ * - Rule 286 Medium Approach: Diagonal Yellow + Upper Right (2 o'clock) marker
+ * - Rule 287 Slow Clear: Vertical Green + Bottom (6 o'clock) marker
+ * - Rule 288 Slow Approach: Diagonal Yellow + Bottom (6 o'clock) marker
+ * - Rule 290 Restricting: Diagonal Lunar (no markers)
+ * - Rule 290A Diverging Restricting: Diagonal Lunar + Bottom (6 o'clock) marker
+ * - Rule 292 Stop: Horizontal Red (no markers)
+ *
+ * Dwarf Signals:
+ * - Dwarfs do not possess orbital markers.
+ */
+inline MastAspects boCpl(Indication ind, uint8_t headCount, bool isDwarf) {
+    if (isDwarf) {
+        switch (ind) {
+            case Indication::CLEAR:
+            case Indication::MEDIUM_CLEAR:
+            case Indication::SLOW_CLEAR:
+            case Indication::DIVERGING_CLEAR:
+            case Indication::CAB_SPEED:
+                return MastAspects(Aspect::GREEN, Aspect::DARK, Aspect::DARK, 0);
+            case Indication::APPROACH:
+            case Indication::MEDIUM_APPROACH:
+            case Indication::SLOW_APPROACH:
+            case Indication::APPROACH_MEDIUM:
+            case Indication::APPROACH_SLOW:
+            case Indication::APPROACH_DIVERGING:
+            case Indication::DIVERGING_APPROACH:
+                return MastAspects(Aspect::YELLOW, Aspect::DARK, Aspect::DARK, 0);
+            case Indication::ADVANCE_APPROACH:
+                return MastAspects(Aspect::FLASHING_YELLOW, Aspect::DARK, Aspect::DARK, 0);
+            case Indication::RESTRICTING:
+            case Indication::DIVERGING_RESTRICTING:
+            case Indication::APPROACH_RESTRICTING:
+                return MastAspects(Aspect::LUNAR, Aspect::DARK, Aspect::DARK, 0);
+            case Indication::STOP:
+            default:
+                return MastAspects(Aspect::RED, Aspect::DARK, Aspect::DARK, 0);
+        }
+    }
+
+    uint8_t m12 = static_cast<uint8_t>(CplMarker::TOP_12);
+    uint8_t m2  = static_cast<uint8_t>(CplMarker::UPPER_R_2);
+    uint8_t m6  = static_cast<uint8_t>(CplMarker::BOTTOM_6);
+    uint8_t m10 = static_cast<uint8_t>(CplMarker::UPPER_L_10);
+
+    switch (ind) {
+        case Indication::CLEAR:
+            return MastAspects(Aspect::GREEN, Aspect::DARK, Aspect::DARK, m12);
+        case Indication::CAB_SPEED:
+            return MastAspects(Aspect::GREEN, Aspect::DARK, Aspect::DARK, m10);
+        case Indication::MEDIUM_CLEAR:
+        case Indication::DIVERGING_CLEAR:
+            return MastAspects(Aspect::GREEN, Aspect::DARK, Aspect::DARK, m2);
+        case Indication::SLOW_CLEAR:
+            return MastAspects(Aspect::GREEN, Aspect::DARK, Aspect::DARK, m6);
+        case Indication::APPROACH:
+            return MastAspects(Aspect::YELLOW, Aspect::DARK, Aspect::DARK, m12);
+        case Indication::ADVANCE_APPROACH:
+            return MastAspects(Aspect::FLASHING_YELLOW, Aspect::DARK, Aspect::DARK, m12);
+        case Indication::APPROACH_MEDIUM:
+        case Indication::MEDIUM_APPROACH:
+        case Indication::DIVERGING_APPROACH:
+        case Indication::APPROACH_DIVERGING:
+            return MastAspects(Aspect::YELLOW, Aspect::DARK, Aspect::DARK, m2);
+        case Indication::APPROACH_SLOW:
+        case Indication::SLOW_APPROACH:
+            return MastAspects(Aspect::YELLOW, Aspect::DARK, Aspect::DARK, m6);
+        case Indication::DIVERGING_RESTRICTING:
+            return MastAspects(Aspect::LUNAR, Aspect::DARK, Aspect::DARK, m6);
+        case Indication::RESTRICTING:
+        case Indication::APPROACH_RESTRICTING:
+            return MastAspects(Aspect::LUNAR, Aspect::DARK, Aspect::DARK, 0);
+        case Indication::STOP:
+        default:
+            return MastAspects(Aspect::RED, Aspect::DARK, Aspect::DARK, 0);
+    }
 }
 
 } // namespace AspectPolicies

@@ -104,7 +104,8 @@ enum class Indication : uint8_t {
     MEDIUM_APPROACH = 12,
     SLOW_CLEAR = 13,
     SLOW_APPROACH = 14,
-    CAB_SPEED = 15
+    CAB_SPEED = 15,
+    APPROACH_SLOW = 16
 };
 
 // Visual Aspects (Lamps / Appearance)
@@ -134,6 +135,25 @@ enum class Aspect : uint8_t {
     FLASHING_RED_OVER_RED = 22,
     LUNAR_OVER_RED = 23
 };
+
+// B&O Color-Position-Light Orbital Marker Positions (Bitmask)
+enum class CplMarker : uint8_t {
+    NONE       = 0x00,
+    TOP_12     = 0x01,  // 12 o'clock: Normal Speed route (High Speed)
+    UPPER_R_2  = 0x02,  // 2 o'clock: Medium Speed route
+    LOWER_R_4  = 0x04,  // 4 o'clock: Limited Speed route (or Approach Restriction)
+    BOTTOM_6   = 0x08,  // 6 o'clock: Slow Speed route / Stop & Proceed
+    LOWER_L_8  = 0x10,  // 8 o'clock: Auxiliary / Restricting (low marker)
+    UPPER_L_10 = 0x20   // 10 o'clock: Cab Speed / Advance
+};
+
+inline CplMarker operator|(CplMarker a, CplMarker b) {
+    return static_cast<CplMarker>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+}
+
+inline CplMarker operator&(CplMarker a, CplMarker b) {
+    return static_cast<CplMarker>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
+}
 
 } // namespace FieldUnit
 

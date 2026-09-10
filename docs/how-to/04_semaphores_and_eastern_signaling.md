@@ -140,3 +140,85 @@ Aspect resolution:
 - **Approach**: Diagonal over Dark (`Aspect::YELLOW`, `Aspect::DARK`).
 - **Medium Clear**: Horizontal over Vertical (`Aspect::RED`, `Aspect::GREEN`).
 - **Stop**: Horizontal over Dark (`Aspect::RED`, `Aspect::DARK`).
+
+---
+
+## 4. Baltimore & Ohio (B&O) Color-Position-Light (CPL) Signals
+
+The Baltimore & Ohio railroad created the iconic **Color-Position-Light (CPL)** signal. Instead of vertical stacks of colored heads, a B&O CPL mast consists of:
+1. **Central Circular Cluster**: Four pairs of colored lamps displayed across 180 degrees:
+   - **Horizontal (Red)**: Stop (Rule 292).
+   - **45° Diagonal Right (Yellow)**: Approach (Rule 285).
+   - **Vertical (Green)**: Clear (Rule 281).
+   - **135° Diagonal Left (Lunar White)**: Restricting (Rule 290).
+2. **Orbital Markers**: Up to six white or colored marker lamps mounted around the perimeter of the disk:
+   - **12 o'clock (Top)**: Normal Speed route.
+   - **2 o'clock (Upper Right)**: Medium Speed route.
+   - **4 o'clock (Lower Right)**: Limited Speed route.
+   - **6 o'clock (Bottom)**: Slow Speed route / Stop & Proceed.
+   - **10 o'clock (Upper Left)**: Cab Speed route.
+
+### Configuring a B&O CPL Signal Mast
+
+```cpp
+#include <FieldUnit.h>
+
+using namespace FieldUnit;
+
+ControlPoint cp("CP_HarpersFerry");
+
+// 1. Declare high signal mast (ONE_HEAD or DWARF)
+auto cplMast = cp.addSignalMast("2LA", MastType::ONE_HEAD);
+
+// 2. Assign the B&O CPL rulebook policy
+cplMast->setAspectPolicy(AspectPolicies::boCpl);
+
+// 3. Connect the dedicated CPL hardware driver
+CplMastDriver cplDriver(cplMast);
+
+// Configure central disk lamp pair pins
+cplDriver.setDiskPins(
+    /*red=*/   OutputBit(1, 0, 0),
+    /*yellow=*/OutputBit(1, 0, 1),
+    /*green=*/ OutputBit(1, 0, 2),
+    /*lunar=*/ OutputBit(1, 0, 3)
+);
+
+// Configure orbital marker pins
+cplDriver.setMarkerPins(
+    /*top12=*/    OutputBit(1, 0, 4), // 12 o'clock: Normal Speed
+    /*upperR2=*/  OutputBit(1, 0, 5), // 2 o'clock: Medium Speed
+    /*lowerR4=*/  OutputBit(1, 0, 6), // 4 o'clock: Limited Speed
+    /*bottom6=*/  OutputBit(1, 0, 7)  // 6 o'clock: Slow Speed
+);
+```
+
+### Driving B&O CPL Hardware in `loop()`
+
+```cpp
+void loop() {
+    uint32_t nowMs = millis();
+
+    // Advance interlocking logic
+    cp.tick(nowMs);
+
+    // Drive lamp pairs, flashers (1 Hz), and orbital markers
+    cplDriver.drive(hardwareBus, nowMs);
+}
+```
+
+### Aspect Resolution Table
+
+| Indication | Center Disk Lamps | Orbital Marker | B&O Rule |
+| :--- | :--- | :--- | :--- |
+| `CLEAR` | Vertical Green | Top (12 o'clock) | Rule 281 |
+| `APPROACH` | Diagonal Yellow | Top (12 o'clock) | Rule 285 |
+| `ADVANCE_APPROACH` | Flashing Diagonal Yellow (1 Hz) | Top (12 o'clock) | Rule 282A |
+| `MEDIUM_CLEAR` / `DIVERGING_CLEAR` | Vertical Green | Upper Right (2 o'clock) | Rule 283 |
+| `MEDIUM_APPROACH` / `DIVERGING_APPROACH` | Diagonal Yellow | Upper Right (2 o'clock) | Rule 286 |
+| `SLOW_CLEAR` | Vertical Green | Bottom (6 o'clock) | Rule 287 |
+| `SLOW_APPROACH` / `APPROACH_SLOW` | Diagonal Yellow | Bottom (6 o'clock) | Rule 288 / 284 |
+| `RESTRICTING` | Diagonal Lunar | None | Rule 290 |
+| `DIVERGING_RESTRICTING` | Diagonal Lunar | Bottom (6 o'clock) | Rule 290A |
+| `STOP` | Horizontal Red | None | Rule 292 |
+| `CAB_SPEED` | Vertical Green | Upper Left (10 o'clock) | Rule 281A |

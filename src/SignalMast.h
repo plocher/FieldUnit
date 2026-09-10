@@ -25,7 +25,8 @@ public:
           currentIndication_(Indication::STOP),
           head1Aspect_(Aspect::RED),
           head2Aspect_(Aspect::RED),
-          head3Aspect_(Aspect::DARK) {}
+          head3Aspect_(Aspect::DARK),
+          markers_(0) {}
 
     const char* name() const { return name_; }
     uint8_t index() const { return index_; }
@@ -63,6 +64,11 @@ public:
     Aspect head1() const { return head1Aspect_; }
     Aspect head2() const { return head2Aspect_; }
     Aspect head3() const { return head3Aspect_; }
+    uint8_t markers() const { return markers_; }
+
+    bool hasMarker(CplMarker marker) const {
+        return (markers_ & static_cast<uint8_t>(marker)) != 0;
+    }
 
     // Composite aspect representing visual appearance of the mast
     Aspect compositeAspect() const {
@@ -92,6 +98,7 @@ public:
         head1Aspect_ = a.head1;
         head2Aspect_ = (headCount() >= 2) ? a.head2 : Aspect::DARK;
         head3Aspect_ = (headCount() >= 3) ? a.head3 : Aspect::DARK;
+        markers_ = a.markers;
     }
 
     // Vital action: update the displayed aspect on a specific head
@@ -125,6 +132,7 @@ private:
     Aspect head1Aspect_;
     Aspect head2Aspect_;
     Aspect head3Aspect_;
+    uint8_t markers_;
 };
 
 } // namespace FieldUnit

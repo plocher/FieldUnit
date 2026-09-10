@@ -20,6 +20,7 @@
 #include "drivers/SwitchDriver.h"
 #include "drivers/SignalMastDriver.h"
 #include "drivers/SemaphoreDriver.h"
+#include "drivers/CplMastDriver.h"
 
 // Specific physical IOBus implementations (CmriIOBus, I2CexpanderIOBus, etc.)
 // are leaf headers included individually by the sketches that choose them.
