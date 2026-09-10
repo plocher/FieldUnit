@@ -20,14 +20,13 @@ Here is the signaling diagram for CP Corporal using the standard symbols from Tu
 
                                DERAIL 5                  /─── IND3 ─── (Beet Loader 1)
                                    \ 5T1      o-| 4na   /
-                        /───────────\─────── IND1 ─────+───── IND2 ─── (Beet Loader 2)
-                    1T1/                 |-o 4sa     SW7 (Hand-throw with 7WLS Lock)
-  MT2 <══ 2SAT ═══════][═══════════════+═════════════════+════════][════ 1NAT ══════ 2NAT ══> (<->)
-       (Northbound)                    │                 │ 3T1           (Single Track)
-                                       │                / [SS]
-  MT1 >══ 1SAT ════════════════════════════════════════/ oo-| 2nab
-       (Southbound)    |-o 2sa         │                 (Two Heads)
-                        (Dwarf)
+                          /─────────+─────── IND1 ─────+───── IND2 ─── (Beet Loader 2)
+                         /                           SW7 (Hand-throw with 7WLS Lock)
+                     1T1/                       oo-| 2nab (Two Heads)
+  MT2 <══ 2SAT ═══][═══+═══════════════════════+══════════════════][════ 1NAT ══════ 2NAT ══> (<->)
+  (Northbound) |-o 4sa SW1                 3T1/ SW3                     (Single Track)
+  MT1 >══ 1SAT ═══][═════════════════════════/  [SS]
+  (Southbound) |-o 2sa (Dwarf)
 ```
 
 ### Review Your Data Collection Tables

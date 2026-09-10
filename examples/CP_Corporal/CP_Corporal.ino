@@ -5,16 +5,18 @@
  *
  * Prototype Track Diagram:
  *
- * < Railroad West/North          MP 83               Railroad East/South >
+ * < Railroad West / North                  MP 83                  Railroad East / South >
+ *   (Toward Gilroy)                                               (Toward Sargent)
  *
- *                        DERAIL                     /---IND3---DARK Beet Loader 1
- *                               \ 5T1 O-| 4na   M  /
- *                     /----------+-------IND1---+---IND2-------DARK Beet Loader 2
- *                 1T1/                O-| 2nab   [MC]
- * MT2 <== 2SAT ======+===============+=== == 1NAT ============= == 2NAT == (<->)
- *             |-O 4sa            3T1/
- * MT1 >== 1SAT ====================/
- *             |-O 2sa
+ *                                DERAIL 5                  /─── IND3 ─── (Beet Loader 1)
+ *                                    \ 5T1      o-| 4na   /
+ *                           /─────────+─────── IND1 ─────+───── IND2 ─── (Beet Loader 2)
+ *                          /                           SW7 (Hand-throw with 7WLS Lock)
+ *                      1T1/                       oo-| 2nab (Two Heads)
+ *   MT2 <══ 2SAT ═══][═══+═══════════════════════+══════════════════][════ 1NAT ══════ 2NAT ══> (<->)
+ *   (Northbound) |-o 4sa SW1                 3T1/ SW3                     (Single Track)
+ *   MT1 >══ 1SAT ═══][═════════════════════════/  [SS]
+ *   (Southbound) |-o 2sa (Dwarf)
  */
 
 #include <FieldUnit.h>
