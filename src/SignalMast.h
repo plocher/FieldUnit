@@ -18,15 +18,22 @@ public:
     SignalMast() : SignalMast("", MastType::ONE_HEAD) {}
 
     SignalMast(const char* name, MastType type, AspectResolver policy = AspectPolicies::defaultRoute)
-        : name_(name),
-          type_(type),
+        : type_(type),
           policy_(policy ? policy : AspectPolicies::defaultRoute),
           index_(0),
           currentIndication_(Indication::STOP),
           head1Aspect_(Aspect::RED),
           head2Aspect_(Aspect::RED),
           head3Aspect_(Aspect::DARK),
-          markers_(0) {}
+          markers_(0) {
+        setName(name);
+    }
+
+    void setName(const char* name) {
+        if (!name) { name_[0] = '\0'; return; }
+        strncpy(name_, name, sizeof(name_) - 1);
+        name_[sizeof(name_) - 1] = '\0';
+    }
 
     const char* name() const { return name_; }
     uint8_t index() const { return index_; }
@@ -124,7 +131,7 @@ public:
     }
 
 private:
-    const char* name_;
+    char name_[32];
     MastType type_;
     AspectResolver policy_;
     uint8_t index_;

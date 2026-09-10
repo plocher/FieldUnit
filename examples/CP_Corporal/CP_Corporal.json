@@ -1,0 +1,91 @@
+{
+  "name": "CP_Corporal",
+  "defaultAspectPolicy": "sp1969",
+  "trackCircuits": [
+    {"name": "1T1", "dropoutDelayMs": 0},
+    {"name": "3T1", "dropoutDelayMs": 0},
+    {"name": "5T1", "dropoutDelayMs": 0},
+    {"name": "1NAT", "dropoutDelayMs": 0},
+    {"name": "2NAT", "dropoutDelayMs": 0},
+    {"name": "1SAT", "dropoutDelayMs": 0},
+    {"name": "2SAT", "dropoutDelayMs": 0}
+  ],
+  "switches": [
+    {"name": "1"},
+    {"name": "3"},
+    {"name": "5"}
+  ],
+  "crossovers": [
+  ],
+  "signalControls": [
+    {"name": "2"},
+    {"name": "4"}
+  ],
+  "signalMasts": [
+    {"name": "2NAB", "type": "TWO_HEAD", "aspectPolicy": "sp1969"},
+    {"name": "2SA", "type": "DWARF", "aspectPolicy": "sp1969"},
+    {"name": "4NA", "type": "ONE_HEAD", "aspectPolicy": "sp1969"},
+    {"name": "4SA", "type": "ONE_HEAD", "aspectPolicy": "sp1969"}
+  ],
+  "detectorLocks": [
+    {"switch": "1", "trackCircuit": "1T1"},
+    {"switch": "3", "trackCircuit": "3T1"},
+    {"switch": "5", "trackCircuit": "5T1"}
+  ],
+  "routes": [
+    {
+      "name": "MT-NB",
+      "governedBy": {"signal": "2", "direction": "LEFT"},
+      "displays": {"mast": "2NAB", "head": 0, "maxIndication": "CLEAR"},
+      "aligns": [
+        {"switch": "1", "position": "NORMAL"},
+        {"switch": "3", "position": "NORMAL"}
+      ],
+      "clears": ["3T1", "1T1", "2SAT"],
+      "entrance": "3T1"
+    },
+    {
+      "name": "MT-NB-REV",
+      "governedBy": {"signal": "2", "direction": "LEFT"},
+      "displays": {"mast": "2NAB", "head": 1, "maxIndication": "DIVERGING_RESTRICTING"},
+      "aligns": [
+        {"switch": "3", "position": "REVERSE"}
+      ],
+      "clears": ["3T1", "1SAT"],
+      "entrance": "3T1"
+    },
+    {
+      "name": "SB-MT",
+      "governedBy": {"signal": "2", "direction": "RIGHT"},
+      "displays": {"mast": "2SA", "head": 0, "maxIndication": "CLEAR"},
+      "aligns": [
+        {"switch": "3", "position": "REVERSE"}
+      ],
+      "clears": ["3T1", "1NAT"],
+      "entrance": "1SAT",
+      "approaching": "2NAT"
+    },
+    {
+      "name": "IND-NB",
+      "governedBy": {"signal": "4", "direction": "LEFT"},
+      "displays": {"mast": "4NA", "head": 0, "maxIndication": "RESTRICTING"},
+      "aligns": [
+        {"switch": "1", "position": "REVERSE"},
+        {"switch": "5", "position": "REVERSE"}
+      ],
+      "clears": ["1T1", "5T1", "2SAT"],
+      "entrance": "5T1"
+    },
+    {
+      "name": "SB-IND",
+      "governedBy": {"signal": "4", "direction": "RIGHT"},
+      "displays": {"mast": "4SA", "head": 0, "maxIndication": "RESTRICTING"},
+      "aligns": [
+        {"switch": "1", "position": "REVERSE"},
+        {"switch": "5", "position": "REVERSE"}
+      ],
+      "clears": ["1T1", "5T1"],
+      "entrance": "1T1"
+    }
+  ]
+}

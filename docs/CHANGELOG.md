@@ -5,6 +5,12 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Dynamic Plant Serialization & Runtime Deserialization (`PlantSerializer.h`)**:
+  - Export: `cp.serialize(buffer, maxLen, pretty)` generates clean, self-contained JSON representing the entire plant topology (appliances, detector locks, crossovers, signal masts, rulebook policies, and routes).
+  - Import: `cp.deserialize(json)` reconstructs the entire interlocking plant dynamically at boot from LittleFS, SPIFFS, SD card, or network flash storage.
+  - Universal Binary: Enables a single universal microcontroller firmware binary (`examples/Universal_FieldUnit/Universal_FieldUnit.ino`) to control any trackside bungalow plant simply by reading its local configuration file.
+  - Zero Dependencies: Implemented with an in-place, zero-allocation scanner requiring no external JSON library dependencies.
+  - Added unit test suite `tests/test_plant_serializer.cpp` verifying 100% round-trip fidelity, vital route clearing, and signal knockdown on deserialized plants.
 - **`MqttApplianceBus`**: High-Level Semantic Device Interface connecting FieldUnit logical appliances directly to discrete MQTT domain topics (e.g. JMRI MQTT schemas: `track/sensor/<name>`, `track/turnout/<name>`, `track/signalmast/<name>`):
   - Ingress: Implements `onUnpack(topic, payload)` to translate sensor occupancy (`ACTIVE`/`INACTIVE`) and turnout point feedback (`CLOSED`/`THROWN`) into appliance updates.
   - Egress: Implements `onPack(handler)` and `sync()` to publish turnout movement commands and signal mast aspect changes (`"Clear"`, `"Approach"`, `"Stop"`).

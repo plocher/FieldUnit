@@ -10,15 +10,22 @@ public:
     TrackCircuit() : TrackCircuit("", 0) {}
 
     TrackCircuit(const char* name, uint32_t dropoutDelayMs = 0)
-        : name_(name),
-          state_{Occupancy::OCCUPIED, Quality::GOOD, 0},
+        : state_{Occupancy::OCCUPIED, Quality::GOOD, 0},
           rawOccupancy_(Occupancy::OCCUPIED),
           index_(0),
           dropoutDelayMs_(dropoutDelayMs),
           clearanceStartMs_(0),
           clearingActive_(false),
           stalenessTimeoutMs_(5000),
-          lastUpdateMs_(0) {}
+          lastUpdateMs_(0) {
+        setName(name);
+    }
+
+    void setName(const char* name) {
+        if (!name) { name_[0] = '\0'; return; }
+        strncpy(name_, name, sizeof(name_) - 1);
+        name_[sizeof(name_) - 1] = '\0';
+    }
 
     const char* name() const { return name_; }
     uint8_t index() const { return index_; }
@@ -97,12 +104,16 @@ public:
         dropoutDelayMs_ = delayMs;
     }
 
+    uint32_t dropoutDelay() const {
+        return dropoutDelayMs_;
+    }
+
     void setStalenessTimeout(uint32_t timeoutMs) {
         stalenessTimeoutMs_ = timeoutMs;
     }
 
 private:
-    const char* name_;
+    char name_[32];
     Qualified<Occupancy> state_;
     Occupancy rawOccupancy_;
     uint8_t index_;
