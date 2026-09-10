@@ -14,9 +14,10 @@ All notable changes to the FieldUnit library will be documented in this file.
 - **Appliance Self-Indexing**: `Switch`, `SignalControl`, and `TrackCircuit` store their registered index within `ControlPoint` upon creation, eliminating hardcoded magic integers in codec mappings.
 - **`BitPackedCodec`**: Dedicated binary bitstream codec for C/MRI IB/OB dense byte arrays, supporting `padToByte()` and `skipBits(N)` alignment helpers.
 - **`SignalAspectPolicy`**: Pluggable rulebook policy subsystem for `SignalMast`, supporting distinct railroad and era signaling practices:
-  - Built-in policies: `defaultRoute`, `sp1969` (Rule 290 Red over Lunar), `sp1985` (Rule 290 Red over Flashing Red with 1 Hz pulse), `gcorSpeed`, `nycSpeed` (Eastern 3-head speed signaling), `prrPositionLight` (Pennsylvania Railroad amber position lights), and `upperQuadrantSemaphore`.
+  - Built-in policies: `defaultRoute`, `sp1969` (Rule 290 Red over Lunar), `sp1985` (Rule 290 Red over Flashing Red with 1 Hz pulse), `gcorSpeed`, `nycSpeed` (Eastern 3-head speed signaling), `prrPositionLight` (Pennsylvania Railroad amber position lights), `upperQuadrantSemaphore`, and `boCpl` (Baltimore & Ohio Color-Position-Light with orbital markers).
   - Extensible: Accepts custom `AspectResolver` functions and lambdas for arbitrary railroad practices.
   - Extended standard `Indication` and `Aspect` enums with common North American indications and flashing aspects.
+- **`CplMastDriver`**: Dedicated hardware driver for Baltimore & Ohio (B&O) Color-Position-Light (CPL) signal masts, driving central cluster lamp pairs (Red horizontal, Yellow diagonal, Green vertical, Lunar diagonal) with 1 Hz flashers and up to six perimeter orbital markers (12, 2, 4, 6, 8, 10 o'clock) for speed signaling.
 - **`SemaphoreDriver`**: Dedicated hardware driver for mechanical semaphore signals actuated by hobby servos (PCA9685 / PWM pins), supporting independent Stop, Approach, and Clear angles per blade.
 - **`IOBus::writeAngle()`**: Hardware abstraction method for driving analog/servo channel angles.
 - **`Crossover`**: First-class crossover appliance inheriting from `Switch`, allowing direct route alignment (`Route::aligns({ {xover, SwitchPosition::REVERSE} })`) while driving and proving two physical machines in unison.

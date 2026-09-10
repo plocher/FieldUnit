@@ -75,6 +75,7 @@ struct MastIndication {
     Aspect head1;
     Aspect head2;
     Aspect head3;
+    uint8_t markers;                    // B&O CPL / Position light orbital markers
 };
 
 struct IndicationVector {
@@ -375,7 +376,8 @@ public:
                 masts_[i].compositeAspect(),
                 masts_[i].head1(),
                 masts_[i].head2(),
-                masts_[i].head3()
+                masts_[i].head3(),
+                masts_[i].markers()
             };
         }
 
