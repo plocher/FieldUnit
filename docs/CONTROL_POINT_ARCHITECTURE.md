@@ -198,57 +198,75 @@ The architecture accommodates multiple North American operating regimes:
    Track circuits provide occupancy indications to dispatcher screens.
    Electric locks on switches enforce lock-and-block discipline.
 
-### 3.3 Control Point Autonomy and the Two Seams ("A" vs. "B")
+### 3.3 Control Point Autonomy and the Two Core Interfaces
 
-FieldUnit defines two independent architectural seams:
+FieldUnit defines two independent architectural boundaries: the **CodeLine Interface** connecting to the dispatcher control plane, and the **Device Interface** connecting to the trackside physical world.
 
 ```
-[ Dispatcher Office / CTC Panel / JMRI ]
-               │
-               │   <-- Seam "A" : Supervisory CodeLine Interface
-               │             (Plant-wide AAR Snapshots: Controls <-> Indications)
-               ▼
-┌────────────────────────────────────────────────────────┐
-│  FieldUnit Vital Engine (Tiers 2 & 3)                  │
-│  - Evaluates Interlocking Safety Rules                 │
-│  - Manages Track Circuits, Switches, Masts, Crossovers │
-│  - Enforces Route Locks, Approach Locking, Knockdown   │
-└────────────────────────────────────────────────────────┘
-               │
-               │   <-- Seam "B" : Appliance Driver / I/O Bus Interface
-               │             (Device-level pin/angle/state actuation & sensing)
-               ▼
-[ Physical Trackside Appliances: Motors, Detectors, LEDs, Servos ]
+[ Dispatcher Office / CTC Machine / JMRI Panel ]
+                       │
+                       │  <=== 1. CodeLine Interface (Transactional Snapshots)
+                       │        (Plant-wide atomic vectors: Controls <-> Indications)
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│  FieldUnit Vital Engine & Logical Appliances                │
+│  (ControlPoint, ControlTable, TrackCircuit, Switch, Mast)   │
+└─────────────────────────────────────────────────────────────┘
+                       │
+                       │  <=== 2. Device Interface (Trackside Boundary)
+                       │
+        ┌──────────────┴──────────────┐
+        ▼                             ▼
+[ High-Level Semantic Interface ]  [ Low-Level Hardware Interface ]
+(Domain Entities over MQTT / LCC)  (Electrical Pins & Signals via IOBus)
+- Turnouts: CLOSED / THROWN        - Physical GPIO & I2C pins
+- Sensors: ACTIVE / INACTIVE       - A/D, D/A, Analog threshold sensing
+- Signal Masts: Aspect strings     - Timed PWM servo blade angles
+- Fastclock / Matter room lights   - C/MRI shift register bit arrays
 ```
 
-#### Seam "A": The Supervisory CodeLine Interface
+#### 1. The CodeLine Interface (Transactional Snapshot Contract)
 The boundary between the Control Plane (Dispatcher / Tower) and the Field Interlocking:
-- Transfers complete plant snapshots (`ControlTransaction` ingress, `IndicationVector` egress).
+- **Strictly Transactional**: Operates on atomic plant-wide snapshots (`ControlTransaction` ingress, `IndicationVector` egress). It is NOT an RPC, query-response, or piecemeal command protocol.
 - Handled by `AarTextCodec` (symbolic text) or `BitPackedCodec` (binary bitstreams).
 - Transported by `StreamCodeLine` (RS-485 serial), `MqttCodeLine` (MQTT supervisory topic), or in-memory direct dispatch.
 - Control Points are strictly autonomous: they never share pointers or private memory across the CodeLine.
 
-#### Seam "B": The Appliance Driver / I/O Bus Interface
-The boundary between logical appliances and physical trackside hardware:
+#### 2. The Device Interface (Trackside Appliance Boundary)
+The single boundary between logical interlocking rules and the trackside physical world, supporting two switchable implementation types:
+
+##### Type A: Low-Level Hardware Interface (Electrical Pins & Signals)
+Connects appliance drivers to "dumb" electrical hardware requiring voltage, current, and timing management:
 - Abstracted by `IOBus`, `IOBit`, and dedicated drivers (`SwitchDriver`, `TrackCircuitDriver`, `SignalMastDriver`, `SemaphoreDriver`).
-- Decouples the vital interlocking logic from how bits and angles are physically transported.
-- Supported "B" implementations:
-  1. **`B.onboardIO`**: Direct microcontroller GPIO pins (`digitalRead`/`digitalWrite`).
-  2. **`B.I2Cexpander`**: Local I2C port expanders (MCP23017, cpNode-IOX) via `I2CexpanderIOBus`.
-  3. **`B.CMRInet`**: Classic C/MRI serial polling of remote nodes via `CmriIOBus` (`IB[]`/`OB[]`).
-  4. **`B.CMRInet_over_TCP`**: C/MRI packets pumped across network sockets to Ethernet/WiFi nodes.
-  5. **`B.AAR_over_MQTT`**: Device-level discrete MQTT topics (`track/turnout/305`, `track/sensor/1001`).
-  6. **`B.Mock`**: Simulated pin contacts and servo angles for desktop automated testing (`MockIOBus`).
+- Decomposes appliances into electrical coordinates: `(device, offset, bitIndex, polarity)`, ADC thresholds, and PWM servo angles.
+- Supported backends:
+  1. **Direct Microcontroller GPIO**: `digitalRead` / `digitalWrite`.
+  2. **Local I2C Port Expanders**: MCP23017, cpNode-IOX via `I2CexpanderIOBus`.
+  3. **Classic C/MRI Serial Polling**: Remote shift register nodes via `CmriIOBus` (`IB[]`/`OB[]`).
+  4. **C/MRI over Network Sockets**: Ethernet/WiFi remote nodes.
+  5. **Automated Desktop Simulation**: `MockIOBus`.
 
-#### The 4-Way Deployment Matrix
-Because the vital engine is insulated between Seam "A" and Seam "B", the exact same plant definition runs across four distinct deployment topologies:
+##### Type B: High-Level Semantic Interface (Smart Domain Appliances)
+Connects logical appliances directly to autonomous, networked smart devices communicating via domain entities rather than pin bit-fields:
+- Abstracted by `MqttApplianceBus`.
+- Operates on named domain appliance topics and payloads:
+  - `TrackCircuit` $\longleftrightarrow$ `track/sensor/<name>` (`ACTIVE` / `INACTIVE` or `OCCUPIED` / `VACANT`)
+  - `Switch` $\longleftrightarrow$ `track/turnout/<name>` (`CLOSED` / `THROWN`) and feedback `track/turnout/<name>/state`
+  - `SignalMast` $\longleftrightarrow$ `track/signalmast/<name>` (Aspect strings: `"Clear"`, `"Approach"`, `"Stop"`, etc.)
+  - `Light` $\longleftrightarrow$ `track/light/<name>` (`ON` / `OFF`)
+- Implements symmetric **`onPack` / `onUnpack`** callback vocabulary matching MQTT subscription ingress and publication egress.
+- Enables future smart integrations without altering interlocking code, such as Matter / HomeAutomation bridges for fastclock-driven layout room ambient lighting.
 
-| Deployment Topology | Where is Seam "A" (CodeLine)? | Where is Seam "B" (Appliance I/O)? |
-| :--- | :--- | :--- |
-| **1. Smart Bungalow (Distributed)** | **Across layout wire**<br>(RS-485 serial or CodeLine MQTT) | **Local inside bungalow**<br>(`B.onboardIO` or `B.I2Cexpander`) |
-| **2. Central Host (Classic C/MRI)** | **Local in host memory**<br>(Internal C++ function call) | **Across layout wire**<br>(`B.CMRInet` serial or `B.CMRInet_over_TCP`) |
-| **3. IoT Layout (Full MQTT)** | **Supervisory MQTT topic**<br>(`railroad/cp_corporal/control`) | **Device MQTT topics**<br>(`B.AAR_over_MQTT`: `track/sensor/101`) |
-| **4. Desktop Test Bench / Simulation** | **`MockCodeLine`**<br>(Injected text test vectors) | **`B.Mock` (`MockIOBus`)**<br>(In-memory pin states & servo angles) |
+#### The Deployment Matrix
+Because the vital engine is insulated across these interfaces, the exact same plant definition runs across multiple deployment topologies:
+
+| Deployment Topology | CodeLine Interface | Low-Level Electrical I/O | High-Level Device Bus |
+| :--- | :--- | :--- | :--- |
+| **1. Smart Bungalow (Distributed)** | **Across layout wire**<br>(RS-485 serial or CodeLine MQTT) | **Local inside bungalow**<br>(GPIO or I2C expanders) | — |
+| **2. Central Host (Classic C/MRI)** | **Local in host memory**<br>(Internal C++ function call) | **Across layout wire**<br>(`CmriIOBus` serial or TCP) | — |
+| **3. IoT Smart Layout (MQTT Devices)** | **Supervisory MQTT topic**<br>(`railroad/cp_corporal/control`) | — | **Device MQTT topics**<br>(`MqttApplianceBus`: `track/sensor/1T1`) |
+| **4. Hybrid Layout** | **CodeLine Serial or MQTT** | **Local I2C detectors** | **WiFi/MQTT turnouts & masts** |
+| **5. Desktop Test Bench / Simulation** | **`MockCodeLine`**<br>(Injected text test vectors) | **`MockIOBus`** | — |
 
 ### 3.4 Interlocking Tower Control as a Hybrid Model
 An Interlocking Tower combines elements of both a Control Plane and a Control Point:
