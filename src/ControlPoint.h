@@ -210,6 +210,27 @@ public:
         return nullptr;
     }
 
+    TrackCircuit* findDetectorCircuitForSwitch(const Switch* sw) const {
+        if (!sw) return nullptr;
+        for (uint8_t i = 0; i < detectorLockCouplingCount_; ++i) {
+            if (detectorLocks_[i].sw == sw) {
+                return detectorLocks_[i].tc;
+            }
+            if (sw->pairedSwitch() != nullptr && detectorLocks_[i].sw == sw->pairedSwitch()) {
+                return detectorLocks_[i].tc;
+            }
+        }
+        for (uint8_t i = 0; i < crossoverCount_; ++i) {
+            if (static_cast<const Switch*>(&crossovers_[i]) == sw) {
+                if (crossovers_[i].switchA()) {
+                    TrackCircuit* tcA = findDetectorCircuitForSwitch(crossovers_[i].switchA());
+                    if (tcA) return tcA;
+                }
+            }
+        }
+        return nullptr;
+    }
+
     Route& route(const char* name) {
         return engine_.addRoute(name, this);
     }
@@ -444,12 +465,27 @@ inline Route& Route::aligns(std::initializer_list<NamedSwitchRequirement> swList
     for (const auto& s : swList) {
         if (switchCount_ < MAX_ROUTE_SWITCHES) {
             Switch* sw = cp_ ? cp_->findSwitch(s.switchName) : nullptr;
+            TrackCircuit* rel = (cp_ && s.releasingBlockName) ? cp_->findTrackCircuit(s.releasingBlockName) : nullptr;
             if (sw) {
-                switches_[switchCount_++] = { sw, s.requiredPosition };
+                switches_[switchCount_++] = { sw, s.requiredPosition, rel };
             }
         }
     }
     return *this;
+}
+
+inline TrackCircuit* Route::releasingBlock(uint8_t idx) const {
+    if (idx >= switchCount_) return nullptr;
+    if (switches_[idx].releasingBlock != nullptr) {
+        return switches_[idx].releasingBlock;
+    }
+    if (cp_ != nullptr && switches_[idx].switchRef != nullptr) {
+        TrackCircuit* boundTc = cp_->findDetectorCircuitForSwitch(switches_[idx].switchRef);
+        if (boundTc != nullptr) {
+            return boundTc;
+        }
+    }
+    return entranceBlock();
 }
 
 inline Route& Route::clears(std::initializer_list<const char*> tcNames) {

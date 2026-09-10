@@ -13,6 +13,11 @@ All notable changes to the FieldUnit library will be documented in this file.
   - **Fault Monitoring**: Tracks unknown symbol counts, last unknown symbol, and vital conflict counts.
 - **Appliance Self-Indexing**: `Switch`, `SignalControl`, and `TrackCircuit` store their registered index within `ControlPoint` upon creation, eliminating hardcoded magic integers in codec mappings.
 - **`BitPackedCodec`**: Dedicated binary bitstream codec for C/MRI IB/OB dense byte arrays, supporting `padToByte()` and `skipBits(N)` alignment helpers.
+- **Sectional Route Release**:
+  - Implemented sequential block progression and progressive switch unlocking in `ControlTable.h` (`RouteState` and `SectionState`).
+  - As a train traverses an interlocking plant across multiple switches and crossovers, trailing switches release progressively (`SwitchLock::ROUTE_LOCKED` dropped) as their specific fouling track circuit is vacated, freeing switches behind the train for conflicting moves while maintaining route locking on downstream switches.
+  - Trailing switches in vacant downstream sections maintain `SwitchLock::ROUTE_LOCKED` after signal knockdown until the train traverses and clears them.
+  - Automatic detector circuit pairing via `ControlPoint::bindDetectorLock()` with optional explicit releasing block assignment in `Route::aligns()`.
 - **`SignalAspectPolicy`**: Pluggable rulebook policy subsystem for `SignalMast`, supporting distinct railroad and era signaling practices:
   - Built-in policies: `defaultRoute`, `sp1969` (Rule 290 Red over Lunar), `sp1985` (Rule 290 Red over Flashing Red with 1 Hz pulse), `gcorSpeed`, `nycSpeed` (Eastern 3-head speed signaling), `prrPositionLight` (Pennsylvania Railroad amber position lights), `upperQuadrantSemaphore`, and `boCpl` (Baltimore & Ohio Color-Position-Light with orbital markers).
   - Extensible: Accepts custom `AspectResolver` functions and lambdas for arbitrary railroad practices.
