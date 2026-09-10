@@ -72,9 +72,9 @@ On a real railroad, you must never throw a switch while a train occupies the poi
 Bind each switch to its detector track circuit:
 
 ```cpp
-auto sw1 = cp.addSwitch("SW1");
-auto sw3 = cp.addSwitch("SW3");
-auto sw5 = cp.addSwitch("SW5");
+auto sw1 = cp.addSwitch("1");
+auto sw3 = cp.addSwitch("3");
+auto sw5 = cp.addSwitch("5");
 
 // Enforce detector locking
 cp.bindDetectorLock(sw1, tc1T1);
@@ -92,8 +92,8 @@ Signals divide into two parts:
 
 ```cpp
 // Dispatcher movement authorities
-auto sig2 = cp.addSignalControl("SIG2");
-auto sig4 = cp.addSignalControl("SIG4");
+auto sig2 = cp.addSignalControl("2");
+auto sig4 = cp.addSignalControl("4");
 
 // Wayside signal masts
 auto mast2NAB = cp.addSignalMast("S2NAB", MastType::TWO_HEAD); // 2-Head Northbound

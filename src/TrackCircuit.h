@@ -13,6 +13,7 @@ public:
         : name_(name),
           state_{Occupancy::OCCUPIED, Quality::GOOD, 0},
           rawOccupancy_(Occupancy::OCCUPIED),
+          index_(0),
           dropoutDelayMs_(dropoutDelayMs),
           clearanceStartMs_(0),
           clearingActive_(false),
@@ -20,6 +21,8 @@ public:
           lastUpdateMs_(0) {}
 
     const char* name() const { return name_; }
+    uint8_t index() const { return index_; }
+    void setIndex(uint8_t idx) { index_ = idx; }
 
     // Vital query: is this block safe for train movement?
     // Fail-safe rule: Must be VACANT AND GOOD quality.
@@ -102,6 +105,7 @@ private:
     const char* name_;
     Qualified<Occupancy> state_;
     Occupancy rawOccupancy_;
+    uint8_t index_;
     uint32_t dropoutDelayMs_;
     uint32_t clearanceStartMs_;
     bool clearingActive_;

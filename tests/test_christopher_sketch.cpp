@@ -26,32 +26,37 @@ void runChristopherSketchIntegrationTest() {
     // Initial cycle with no incoming packets: exports baseline indications
     executeCycle(mockLine, clockMs);
     assert(mockLine.hasOutboundPacket());
-    assert(mockLine.outboundLength() == 4);
-    // Byte 0: All Normal correspondence bits (1NWK=b0, 3NWK=b2, 3BNWK=b4, 5NWK=b6) -> 0x55!
-    assert(mockLine.outboundPacket()[0] == 0x55);
-    // Byte 2: Signal 2 is at STOP -> SGK and NGK are 0
-    assert((mockLine.outboundPacket()[2] & 0x03) == 0);
-    printf("[CYCLE 1] Plant at rest: Baseline indications verified (Byte 0 = 0x55)\n\n");
+    const char* outText = mockLine.outboundText();
+    // Verify all switches in Normal correspondence
+    assert(strstr(outText, "1NWK") != nullptr && strstr(outText, "(1NWK)") == nullptr);
+    assert(strstr(outText, "3NWK") != nullptr && strstr(outText, "(3NWK)") == nullptr);
+    assert(strstr(outText, "3BNWK") != nullptr && strstr(outText, "(3BNWK)") == nullptr);
+    assert(strstr(outText, "5NWK") != nullptr && strstr(outText, "(5NWK)") == nullptr);
+    // Reverse indications must be dropped (parenthesized)
+    assert(strstr(outText, "(1RWK)") != nullptr);
+    assert(strstr(outText, "(3RWK)") != nullptr);
+    // Signal 2 is at STOP -> 2SGK and 2NGK are dropped (parenthesized)
+    assert(strstr(outText, "(2SGK)") != nullptr);
+    assert(strstr(outText, "(2NGK)") != nullptr);
+    printf("[CYCLE 1] Plant at rest: Baseline indications verified\n  -> Outbound: %s\n\n", outText);
     mockLine.clearOutbound();
 
     // -------------------------------------------------------------
     // SCENARIO 1: Dispatcher clears Northbound MT2 straight (SIG2 LEFT)
     // -------------------------------------------------------------
     printf("[SCENARIO 1] Dispatcher transmits Control Packet: SIG2 LEFT with switches Normal\n");
-    // Byte 0 = 0x55 (all switches Normal)
-    // Byte 1 = 0x02 (2NG = 1 -> Left/Northbound)
-    uint8_t packet1[2] = { 0x55, 0x02 };
-    mockLine.injectControlPacket(packet1, sizeof(packet1));
+    mockLine.injectControlText("1NWS, (1RWS), 3NWS, (3RWS), 3BNWS, (3BRWS), 5NWS, (5RWS), 2NGS, (2SGS), (2HS)");
 
     executeCycle(mockLine, clockMs);
 
     assert(mockLine.hasOutboundPacket());
-    // Byte 2 must show 2NGK = 1 (bit 1 active)
-    assert((mockLine.outboundPacket()[2] & 0x02) != 0);
+    outText = mockLine.outboundText();
+    // Must show 2NGK lit (asserted / unparenthesized)
+    assert(strstr(outText, "2NGK") != nullptr && strstr(outText, "(2NGK)") == nullptr);
     // Mast 2Nab top head H2NA must be GREEN
     assert(mast2N->head1() == Aspect::GREEN);
     assert(mast2N->head2() == Aspect::RED);
-    printf("  -> PASS: Indication packet confirms 2NGK lit (Byte 2 = 0x02)\n");
+    printf("  -> PASS: Indication confirms 2NGK lit: %s\n", outText);
     printf("  -> PASS: Mast 2Nab physically displays Green over Red (Clear)\n\n");
     mockLine.clearOutbound();
 
@@ -66,31 +71,32 @@ void runChristopherSketchIntegrationTest() {
     // Signal immediately knocks down to STOP!
     assert(mast2N->head1() == Aspect::RED);
     assert(mast2N->head2() == Aspect::RED);
-    // Indication packet reflects 3BT1 occupied (Byte 1, bit 2 = 0x04)
-    assert((mockLine.outboundPacket()[1] & 0x04) != 0);
-    // Signal indication light 2NGK drops to dark
-    assert((mockLine.outboundPacket()[2] & 0x02) == 0);
+    outText = mockLine.outboundText();
+    // Indication reflects 3BT1 occupied (unparenthesized)
+    assert(strstr(outText, "3BT1K") != nullptr && strstr(outText, "(3BT1K)") == nullptr);
+    // Signal indication light 2NGK drops to dark (parenthesized)
+    assert(strstr(outText, "(2NGK)") != nullptr);
     printf("  -> PASS: Signal knocked down to Red over Red\n");
-    printf("  -> PASS: Indication packet reports 3BT1 occupied (Byte 1 bit 2)\n\n");
+    printf("  -> PASS: Indication confirms 3BT1K occupied and 2NGK dropped: %s\n\n", outText);
     mockLine.clearOutbound();
 
     // -------------------------------------------------------------
     // SCENARIO 3: Dispatcher attempts to throw crossover while train on 3BT1
     // -------------------------------------------------------------
     printf("[SCENARIO 3] Dispatcher attempts to throw Crossover SW3/3B while 3BT1 occupied\n");
-    // Byte 0 = 0x65 (demands SW3 Reverse: bit 2=0, bit 3=1)
-    uint8_t packetUnsafe[2] = { 0x69, 0x00 };
-    mockLine.injectControlPacket(packetUnsafe, clockMs);
+    mockLine.injectControlText("3RWS, 3BRWS");
 
     executeCycle(mockLine, clockMs);
 
     // Switch points did not move; still in Normal position and detector-locked!
     assert(sw3->reportedPosition() == SwitchPosition::NORMAL);
     assert((sw3->activeLocks() & SwitchLock::DETECTOR_LOCKED) == SwitchLock::DETECTOR_LOCKED);
-    // Indication Byte 0 still shows 1NWK and 3NWK (Normal correspondence)
-    assert((mockLine.outboundPacket()[0] & 0x05) == 0x05);
+    outText = mockLine.outboundText();
+    // Indications still show 3NWK and 3BNWK in Normal correspondence
+    assert(strstr(outText, "3NWK") != nullptr && strstr(outText, "(3NWK)") == nullptr);
+    assert(strstr(outText, "3BNWK") != nullptr && strstr(outText, "(3BNWK)") == nullptr);
     printf("  -> PASS: Unsafe crossover throw rejected; points held in Normal\n");
-    printf("  -> PASS: Indication Byte 0 confirms switches remain in Normal correspondence\n\n");
+    printf("  -> PASS: Indications confirm switches remain in Normal correspondence: %s\n\n", outText);
     mockLine.clearOutbound();
 
     // -------------------------------------------------------------
@@ -102,17 +108,18 @@ void runChristopherSketchIntegrationTest() {
     executeCycle(mockLine, clockMs);
     mockLine.clearOutbound();
 
-    // Command SW1 Normal, SW3/SW3B Reverse, SW5 Normal
-    // Byte 0: b0(1NW)=1, b1=0, b2=0, b3(3RW)=1, b4=0, b5(3BRW)=1, b6(5NW)=1, b7=0 -> 0x69
-    // SIG2 LEFT (Byte 1: 0x02)
-    uint8_t packetDiverge[2] = { 0x69, 0x02 };
-    mockLine.injectControlPacket(packetDiverge, sizeof(packetDiverge));
+    // Command SW1 Normal, SW3/SW3B Reverse, SW5 Normal, SIG2 LEFT
+    mockLine.injectControlText("1NWS, 3RWS, 3BRWS, 5NWS, 2NGS");
 
     executeCycle(mockLine, clockMs);
 
-    // Switches started moving in unison -> indications dark
-    assert((mockLine.outboundPacket()[0] & 0x3C) == 0); // SW3/3B NWK and RWK are dark
-    printf("  -> Points moving: Indication Byte 0 confirms crossover is out of correspondence\n");
+    outText = mockLine.outboundText();
+    // Switches started moving in unison -> both NWK and RWK dark (parenthesized)
+    assert(strstr(outText, "(3NWK)") != nullptr);
+    assert(strstr(outText, "(3RWK)") != nullptr);
+    assert(strstr(outText, "(3BNWK)") != nullptr);
+    assert(strstr(outText, "(3BRWK)") != nullptr);
+    printf("  -> Points moving: Indications confirm crossover is out of correspondence\n");
     mockLine.clearOutbound();
 
     // Points complete travel
@@ -121,14 +128,16 @@ void runChristopherSketchIntegrationTest() {
 
     executeCycle(mockLine, clockMs);
 
-    // Indication Byte 0 now shows 3RWK (bit 3) and 3BRWK (bit 5) -> (0x08 | 0x20 = 0x28)
-    assert((mockLine.outboundPacket()[0] & 0x28) == 0x28);
+    outText = mockLine.outboundText();
+    // Indications now show 3RWK and 3BRWK (unparenthesized)
+    assert(strstr(outText, "3RWK") != nullptr && strstr(outText, "(3RWK)") == nullptr);
+    assert(strstr(outText, "3BRWK") != nullptr && strstr(outText, "(3BRWK)") == nullptr);
     // Mast 2Nab lower head H2NB displays GREEN (Red over Green)
     assert(mast2N->head1() == Aspect::RED);
     assert(mast2N->head2() == Aspect::GREEN);
-    // Indication Byte 2 shows 2NGK lit
-    assert((mockLine.outboundPacket()[2] & 0x02) != 0);
-    printf("  -> PASS: Crossover Reverse correspondence confirmed on Byte 0\n");
+    // Indication shows 2NGK lit
+    assert(strstr(outText, "2NGK") != nullptr && strstr(outText, "(2NGK)") == nullptr);
+    printf("  -> PASS: Crossover Reverse correspondence confirmed: %s\n", outText);
     printf("  -> PASS: Mast 2Nab displays DIVERGING_CLEAR (Red over Green on lower head)\n\n");
 
     printf("====================================================\n");

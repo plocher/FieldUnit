@@ -15,12 +15,15 @@ public:
           commanded_(DirectionAuthority::STOP),
           active_(DirectionAuthority::STOP),
           fleetMode_(false),
+          index_(0),
           stickDropped_(false),
           timeLockRunning_(false),
           timeLockExpiryMs_(0),
           timeLockDurationMs_(30000) {}
 
     const char* name() const { return name_; }
+    uint8_t index() const { return index_; }
+    void setIndex(uint8_t idx) { index_ = idx; }
 
     DirectionAuthority commandedDirection() const { return commanded_; }
     DirectionAuthority activeDirection() const { return active_; }
@@ -164,6 +167,7 @@ private:
     DirectionAuthority commanded_;
     DirectionAuthority active_;
     bool fleetMode_;
+    uint8_t index_;
     bool stickDropped_;
     bool timeLockRunning_;
     uint32_t timeLockExpiryMs_;

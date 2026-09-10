@@ -16,10 +16,13 @@ public:
           reported_(SwitchPosition::NORMAL),
           locks_(SwitchLock::UNLOCKED),
           pairedSwitch_(nullptr),
+          index_(0),
           motionStartMs_(0),
           travelTimeoutMs_(5000) {}
 
     const char* name() const { return name_; }
+    uint8_t index() const { return index_; }
+    void setIndex(uint8_t idx) { index_ = idx; }
 
     SwitchPosition commandedPosition() const { return commanded_; }
     SwitchPosition reportedPosition() const { return reported_; }
@@ -190,6 +193,7 @@ private:
     SwitchPosition reported_;
     SwitchLock locks_;
     Switch* pairedSwitch_;
+    uint8_t index_;
     uint32_t motionStartMs_;
     uint32_t travelTimeoutMs_;
 };

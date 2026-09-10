@@ -8,26 +8,24 @@
  * < Railroad West/North               MP 81                    Railroad East/South >
  *   (Carneros/Luchessa)                                        (Corporal)
  *
- *                                                               Signal 2Nab
- *                                             SW3B               [2Nab |==]
- *  MT2 <══ 2SA ══════//═════════════════════════\══════════════════//════ 2NA ════< MT2
- *                    IRJ       [==| 2Sc]        3BT1\             IRJ  (Exit/Appr)
- *                           Signal 2Sc (Dwarf)       \
- *                                  1T1                \  3T1       5T1   [2Nc |==]
- *  MT1 >══ 1SA ══════//═════════════\══════════════════\════════════\════//════ 1NA ════> MT1
- *          (Approach)IRJ  [==| 2Sab] \ SW1              SW3          SW5  IRJ  (Exit/Appr)
- *                        Signal 2Sab  \═════════════════════════════/
- *                        (Two Heads)              IND (Spur)
+ *                                                        oo=| 2Nab
+ *  MT2 <══ 2SA ══════][═════════════════════════+═══════════][════ 2NA ════< MT2
+ *        (Exit)       |-o 2Sc             3BT1 /                 (Approach)
+ *                     (Dwarf)                 /
+ *                                            /  3T1      oo-| 2Nc
+ *  MT1 >══ 1SA ══════][════════+════════][══+══════][═══+═══][════ 1NA ════> MT1
+ *      (Approach)     |-oo 2Sab \ 1T1              5T1 /          (Exit)
+ *                                \═][══════════════][═/
+ *                                       IND (Spur)
  *
  * Wire schema:
- *   Controls (2 bytes):
- *     Byte 0: 1NW(b0), 1RW(b1), 3NW(b2), 3RW(b3), 3BNW(b4), 3BRW(b5), 5NW(b6), 5RW(b7)
- *     Byte 1: 2SG(b0), 2NG(b1), 2H(b2), MC1(b5), MC2(b6)
+ *   Controls:
+ *     1NW, 1RW, 3NW, 3RW, 3BNW, 3BRW, 5NW, 5RW
+ *     2SG, 2NG, 2H,  MC1, MC2
  *   Indications (4 bytes):
- *     Byte 0: 1NWK(b0), 1RWK(b1), 3NWK(b2), 3RWK(b3), 3BNWK(b4), 3BRWK(b5), 5NWK(b6), 5RWK(b7)
- *     Byte 1: 1T1(b0), 3T1(b1), 3BT1(b2), 5T1(b3), 1SA(b4), 2SA(b5), 1NA(b6), 2NA(b7)
- *     Byte 2: 2SGK(b0), 2NGK(b1), 2TEK(b2), MC1(b4), MC2(b5)
- *     Byte 3: IND(b0)
+ *     1NWK, 1RWK, 3NWK, 3RWK, 3BNWK, 3BRWK, 5NWK, 5RWK
+ *     1T1,  3T1,  3BT1, 5T1,  1SA,   2SA,   1NA,  2NA
+ *     2SGK, 2NGK, 2TEK, MC1,  MC2,   IND
  */
 
 #include <FieldUnit.h>
@@ -36,7 +34,7 @@ using namespace FieldUnit;
 
 // Control Point Instance
 ControlPoint cp("CP_Christopher");
-CodeLineCodec codec(2, 4);
+AarTextCodec codec;
 
 // Appliance handles
 TrackCircuit* tc1T1;
@@ -71,22 +69,11 @@ void configurePlant() {
     tc2NA  = cp.addTrackCircuit("2NA");  // MT2 Northbound exit/approach
     tcIND  = cp.addTrackCircuit("IND");  // Industry spur
 
-    // Initial baseline: all circuits initialized clear
-    tc1T1->update(Occupancy::VACANT);
-    tc3T1->update(Occupancy::VACANT);
-    tc3BT1->update(Occupancy::VACANT);
-    tc5T1->update(Occupancy::VACANT);
-    tc1SA->update(Occupancy::VACANT);
-    tc2SA->update(Occupancy::VACANT);
-    tc1NA->update(Occupancy::VACANT);
-    tc2NA->update(Occupancy::VACANT);
-    tcIND->update(Occupancy::VACANT);
-
     // 2. Declare Switches & Crossover Pairing
-    sw1  = cp.addSwitch("SW1");
-    sw3  = cp.addSwitch("SW3");
-    sw3B = cp.addSwitch("SW3B");
-    sw5  = cp.addSwitch("SW5");
+    sw1  = cp.addSwitch("1");
+    sw3  = cp.addSwitch("3");
+    sw3B = cp.addSwitch("3B");
+    sw5  = cp.addSwitch("5");
 
     sw3->pairCrossover(sw3B); // SW3 and SW3B move and lock in unison
 
@@ -96,7 +83,7 @@ void configurePlant() {
     cp.bindDetectorLock(sw5, tc5T1);
 
     // 3. Declare Signal Control & Masts
-    sig2    = cp.addSignalControl("SIG2");
+    sig2    = cp.addSignalControl("2");
     mast2N  = cp.addSignalMast("2Nab", MastType::TWO_HEAD);
     mast2S  = cp.addSignalMast("2Sab", MastType::TWO_HEAD);
     mast2Nc = cp.addSignalMast("2Nc", MastType::DWARF);
@@ -140,42 +127,44 @@ void configurePlant() {
       .clears({ tc1T1, tc3T1 })
       .approaching(tc2NA);
 
-    // 5. Configure Wire Codec
-    codec.mapSwitchControl(0, 0, 0, 0, 1); // SW1: b0=1NW, b1=1RW
-    codec.mapSwitchControl(1, 0, 2, 0, 3); // SW3: b2=3NW, b3=3RW
-    codec.mapSwitchControl(2, 0, 4, 0, 5); // SW3B: b4=3BNW, b5=3BRW
-    codec.mapSwitchControl(3, 0, 6, 0, 7); // SW5: b6=5NW, b7=5RW
-    codec.mapSignalControl(0, 1, 0, 1, 2); // SIG2: b0=2SG, b1=2NG, b2=2H
-    codec.mapMaintainerControl(0, 1, 5);   // MC1: b5
-    codec.mapMaintainerControl(1, 1, 6);   // MC2: b6
+    // 5. Configure Wire Codec (AAR Symbolic CodeLine)
+    codec.decodeControls({
+        decodeSwitch(sw1),   // 1NWS, 1RWS
+        decodeSwitch(sw3),   // 3NWS, 3RWS
+        decodeSwitch(sw3B),  // 3BNWS, 3BRWS
+        decodeSwitch(sw5),   // 5NWS, 5RWS
+        decodeSignal(sig2),  // 2SGS, 2NGS, 2HS
+        decodeMaintainer(0)  // MC1S
+    });
 
-    codec.mapSwitchIndication(0, 0, 0, 0, 1); // 1NWK, 1RWK
-    codec.mapSwitchIndication(1, 0, 2, 0, 3); // 3NWK, 3RWK
-    codec.mapSwitchIndication(2, 0, 4, 0, 5); // 3BNWK, 3BRWK
-    codec.mapSwitchIndication(3, 0, 6, 0, 7); // 5NWK, 5RWK
-
-    codec.mapTrackIndication(0, 1, 0); // 1T1
-    codec.mapTrackIndication(1, 1, 1); // 3T1
-    codec.mapTrackIndication(2, 1, 2); // 3BT1
-    codec.mapTrackIndication(3, 1, 3); // 5T1
-    codec.mapTrackIndication(4, 1, 4); // 1SA
-    codec.mapTrackIndication(5, 1, 5); // 2SA
-    codec.mapTrackIndication(6, 1, 6); // 1NA
-    codec.mapTrackIndication(7, 1, 7); // 2NA
-    codec.mapTrackIndication(8, 3, 0); // IND
-
-    codec.mapSignalIndication(0, 2, 0, 1, 2); // 2SGK, 2NGK, 2TEK
+    codec.encodeIndications({
+        encodeSwitch(sw1),   // 1NWK, 1RWK
+        encodeSwitch(sw3),   // 3NWK, 3RWK
+        encodeSwitch(sw3B),  // 3BNWK, 3BRWK
+        encodeSwitch(sw5),   // 5NWK, 5RWK
+        encodeTrack(tc1T1),  // 1T1K
+        encodeTrack(tc3T1),  // 3T1K
+        encodeTrack(tc3BT1), // 3BT1K
+        encodeTrack(tc5T1),  // 5T1K
+        encodeTrack(tc1SA),  // 1SAK
+        encodeTrack(tc2SA),  // 2SAK
+        encodeTrack(tc1NA),  // 1NAK
+        encodeTrack(tc2NA),  // 2NAK
+        encodeSignal(sig2),  // 2SGK, 2NGK, 2TEK
+        encodeTrack(tcIND)   // INDK
+    });
 }
 
 // Complete single-cycle execution: Ingress -> Vital Cycle -> Egress
 void executeCycle(CodeLine& line, uint32_t nowMs) {
-    uint8_t rxBuffer[16];
+    char rxBuffer[256];
     size_t bytesRead = 0;
 
-    // 1. Ingress: Poll CodeLine for incoming dispatcher control packet
-    if (line.receiveControlPacket(rxBuffer, sizeof(rxBuffer), bytesRead)) {
+    // 1. Ingress: Poll CodeLine for incoming dispatcher control snapshot
+    if (line.receiveControlPacket(reinterpret_cast<uint8_t*>(rxBuffer), sizeof(rxBuffer) - 1, bytesRead)) {
+        rxBuffer[bytesRead] = '\0';
         ControlTransaction ctl;
-        if (codec.unpackControls(rxBuffer, bytesRead, ctl)) {
+        if (codec.decodeControls(rxBuffer, ctl)) {
             cp.applyControlTransaction(ctl, nowMs);
         }
     }
@@ -186,9 +175,10 @@ void executeCycle(CodeLine& line, uint32_t nowMs) {
     // 3. Egress: Export verified plant state and transmit indications
     IndicationVector ind;
     cp.exportIndicationVector(ind);
-    uint8_t txBuffer[16];
-    if (codec.packIndications(ind, txBuffer, sizeof(txBuffer))) {
-        line.transmitIndicationPacket(txBuffer, codec.expectedIndicationBytes());
+    char txBuffer[256];
+    size_t txLen = 0;
+    if (codec.encodeIndications(ind, txBuffer, sizeof(txBuffer), txLen)) {
+        line.transmitIndicationPacket(reinterpret_cast<const uint8_t*>(txBuffer), txLen);
     }
 }
 

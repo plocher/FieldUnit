@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <string.h>
 
 namespace FieldUnit {
 
@@ -37,11 +38,18 @@ public:
         hasInbound_ = true;
     }
 
+    // Test bench helper: inject symbolic text snapshot from dispatcher
+    void injectControlText(const char* text) {
+        if (!text) return;
+        injectControlPacket(reinterpret_cast<const uint8_t*>(text), strlen(text));
+    }
+
     // Test bench helper: inspect raw indication bytes emitted by sketch
     bool hasOutboundPacket() const { return hasOutbound_; }
     size_t outboundLength() const { return outboundLen_; }
     const uint8_t* outboundPacket() const { return outboundBuffer_; }
-    void clearOutbound() { hasOutbound_ = false; outboundLen_ = 0; }
+    const char* outboundText() const { return reinterpret_cast<const char*>(outboundBuffer_); }
+    void clearOutbound() { hasOutbound_ = false; outboundLen_ = 0; outboundBuffer_[0] = '\0'; }
 
     // CodeLine interface implementation
     bool receiveControlPacket(uint8_t* buffer, size_t maxLen, size_t& bytesReceived) override {
@@ -57,20 +65,21 @@ public:
     }
 
     bool transmitIndicationPacket(const uint8_t* buffer, size_t len) override {
-        outboundLen_ = (len < sizeof(outboundBuffer_)) ? len : sizeof(outboundBuffer_);
+        outboundLen_ = (len < sizeof(outboundBuffer_) - 1) ? len : sizeof(outboundBuffer_) - 1;
         for (size_t i = 0; i < outboundLen_; ++i) {
             outboundBuffer_[i] = buffer[i];
         }
+        outboundBuffer_[outboundLen_] = '\0'; // Safe null termination for text inspection
         hasOutbound_ = true;
         return true;
     }
 
 private:
-    uint8_t inboundBuffer_[64];
+    uint8_t inboundBuffer_[256];
     size_t  inboundLen_;
     bool    hasInbound_;
 
-    uint8_t outboundBuffer_[64];
+    uint8_t outboundBuffer_[256];
     size_t  outboundLen_;
     bool    hasOutbound_;
 };

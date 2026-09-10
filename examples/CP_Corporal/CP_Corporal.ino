@@ -25,7 +25,7 @@ using namespace FieldUnit;
 
 // Control Point Instance
 ControlPoint cp("CP_Corporal");
-CodeLineCodec codec(2, 4);
+AarTextCodec codec;
 
 // Appliance handles
 TrackCircuit* tc1T1;
@@ -58,19 +58,10 @@ void configurePlant() {
     tc1SAT = cp.addTrackCircuit("1SAT"); // MT1 Southbound approach
     tc2SAT = cp.addTrackCircuit("2SAT"); // MT2 Northbound exit block
 
-    // Initial baseline: all circuits initialized clear
-    tc1T1->update(Occupancy::VACANT);
-    tc3T1->update(Occupancy::VACANT);
-    tc5T1->update(Occupancy::VACANT);
-    tc1NAT->update(Occupancy::VACANT);
-    tc2NAT->update(Occupancy::VACANT);
-    tc1SAT->update(Occupancy::VACANT);
-    tc2SAT->update(Occupancy::VACANT);
-
     // 2. Declare Switches
-    sw1 = cp.addSwitch("SW1"); // Industry lead
-    sw3 = cp.addSwitch("SW3"); // Double track merge
-    sw5 = cp.addSwitch("SW5"); // Derail
+    sw1 = cp.addSwitch("1"); // Industry lead
+    sw3 = cp.addSwitch("3"); // Double track merge
+    sw5 = cp.addSwitch("5"); // Derail
 
     // Bind detector locks
     cp.bindDetectorLock(sw1, tc1T1);
@@ -78,13 +69,13 @@ void configurePlant() {
     cp.bindDetectorLock(sw5, tc5T1);
 
     // 3. Declare Signal Authorities and Masts
-    sig2 = cp.addSignalControl("SIG2");
-    sig4 = cp.addSignalControl("SIG4");
+    sig2 = cp.addSignalControl("2");
+    sig4 = cp.addSignalControl("4");
 
-    mast2NAB = cp.addSignalMast("S2NAB", MastType::TWO_HEAD);
-    mast2SA  = cp.addSignalMast("S2SA",  MastType::DWARF);
-    mast4NA  = cp.addSignalMast("S4NA",  MastType::ONE_HEAD);
-    mast4SA  = cp.addSignalMast("S4SA",  MastType::ONE_HEAD);
+    mast2NAB = cp.addSignalMast("2NAB", MastType::TWO_HEAD);
+    mast2SA  = cp.addSignalMast("2SA",  MastType::DWARF);
+    mast4NA  = cp.addSignalMast("4NA",  MastType::ONE_HEAD);
+    mast4SA  = cp.addSignalMast("4SA",  MastType::ONE_HEAD);
 
     // 4. Declare Interlocking Control Table
     // Route 1: Northbound Single Track to MT2 right-hand running (SW1=N, SW3=N)
@@ -93,7 +84,7 @@ void configurePlant() {
       .displays(mast2NAB, 0 /* Top Head */, Indication::CLEAR)
       .aligns({ {sw1, SwitchPosition::NORMAL}, 
                 {sw3, SwitchPosition::NORMAL} })
-      .clears({ tc1T1, tc3T1, tc2SAT });
+      .clears({ tc3T1, tc1T1, tc2SAT });
 
     // Route 2: Northbound Single Track to MT1 reverse running (SW3=R)
     cp.route("MT-SB")
@@ -124,38 +115,42 @@ void configurePlant() {
       .aligns({ {sw1, SwitchPosition::REVERSE} })
       .clears({ tc1T1, tc5T1 });
 
-    // 5. Configure Wire Codec
-    codec.mapSwitchControl(0, 0, 0, 0, 1); // SW1: b0=1NW, b1=1RW
-    codec.mapSwitchControl(1, 0, 2, 0, 3); // SW3: b2=3NW, b3=3RW
-    codec.mapSwitchControl(2, 0, 4, 0, 5); // SW5: b4=5NW, b5=5RW
-    codec.mapSignalControl(0, 1, 0, 1, 2); // SIG2: b0=2SG, b1=2NG, b2=2H
-    codec.mapSignalControl(1, 1, 4, 5, 6); // SIG4: b4=4SG, b5=4NG, b6=4H
-    codec.mapMaintainerControl(0, 1, 7);   // MC1: b7
+    // 5. Configure Wire Codec (AAR Symbolic CodeLine)
+    codec.decodeControls({
+        decodeSwitch(sw1),   // 1NWS, 1RWS
+        decodeSwitch(sw3),   // 3NWS, 3RWS
+        decodeSwitch(sw5),   // 5NWS, 5RWS
+        decodeSignal(sig2),  // 2SGS, 2NGS, 2HS
+        decodeSignal(sig4),  // 4SGS, 4NGS, 4HS
+        decodeMaintainer(0)  // MC1S
+    });
 
-    codec.mapSwitchIndication(0, 0, 0, 0, 1); // 1NWK, 1RWK
-    codec.mapSwitchIndication(1, 0, 2, 0, 3); // 3NWK, 3RWK
-    codec.mapSwitchIndication(2, 0, 4, 0, 5); // 5NWK, 5RWK
-
-    codec.mapTrackIndication(0, 1, 0); // 1T1
-    codec.mapTrackIndication(1, 1, 2); // 3T1
-    codec.mapTrackIndication(2, 1, 4); // 5T1
-    codec.mapTrackIndication(3, 3, 0); // 1NAT
-    codec.mapTrackIndication(4, 3, 1); // 2NAT
-    codec.mapTrackIndication(5, 3, 2); // 1SAT
-    codec.mapTrackIndication(6, 3, 3); // 2SAT
-
-    codec.mapSignalIndication(0, 2, 0, 1, 2); // 2SGK, 2NGK, 2TEK
-    codec.mapSignalIndication(1, 2, 4, 5, 6); // 4SGK, 4NGK, 4TEK
+    codec.encodeIndications({
+        encodeSwitch(sw1),   // 1NWK, 1RWK
+        encodeSwitch(sw3),   // 3NWK, 3RWK
+        encodeSwitch(sw5),   // 5NWK, 5RWK
+        encodeTrack(tc1T1),  // 1T1K
+        encodeTrack(tc3T1),  // 3T1K
+        encodeTrack(tc5T1),  // 5T1K
+        encodeTrack(tc1NAT), // 1NATK
+        encodeTrack(tc2NAT), // 2NATK
+        encodeTrack(tc1SAT), // 1SATK
+        encodeTrack(tc2SAT), // 2SATK
+        encodeSignal(sig2),  // 2SGK, 2NGK, 2TEK
+        encodeSignal(sig4),  // 4SGK, 4NGK, 4TEK
+        encodeMaintainer(0)  // MC1K
+    });
 }
 
 void executeCycle(CodeLine& line, uint32_t nowMs) {
-    uint8_t rxBuffer[16];
+    char rxBuffer[256];
     size_t bytesRead = 0;
 
     // 1. Ingress
-    if (line.receiveControlPacket(rxBuffer, sizeof(rxBuffer), bytesRead)) {
+    if (line.receiveControlPacket(reinterpret_cast<uint8_t*>(rxBuffer), sizeof(rxBuffer) - 1, bytesRead)) {
+        rxBuffer[bytesRead] = '\0';
         ControlTransaction ctl;
-        if (codec.unpackControls(rxBuffer, bytesRead, ctl)) {
+        if (codec.decodeControls(rxBuffer, ctl)) {
             // Safety Derail Interlock: SW5 derail tracks SW1 inversely
             if (ctl.switchDemands[0] == SwitchDemand::NORMAL) {
                 ctl.switchDemands[2] = SwitchDemand::NORMAL; // Derail is derailing (closed)
@@ -172,9 +167,10 @@ void executeCycle(CodeLine& line, uint32_t nowMs) {
     // 3. Egress
     IndicationVector ind;
     cp.exportIndicationVector(ind);
-    uint8_t txBuffer[16];
-    if (codec.packIndications(ind, txBuffer, sizeof(txBuffer))) {
-        line.transmitIndicationPacket(txBuffer, codec.expectedIndicationBytes());
+    char txBuffer[256];
+    size_t txLen = 0;
+    if (codec.encodeIndications(ind, txBuffer, sizeof(txBuffer), txLen)) {
+        line.transmitIndicationPacket(reinterpret_cast<const uint8_t*>(txBuffer), txLen);
     }
 }
 

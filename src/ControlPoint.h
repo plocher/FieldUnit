@@ -28,8 +28,11 @@ struct ControlTransaction {
     // Maintainer call lamps
     bool maintainerCall[MAX_APPLIANCES];
 
+    // Safety gate: certified true only if transaction has zero vital conflicts
+    bool vitalValid;
+
     // Constructor clears all demands to safe NO_CHANGE / neutral defaults
-    ControlTransaction() {
+    ControlTransaction() : vitalValid(true) {
         for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
             switchDemands[i] = SwitchDemand::NO_CHANGE;
             signalDemands[i] = SignalDemand::NO_CHANGE;
@@ -88,18 +91,21 @@ public:
     TrackCircuit* addTrackCircuit(const char* name, uint32_t dropoutDelayMs = 0) {
         if (trackCircuitCount_ >= MAX_APPLIANCES) return nullptr;
         trackCircuits_[trackCircuitCount_] = TrackCircuit(name, dropoutDelayMs);
+        trackCircuits_[trackCircuitCount_].setIndex(trackCircuitCount_);
         return &trackCircuits_[trackCircuitCount_++];
     }
 
     Switch* addSwitch(const char* name) {
         if (switchCount_ >= MAX_APPLIANCES) return nullptr;
         switches_[switchCount_] = Switch(name);
+        switches_[switchCount_].setIndex(switchCount_);
         return &switches_[switchCount_++];
     }
 
     SignalControl* addSignalControl(const char* name) {
         if (authorityCount_ >= MAX_APPLIANCES) return nullptr;
         authorities_[authorityCount_] = SignalControl(name);
+        authorities_[authorityCount_].setIndex(authorityCount_);
         return &authorities_[authorityCount_++];
     }
 
@@ -129,40 +135,44 @@ public:
     // The controlling entity (cTc machine) detects non-execution by observing
     // that the reported indication does not match its commanded intent.
     void applyControlTransaction(const ControlTransaction& ctl, uint32_t nowMs) {
-        // 1. Verify safety of all requested switch movements
-        // If any switch movement in the transaction violates an active lock,
-        // that specific movement cannot be executed.
-        for (uint8_t i = 0; i < switchCount_; ++i) {
-            SwitchDemand demand = ctl.switchDemands[i];
-            if (demand == SwitchDemand::NORMAL || demand == SwitchDemand::REVERSE) {
-                // If switch is locked (train on points or active route), skip actuation
-                if (!switches_[i].WLR()) {
-                    continue; // Leave switch in existing position
+        // Vital Safety Gate: If transaction is marked invalid or corrupted,
+        // do NOT invoke vital appliances at all ("don't poke a sleeping bear").
+        if (ctl.vitalValid) {
+            // 1. Verify safety of all requested switch movements
+            // If any switch movement in the transaction violates an active lock,
+            // that specific movement cannot be executed.
+            for (uint8_t i = 0; i < switchCount_; ++i) {
+                SwitchDemand demand = ctl.switchDemands[i];
+                if (demand == SwitchDemand::NORMAL || demand == SwitchDemand::REVERSE) {
+                    // If switch is locked (train on points or active route), skip actuation
+                    if (!switches_[i].WLR()) {
+                        continue; // Leave switch in existing position
+                    }
+                    if (demand == SwitchDemand::NORMAL) {
+                        switches_[i].throwSwitch(SwitchPosition::NORMAL, nowMs);
+                    } else if (demand == SwitchDemand::REVERSE) {
+                        switches_[i].throwSwitch(SwitchPosition::REVERSE, nowMs);
+                    }
                 }
-                if (demand == SwitchDemand::NORMAL) {
-                    switches_[i].throwSwitch(SwitchPosition::NORMAL, nowMs);
-                } else if (demand == SwitchDemand::REVERSE) {
-                    switches_[i].throwSwitch(SwitchPosition::REVERSE, nowMs);
+            }
+
+            // 2. Actuate Signal Authority demands
+            for (uint8_t i = 0; i < authorityCount_; ++i) {
+                SignalDemand demand = ctl.signalDemands[i];
+                bool fleet = ctl.fleetDemands[i];
+
+                if (demand == SignalDemand::STOP) {
+                    authorities_[i].updateCommand(DirectionAuthority::STOP, fleet, nowMs);
+                } else if (demand == SignalDemand::LEFT) {
+                    authorities_[i].updateCommand(DirectionAuthority::LEFT, fleet, nowMs);
+                } else if (demand == SignalDemand::RIGHT) {
+                    authorities_[i].updateCommand(DirectionAuthority::RIGHT, fleet, nowMs);
                 }
+                // NO_CHANGE leaves existing authority and stick state intact
             }
         }
 
-        // 2. Actuate Signal Authority demands
-        for (uint8_t i = 0; i < authorityCount_; ++i) {
-            SignalDemand demand = ctl.signalDemands[i];
-            bool fleet = ctl.fleetDemands[i];
-
-            if (demand == SignalDemand::STOP) {
-                authorities_[i].updateCommand(DirectionAuthority::STOP, fleet, nowMs);
-            } else if (demand == SignalDemand::LEFT) {
-                authorities_[i].updateCommand(DirectionAuthority::LEFT, fleet, nowMs);
-            } else if (demand == SignalDemand::RIGHT) {
-                authorities_[i].updateCommand(DirectionAuthority::RIGHT, fleet, nowMs);
-            }
-            // NO_CHANGE leaves existing authority and stick state intact
-        }
-
-        // 3. Update Maintainer Calls
+        // 3. Update Maintainer Calls (non-vital, safe to process regardless of vital safety gate)
         maintainerCallActive_ = ctl.maintainerCall[0];
     }
 
