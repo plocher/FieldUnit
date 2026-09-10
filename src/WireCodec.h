@@ -59,6 +59,7 @@ struct DecodeEntry {
     enum class Type : uint8_t {
         SWITCH,
         SIGNAL,
+        ELECTRIC_LOCK,
         MAINTAINER,
         SKIP_BITS,
         PAD_TO_BYTE
@@ -74,6 +75,8 @@ struct EncodeEntry {
         SWITCH,
         TRACK,
         SIGNAL,
+        MAST,
+        ELECTRIC_LOCK,
         MAINTAINER,
         SKIP_BITS,
         PAD_TO_BYTE
@@ -175,6 +178,29 @@ inline DecodeEntry decodeMaintainer(uint8_t mcIdx, const char* customName = null
     return e;
 }
 
+inline DecodeEntry decodeElectricLock(const Switch* sw, const char* customName = nullptr) {
+    DecodeEntry e{};
+    e.type = DecodeEntry::Type::ELECTRIC_LOCK;
+    e.applianceIndex = sw ? sw->index() : 0;
+    const char* src = customName ? customName : (sw ? sw->name() : "");
+    cleanRailroadId(src, e.name, sizeof(e.name));
+    e.skipCount = 0;
+    return e;
+}
+
+inline DecodeEntry decodeElectricLock(const Switch& sw, const char* customName = nullptr) {
+    return decodeElectricLock(&sw, customName);
+}
+
+inline DecodeEntry decodeElectricLock(uint8_t swIdx, const char* customName = nullptr) {
+    DecodeEntry e{};
+    e.type = DecodeEntry::Type::ELECTRIC_LOCK;
+    e.applianceIndex = swIdx;
+    cleanRailroadId(customName ? customName : "", e.name, sizeof(e.name));
+    e.skipCount = 0;
+    return e;
+}
+
 inline DecodeEntry decodeMaintainer(int mcIdx) {
     return decodeMaintainer(static_cast<uint8_t>(mcIdx), nullptr);
 }
@@ -265,6 +291,56 @@ inline EncodeEntry encodeSignal(uint8_t sigIdx, const char* customName = nullptr
     EncodeEntry e{};
     e.type = EncodeEntry::Type::SIGNAL;
     e.applianceIndex = sigIdx;
+    cleanRailroadId(customName ? customName : "", e.name, sizeof(e.name));
+    e.skipCount = 0;
+    e.activeHigh = true;
+    return e;
+}
+
+inline EncodeEntry encodeMast(const SignalMast* mast, const char* customName = nullptr) {
+    EncodeEntry e{};
+    e.type = EncodeEntry::Type::MAST;
+    e.applianceIndex = mast ? mast->index() : 0;
+    const char* src = customName ? customName : (mast ? mast->name() : "");
+    cleanRailroadId(src, e.name, sizeof(e.name));
+    e.skipCount = 0;
+    e.activeHigh = true;
+    return e;
+}
+
+inline EncodeEntry encodeMast(const SignalMast& mast, const char* customName = nullptr) {
+    return encodeMast(&mast, customName);
+}
+
+inline EncodeEntry encodeMast(uint8_t mastIdx, const char* customName = nullptr) {
+    EncodeEntry e{};
+    e.type = EncodeEntry::Type::MAST;
+    e.applianceIndex = mastIdx;
+    cleanRailroadId(customName ? customName : "", e.name, sizeof(e.name));
+    e.skipCount = 0;
+    e.activeHigh = true;
+    return e;
+}
+
+inline EncodeEntry encodeElectricLock(const Switch* sw, const char* customName = nullptr) {
+    EncodeEntry e{};
+    e.type = EncodeEntry::Type::ELECTRIC_LOCK;
+    e.applianceIndex = sw ? sw->index() : 0;
+    const char* src = customName ? customName : (sw ? sw->name() : "");
+    cleanRailroadId(src, e.name, sizeof(e.name));
+    e.skipCount = 0;
+    e.activeHigh = true;
+    return e;
+}
+
+inline EncodeEntry encodeElectricLock(const Switch& sw, const char* customName = nullptr) {
+    return encodeElectricLock(&sw, customName);
+}
+
+inline EncodeEntry encodeElectricLock(uint8_t swIdx, const char* customName = nullptr) {
+    EncodeEntry e{};
+    e.type = EncodeEntry::Type::ELECTRIC_LOCK;
+    e.applianceIndex = swIdx;
     cleanRailroadId(customName ? customName : "", e.name, sizeof(e.name));
     e.skipCount = 0;
     e.activeHigh = true;
@@ -483,6 +559,14 @@ public:
                         }
                         break;
                     }
+                } else if (entry.type == DecodeEntry::Type::ELECTRIC_LOCK) {
+                    char wlExpected[32];
+                    snprintf(wlExpected, sizeof(wlExpected), "%sWL", entry.name);
+                    if (tokenEqualsIgnoreCase(token, wlExpected)) {
+                        matched = true;
+                        ctl.lockDemands[entry.applianceIndex] = asserted ? ElectricLockDemand::UNLOCK : ElectricLockDemand::LOCK;
+                        break;
+                    }
                 } else if (entry.type == DecodeEntry::Type::MAINTAINER) {
                     if (tokenEqualsIgnoreCase(token, entry.name)) {
                         matched = true;
@@ -590,6 +674,26 @@ public:
                     if (!appendToken(sgkToken, sgk)) return false;
                     if (!appendToken(ngkToken, ngk)) return false;
                     if (!appendToken(tekToken, tek)) return false;
+                    break;
+                }
+                case EncodeEntry::Type::MAST: {
+                    char mastToken[32];
+                    snprintf(mastToken, sizeof(mastToken), "%sK", entry.name);
+                    bool permissive = false;
+                    if (entry.applianceIndex < ind.mastCount) {
+                        permissive = (ind.masts[entry.applianceIndex].rulebookIndication != Indication::STOP);
+                    }
+                    if (!appendToken(mastToken, permissive)) return false;
+                    break;
+                }
+                case EncodeEntry::Type::ELECTRIC_LOCK: {
+                    char wlkToken[32];
+                    snprintf(wlkToken, sizeof(wlkToken), "%sWLK", entry.name);
+                    bool unlocked = false;
+                    if (entry.applianceIndex < ind.switchCount) {
+                        unlocked = ind.switches[entry.applianceIndex].electricLockUnlocked;
+                    }
+                    if (!appendToken(wlkToken, unlocked)) return false;
                     break;
                 }
                 case EncodeEntry::Type::MAINTAINER: {
@@ -700,6 +804,18 @@ struct MaintainerIndicationMap {
     uint8_t bitIndex;
 };
 
+struct ElectricLockControlMap {
+    uint8_t switchIndex;
+    uint8_t byteIndex;
+    uint8_t bitIndex;
+};
+
+struct ElectricLockIndicationMap {
+    uint8_t switchIndex;
+    uint8_t byteIndex;
+    uint8_t bitIndex;
+};
+
 class BitPackedCodec {
 public:
     BitPackedCodec(uint8_t controlByteCount = 0, uint8_t indicationByteCount = 0)
@@ -708,10 +824,12 @@ public:
           switchControlMapCount_(0),
           signalControlMapCount_(0),
           mcControlMapCount_(0),
+          elControlMapCount_(0),
           switchIndMapCount_(0),
           trackIndMapCount_(0),
           signalIndMapCount_(0),
-          mcIndMapCount_(0) {}
+          mcIndMapCount_(0),
+          elIndMapCount_(0) {}
 
     uint8_t expectedControlBytes() const { return controlByteCount_; }
     uint8_t expectedIndicationBytes() const { return indicationByteCount_; }
@@ -735,6 +853,12 @@ public:
     void mapMaintainerControl(uint8_t mcIdx, uint8_t byteIdx, uint8_t bitIdx) {
         if (mcControlMapCount_ < MAX_MAP_ENTRIES) {
             mcControlMaps_[mcControlMapCount_++] = {mcIdx, byteIdx, bitIdx};
+        }
+    }
+
+    void mapElectricLockControl(uint8_t swIdx, uint8_t byteIdx, uint8_t bitIdx) {
+        if (elControlMapCount_ < MAX_MAP_ENTRIES) {
+            elControlMaps_[elControlMapCount_++] = {swIdx, byteIdx, bitIdx};
         }
     }
 
@@ -763,6 +887,12 @@ public:
     void mapMaintainerIndication(uint8_t mcIdx, uint8_t byteIdx, uint8_t bitIdx) {
         if (mcIndMapCount_ < MAX_MAP_ENTRIES) {
             mcIndMaps_[mcIndMapCount_++] = {mcIdx, byteIdx, bitIdx};
+        }
+    }
+
+    void mapElectricLockIndication(uint8_t swIdx, uint8_t byteIdx, uint8_t bitIdx) {
+        if (elIndMapCount_ < MAX_MAP_ENTRIES) {
+            elIndMaps_[elIndMapCount_++] = {swIdx, byteIdx, bitIdx};
         }
     }
 
@@ -804,6 +934,13 @@ public:
                     uint8_t mcByte = currentBitIndex / 8;
                     uint8_t mcBit  = currentBitIndex % 8;
                     mapMaintainerControl(entry.applianceIndex, mcByte, mcBit);
+                    currentBitIndex += 1;
+                    break;
+                }
+                case DecodeEntry::Type::ELECTRIC_LOCK: {
+                    uint8_t elByte = currentBitIndex / 8;
+                    uint8_t elBit  = currentBitIndex % 8;
+                    mapElectricLockControl(entry.applianceIndex, elByte, elBit);
                     currentBitIndex += 1;
                     break;
                 }
@@ -864,6 +1001,15 @@ public:
                     currentBitIndex += 1;
                     break;
                 }
+                case EncodeEntry::Type::ELECTRIC_LOCK: {
+                    uint8_t elByte = currentBitIndex / 8;
+                    uint8_t elBit  = currentBitIndex % 8;
+                    mapElectricLockIndication(entry.applianceIndex, elByte, elBit);
+                    currentBitIndex += 1;
+                    break;
+                }
+                case EncodeEntry::Type::MAST:
+                    break;
             }
         }
         uint8_t neededBytes = (currentBitIndex + 7) / 8;
@@ -929,6 +1075,13 @@ public:
             ctl.maintainerCall[m.mcIndex] = mcBit;
         }
 
+        // 4. Unpack electric lock controls (WLS)
+        for (uint8_t i = 0; i < elControlMapCount_; ++i) {
+            const ElectricLockControlMap& m = elControlMaps_[i];
+            bool elBit = (bytes[m.byteIndex] & (1 << m.bitIndex)) != 0;
+            ctl.lockDemands[m.switchIndex] = elBit ? ElectricLockDemand::UNLOCK : ElectricLockDemand::LOCK;
+        }
+
         return true;
     }
 
@@ -991,6 +1144,14 @@ public:
             }
         }
 
+        // 5. Pack electric lock indications (WLK)
+        for (uint8_t i = 0; i < elIndMapCount_; ++i) {
+            const ElectricLockIndicationMap& m = elIndMaps_[i];
+            if (m.switchIndex < ind.switchCount && ind.switches[m.switchIndex].electricLockUnlocked) {
+                outBytes[m.byteIndex] |= (1 << m.bitIndex);
+            }
+        }
+
         return true;
     }
 
@@ -1007,6 +1168,9 @@ private:
     MaintainerControlMap mcControlMaps_[MAX_MAP_ENTRIES];
     uint8_t mcControlMapCount_;
 
+    ElectricLockControlMap elControlMaps_[MAX_MAP_ENTRIES];
+    uint8_t elControlMapCount_;
+
     SwitchIndicationMap switchIndMaps_[MAX_MAP_ENTRIES];
     uint8_t switchIndMapCount_;
 
@@ -1018,6 +1182,9 @@ private:
 
     MaintainerIndicationMap mcIndMaps_[MAX_MAP_ENTRIES];
     uint8_t mcIndMapCount_;
+
+    ElectricLockIndicationMap elIndMaps_[MAX_MAP_ENTRIES];
+    uint8_t elIndMapCount_;
 };
 
 // Backwards-compatible alias for existing C/MRI code and tests

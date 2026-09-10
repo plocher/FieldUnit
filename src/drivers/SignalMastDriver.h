@@ -45,20 +45,30 @@ private:
             case Aspect::RED_OVER_GREEN:
                 g = true;
                 break;
+            case Aspect::FLASHING_GREEN:
+                g = flashPhase;
+                break;
             case Aspect::YELLOW:
             case Aspect::RED_OVER_YELLOW:
             case Aspect::YELLOW_OVER_RED:
+            case Aspect::YELLOW_OVER_YELLOW:
                 y = true;
                 break;
             case Aspect::FLASHING_YELLOW:
             case Aspect::YELLOW_OVER_GREEN:
+            case Aspect::RED_OVER_FLASHING_YELLOW:
                 y = flashPhase;
                 break;
             case Aspect::LUNAR:
             case Aspect::RED_OVER_LUNAR:
                 l = true;
                 break;
+            case Aspect::FLASHING_LUNAR:
+                l = flashPhase;
+                break;
             case Aspect::FLASHING_RED:
+            case Aspect::RED_OVER_FLASHING_RED:
+            case Aspect::FLASHING_RED_OVER_RED:
                 r = flashPhase;
                 break;
             case Aspect::RED:

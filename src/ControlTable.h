@@ -10,12 +10,19 @@
 
 namespace FieldUnit {
 
+class ControlPoint;
+
 static constexpr uint8_t MAX_ROUTE_SWITCHES = 8;
 static constexpr uint8_t MAX_ROUTE_BLOCKS   = 8;
 static constexpr uint8_t MAX_ROUTES         = 32;
 
 struct SwitchRequirement {
     Switch* switchRef;
+    SwitchPosition requiredPosition;
+};
+
+struct NamedSwitchRequirement {
+    const char* switchName;
     SwitchPosition requiredPosition;
 };
 
@@ -31,10 +38,14 @@ public:
           aspectCeiling_(Indication::STOP),
           switchCount_(0),
           blockCount_(0),
+          entranceBlock_(nullptr),
           approachBlock_(nullptr),
           isEngineReturn_(false),
           originBlock_(nullptr),
-          osBlock_(nullptr) {}
+          osBlock_(nullptr),
+          cp_(nullptr) {}
+
+    void setParent(ControlPoint* cp) { cp_ = cp; }
 
     Route& name(const char* n) {
         name_ = n;
@@ -47,6 +58,8 @@ public:
         return *this;
     }
 
+    Route& governedBy(const char* signalName, DirectionAuthority dir);
+
     Route& displays(SignalMast* mast, uint8_t headIndex, Indication maxIndication) {
         mast_ = mast;
         targetHeadIndex_ = headIndex;
@@ -58,6 +71,9 @@ public:
         return displays(mast, 0, maxIndication);
     }
 
+    Route& displays(const char* mastName, uint8_t headIndex, Indication maxIndication);
+    Route& displays(const char* mastName, Indication maxIndication);
+
     Route& aligns(std::initializer_list<SwitchRequirement> swList) {
         switchCount_ = 0;
         for (const auto& s : swList) {
@@ -67,6 +83,8 @@ public:
         }
         return *this;
     }
+
+    Route& aligns(std::initializer_list<NamedSwitchRequirement> swList);
 
     Route& clears(std::initializer_list<TrackCircuit*> tcList) {
         blockCount_ = 0;
@@ -78,10 +96,21 @@ public:
         return *this;
     }
 
+    Route& clears(std::initializer_list<const char*> tcNames);
+
+    Route& entrance(TrackCircuit* tc) {
+        entranceBlock_ = tc;
+        return *this;
+    }
+
+    Route& entrance(const char* tcName);
+
     Route& approaching(TrackCircuit* tc) {
         approachBlock_ = tc;
         return *this;
     }
+
+    Route& approaching(const char* tcName);
 
     // Engine Return: Permits Restricting back onto cars standing on originBlock
     Route& engineReturn(TrackCircuit* standingCarsBlock, TrackCircuit* islandBlock) {
@@ -90,6 +119,8 @@ public:
         osBlock_ = islandBlock;
         return *this;
     }
+
+    Route& engineReturn(const char* standingCarsName, const char* islandName);
 
     // Accessors for vital evaluation
     const char* name() const { return name_; }
@@ -104,6 +135,10 @@ public:
 
     uint8_t blockCount() const { return blockCount_; }
     TrackCircuit* block(uint8_t idx) const { return blocks_[idx]; }
+    TrackCircuit* entranceBlock() const {
+        if (entranceBlock_ != nullptr) return entranceBlock_;
+        return (blockCount_ > 0) ? blocks_[0] : nullptr;
+    }
     TrackCircuit* approachBlock() const { return approachBlock_; }
 
     bool isEngineReturn() const { return isEngineReturn_; }
@@ -123,25 +158,28 @@ private:
 
     uint8_t            blockCount_;
     TrackCircuit*      blocks_[MAX_ROUTE_BLOCKS];
+    TrackCircuit*      entranceBlock_;
 
     TrackCircuit*      approachBlock_;
 
     bool               isEngineReturn_;
     TrackCircuit*      originBlock_;
     TrackCircuit*      osBlock_;
+    ControlPoint*      cp_;
 };
 
 class InterlockingEngine {
 public:
     InterlockingEngine() : routeCount_(0) {}
 
-    Route& addRoute(const char* name) {
+    Route& addRoute(const char* name, ControlPoint* cp = nullptr) {
         if (routeCount_ >= MAX_ROUTES) {
             return dummyRoute_;
         }
         Route& r = routes_[routeCount_++];
         r = Route();
         r.name(name);
+        r.setParent(cp);
         return r;
     }
 
@@ -187,7 +225,8 @@ public:
             bool pathClear = checkBlocksClear(r);
 
             // Check if train has entered the plant (knockdown)
-            if (r.blockCount() > 0 && !r.block(0)->isClear()) {
+            TrackCircuit* ent = r.entranceBlock();
+            if (ent != nullptr && !ent->isClear()) {
                 r.authority()->knockdown();
                 continue; // Train entered, signal must stay at STOP
             }
@@ -213,6 +252,29 @@ public:
             r.mast()->setHeadIndication(r.targetHeadIndex(), aspect);
             applyRouteLocks(r);
         }
+
+        // Apply time locking to switches on cancelled routes
+        applyTimeLocks();
+    }
+
+    uint8_t routeCount() const { return routeCount_; }
+    const Route& route(uint8_t idx) const { return routes_[idx]; }
+    Route& route(uint8_t idx) { return routes_[idx]; }
+
+    bool checkRouteBlocksClear(const Route& r) const {
+        return checkBlocksClear(r);
+    }
+
+    const Route* activeRouteForAuthority(const SignalControl* auth) const {
+        if (!auth) return nullptr;
+        for (uint8_t i = 0; i < routeCount_; ++i) {
+            if (routes_[i].authority() == auth && routes_[i].direction() == auth->activeDirection()) {
+                if (checkSwitchesAligned(routes_[i])) {
+                    return &routes_[i];
+                }
+            }
+        }
+        return nullptr;
     }
 
 private:
@@ -239,6 +301,19 @@ private:
     void applyRouteLocks(const Route& r) {
         for (uint8_t i = 0; i < r.switchCount(); ++i) {
             r.switchReq(i).switchRef->addLock(SwitchLock::ROUTE_LOCKED);
+        }
+    }
+
+    void applyTimeLocks() {
+        for (uint8_t i = 0; i < routeCount_; ++i) {
+            Route& r = routes_[i];
+            if (r.authority() != nullptr && r.authority()->isTimeLocked()) {
+                if (r.direction() == r.authority()->timeLockDirection()) {
+                    for (uint8_t s = 0; s < r.switchCount(); ++s) {
+                        r.switchReq(s).switchRef->addLock(SwitchLock::TIME_LOCKED);
+                    }
+                }
+            }
         }
     }
 

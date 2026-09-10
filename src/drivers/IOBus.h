@@ -11,6 +11,7 @@ public:
     virtual ~IOBus() = default;
     virtual bool readBit(InputBit bit) = 0;
     virtual void writeBit(OutputBit bit, bool value) = 0;
+    virtual void writeAngle(uint8_t device, uint8_t channel, uint16_t angleDeg) {}
     virtual void flush() {}
 };
 
@@ -19,11 +20,15 @@ class MockIOBus : public IOBus {
 public:
     static constexpr uint8_t MAX_DEVICES = 8;
     static constexpr uint8_t MAX_OFFSETS = 8; // e.g. Ports A-H or Bytes 0-7
+    static constexpr uint8_t MAX_CHANNELS = 16; // e.g. 16-channel PCA9685 servo driver
 
     MockIOBus() {
         for (uint8_t d = 0; d < MAX_DEVICES; ++d) {
             for (uint8_t off = 0; off < MAX_OFFSETS; ++off) {
                 pins_[d][off] = 0;
+            }
+            for (uint8_t ch = 0; ch < MAX_CHANNELS; ++ch) {
+                angles_[d][ch] = 0;
             }
         }
     }
@@ -69,8 +74,22 @@ public:
         return (bit.polarity == Polarity::INVERTED) ? !raw : raw;
     }
 
+    void writeAngle(uint8_t device, uint8_t channel, uint16_t angleDeg) override {
+        if (device < MAX_DEVICES && channel < MAX_CHANNELS) {
+            angles_[device][channel] = angleDeg;
+        }
+    }
+
+    uint16_t readAngle(uint8_t device, uint8_t channel) const {
+        if (device < MAX_DEVICES && channel < MAX_CHANNELS) {
+            return angles_[device][channel];
+        }
+        return 0;
+    }
+
 private:
-    uint8_t pins_[MAX_DEVICES][MAX_OFFSETS];
+    uint8_t  pins_[MAX_DEVICES][MAX_OFFSETS];
+    uint16_t angles_[MAX_DEVICES][MAX_CHANNELS];
 };
 
 } // namespace FieldUnit

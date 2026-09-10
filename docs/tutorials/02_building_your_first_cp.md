@@ -96,10 +96,10 @@ auto sig2 = cp.addSignalControl("2");
 auto sig4 = cp.addSignalControl("4");
 
 // Wayside signal masts
-auto mast2NAB = cp.addSignalMast("S2NAB", MastType::TWO_HEAD); // 2-Head Northbound
-auto mast2SA  = cp.addSignalMast("S2SA",  MastType::DWARF);    // Southbound Dwarf on MT1
-auto mast4NA  = cp.addSignalMast("S4NA",  MastType::ONE_HEAD); // Industry exit
-auto mast4SA  = cp.addSignalMast("S4SA",  MastType::ONE_HEAD); // Industry entrance
+auto mast2NAB = cp.addSignalMast("2NAB", MastType::TWO_HEAD); // 2-Head Northbound
+auto mast2SA  = cp.addSignalMast("2SA",  MastType::DWARF);    // Southbound Dwarf on MT1
+auto mast4NA  = cp.addSignalMast("4NA",  MastType::ONE_HEAD); // Industry exit
+auto mast4SA  = cp.addSignalMast("4SA",  MastType::ONE_HEAD); // Industry entrance
 ```
 
 ---
@@ -123,14 +123,16 @@ cp.route("MT-NB")
   .displays(mast2NAB, 0 /* Top Head */, Indication::CLEAR)
   .aligns({ {sw1, SwitchPosition::NORMAL}, 
             {sw3, SwitchPosition::NORMAL} })
-  .clears({ tc1T1, tc3T1, tc2SAT });
+  .clears({ tc3T1, tc1T1, tc2SAT })
+  .entrance(tc3T1);
 
 // Route 2: Northbound from Single Track to MT1 (Diverging Reverse Running)
-cp.route("MT-SB")
+cp.route("MT-NB-REV")
   .governedBy(sig2, DirectionAuthority::LEFT)
   .displays(mast2NAB, 1 /* Lower Head */, Indication::DIVERGING_RESTRICTING)
   .aligns({ {sw3, SwitchPosition::REVERSE} })
-  .clears({ tc3T1, tc1SAT });
+  .clears({ tc3T1, tc1SAT })
+  .entrance(tc3T1);
 
 // Route 3: Southbound from MT1 through Switch 3 onto Single Track
 cp.route("SB-MT")
@@ -138,6 +140,7 @@ cp.route("SB-MT")
   .displays(mast2SA, 0, Indication::CLEAR)
   .aligns({ {sw3, SwitchPosition::REVERSE} })
   .clears({ tc3T1, tc1NAT })
+  .entrance(tc1SAT)
   .approaching(tc2NAT);
 ```
 

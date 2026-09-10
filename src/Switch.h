@@ -9,6 +9,7 @@ namespace FieldUnit {
 class Switch {
 public:
     Switch() : Switch("") {}
+    virtual ~Switch() = default;
 
     Switch(const char* name)
         : name_(name),
@@ -24,27 +25,27 @@ public:
     uint8_t index() const { return index_; }
     void setIndex(uint8_t idx) { index_ = idx; }
 
-    SwitchPosition commandedPosition() const { return commanded_; }
-    SwitchPosition reportedPosition() const { return reported_; }
-    SwitchLock activeLocks() const { return locks_; }
+    virtual SwitchPosition commandedPosition() const { return commanded_; }
+    virtual SwitchPosition reportedPosition() const { return reported_; }
+    virtual SwitchLock activeLocks() const { return locks_; }
 
-    bool isMovable() const {
+    virtual bool isMovable() const {
         return locks_ == SwitchLock::UNLOCKED;
     }
 
-    bool isDetectorLocked() const {
+    virtual bool isDetectorLocked() const {
         return (locks_ & SwitchLock::DETECTOR_LOCKED) == SwitchLock::DETECTOR_LOCKED;
     }
 
-    bool isRouteLocked() const {
+    virtual bool isRouteLocked() const {
         return (locks_ & SwitchLock::ROUTE_LOCKED) == SwitchLock::ROUTE_LOCKED;
     }
 
-    bool isTimeLocked() const {
+    virtual bool isTimeLocked() const {
         return (locks_ & SwitchLock::TIME_LOCKED) == SwitchLock::TIME_LOCKED;
     }
 
-    bool inCorrespondence() const {
+    virtual bool inCorrespondence() const {
         return (reported_ == commanded_) && 
                (reported_ == SwitchPosition::NORMAL || reported_ == SwitchPosition::REVERSE);
     }
@@ -63,7 +64,7 @@ public:
      *
      * @return true if points are mechanically locked in Normal position.
      */
-    bool NWCR() const {
+    virtual bool NWCR() const {
         return reported_ == SwitchPosition::NORMAL && inCorrespondence();
     }
 
@@ -76,7 +77,7 @@ public:
      *
      * @return true if points are mechanically locked in Reverse position.
      */
-    bool RWCR() const {
+    virtual bool RWCR() const {
         return reported_ == SwitchPosition::REVERSE && inCorrespondence();
     }
 
@@ -89,7 +90,7 @@ public:
      *
      * @return true if points are locked in correspondence (either Normal or Reverse).
      */
-    bool KR() const {
+    virtual bool KR() const {
         return inCorrespondence();
     }
 
@@ -106,7 +107,7 @@ public:
      *
      * @return true if switch is completely unlocked and free to throw.
      */
-    bool WLR() const {
+    virtual bool WLR() const {
         return isMovable();
     }
 
@@ -121,7 +122,7 @@ public:
     Switch* pairedSwitch() const { return pairedSwitch_; }
 
     // Lock arbitration (managed by Interlocking Control Table and OS detector track)
-    void addLock(SwitchLock lock) {
+    virtual void addLock(SwitchLock lock) {
         if ((locks_ & lock) == lock) {
             return; // Already has this lock, breaks recursion
         }
@@ -131,7 +132,7 @@ public:
         }
     }
 
-    void removeLock(SwitchLock lock) {
+    virtual void removeLock(SwitchLock lock) {
         if ((locks_ & lock) == SwitchLock::UNLOCKED) {
             return; // Already cleared, breaks recursion
         }
@@ -143,7 +144,7 @@ public:
 
     // AAR WR (Switch Control Relay):
     // Binary rule: execute if unlocked (WLR picked up), reject immediately if locked
-    bool throwSwitch(SwitchPosition target, uint32_t nowMs = 0) {
+    virtual bool throwSwitch(SwitchPosition target, uint32_t nowMs = 0) {
         if (target != SwitchPosition::NORMAL && target != SwitchPosition::REVERSE) {
             return false;
         }
@@ -169,7 +170,7 @@ public:
     }
 
     // Advance non-blocking travel timer
-    void tick(uint32_t nowMs) {
+    virtual void tick(uint32_t nowMs) {
         if (reported_ == SwitchPosition::MOVING) {
             if (travelTimeoutMs_ > 0 && (nowMs - motionStartMs_ > travelTimeoutMs_)) {
                 // Points failed to make contact within timeout
@@ -183,7 +184,7 @@ public:
     }
 
     // Called by hardware driver when point detector contacts settle
-    void updateFeedback(SwitchPosition physicalPoints) {
+    virtual void updateFeedback(SwitchPosition physicalPoints) {
         reported_ = physicalPoints;
     }
 

@@ -18,10 +18,35 @@ void runCorporalSketchIntegrationTest() {
     MockCodeLine mockLine;
     uint32_t clockMs = 1000;
 
+    // Resolve appliances by name from ControlPoint
+    Switch* sw1 = cp.findSwitch("1");
+    Switch* sw3 = cp.findSwitch("3");
+    Switch* sw5 = cp.findSwitch("5");
+
+    TrackCircuit* tc1T1 = cp.findTrackCircuit("1T1");
+    TrackCircuit* tc3T1 = cp.findTrackCircuit("3T1");
+    TrackCircuit* tc5T1 = cp.findTrackCircuit("5T1");
+    TrackCircuit* tc1NAT = cp.findTrackCircuit("1NAT");
+    TrackCircuit* tc2NAT = cp.findTrackCircuit("2NAT");
+    TrackCircuit* tc1SAT = cp.findTrackCircuit("1SAT");
+    TrackCircuit* tc2SAT = cp.findTrackCircuit("2SAT");
+
+    SignalMast* mast2NAB = cp.findSignalMast("2NAB");
+    SignalMast* mast4SA  = cp.findSignalMast("4SA");
+
     // Initially, all switches settle in Normal correspondence
     sw1->updateFeedback(SwitchPosition::NORMAL);
     sw3->updateFeedback(SwitchPosition::NORMAL);
     sw5->updateFeedback(SwitchPosition::NORMAL);
+
+    // Initially, all track circuits are clear/vacant
+    tc1T1->update(Occupancy::VACANT);
+    tc3T1->update(Occupancy::VACANT);
+    tc5T1->update(Occupancy::VACANT);
+    tc1NAT->update(Occupancy::VACANT);
+    tc2NAT->update(Occupancy::VACANT);
+    tc1SAT->update(Occupancy::VACANT);
+    tc2SAT->update(Occupancy::VACANT);
 
     // Initial cycle with no incoming packets: exports baseline indications
     executeCycle(mockLine, clockMs);

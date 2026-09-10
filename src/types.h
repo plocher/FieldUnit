@@ -46,7 +46,8 @@ enum class SwitchLock : uint8_t {
     DETECTOR_LOCKED = 0x01,  // Track circuit over points is occupied
     ROUTE_LOCKED    = 0x02,  // Active cleared route reserves this switch
     TIME_LOCKED     = 0x04,  // Approach timer running down after signal knockdown
-    HAND_UNLOCKED   = 0x08   // Local electric switch lock released
+    HAND_LOCKED     = 0x08,  // Local electric switch lock engaged (points secured)
+    HAND_UNLOCKED   = 0x08   // Deprecated alias for backwards compatibility
 };
 
 inline SwitchLock operator|(SwitchLock a, SwitchLock b) {
@@ -62,6 +63,13 @@ enum class SwitchDemand : uint8_t {
     NO_CHANGE = 0, // 00 on wire: leave switch in existing state
     NORMAL    = 1, // 10 on wire: command switch to Normal
     REVERSE   = 2  // 01 on wire: command switch to Reverse
+};
+
+// Dispatcher electric switch lock demand in a control transaction
+enum class ElectricLockDemand : uint8_t {
+    NO_CHANGE = 0, // Leave electric lock state unchanged
+    LOCK      = 1, // Command electric lock to secure switch (normal locked)
+    UNLOCK    = 2  // Command electric lock to release switch (crew may throw)
 };
 
 // Dispatcher signal demand in a control transaction
@@ -89,7 +97,14 @@ enum class Indication : uint8_t {
     DIVERGING_RESTRICTING = 5,
     DIVERGING_APPROACH = 6,
     DIVERGING_CLEAR = 7,
-    CLEAR = 8
+    CLEAR = 8,
+    APPROACH_RESTRICTING = 9,
+    APPROACH_MEDIUM = 10,
+    MEDIUM_CLEAR = 11,
+    MEDIUM_APPROACH = 12,
+    SLOW_CLEAR = 13,
+    SLOW_APPROACH = 14,
+    CAB_SPEED = 15
 };
 
 // Visual Aspects (Lamps / Appearance)
@@ -101,14 +116,23 @@ enum class Aspect : uint8_t {
     LUNAR = 4,
     FLASHING_RED = 5,
     FLASHING_YELLOW = 6,
+    FLASHING_GREEN = 7,
+    FLASHING_LUNAR = 8,
     // Multi-head combinations (simplified for color-light)
     RED_OVER_RED = 10,
     RED_OVER_YELLOW = 11,
     RED_OVER_GREEN = 12,
     RED_OVER_LUNAR = 13,
-    YELLOW_OVER_RED = 14,
-    YELLOW_OVER_GREEN = 15,
-    GREEN_OVER_RED = 16
+    RED_OVER_FLASHING_RED = 14,
+    RED_OVER_FLASHING_YELLOW = 15,
+    YELLOW_OVER_RED = 16,
+    YELLOW_OVER_YELLOW = 17,
+    YELLOW_OVER_GREEN = 18,
+    YELLOW_OVER_LUNAR = 19,
+    GREEN_OVER_RED = 20,
+    GREEN_OVER_GREEN = 21,
+    FLASHING_RED_OVER_RED = 22,
+    LUNAR_OVER_RED = 23
 };
 
 } // namespace FieldUnit

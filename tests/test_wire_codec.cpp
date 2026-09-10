@@ -226,6 +226,54 @@ void testBitPackedCodecSequentialStream() {
     printf("  -> PASS: Packed binary indications formatted with padToByte() byte alignment\n\n");
 }
 
+void testElectricLockCodec() {
+    printf("[TEST] ElectricLock Codec: WLS control decode and WLK indication encode\n");
+    ControlPoint cp("CP_Test");
+    Switch* sw7 = cp.addSwitch("7");
+    sw7->addLock(SwitchLock::HAND_LOCKED); // Initially locked
+
+    AarTextCodec codec;
+    codec.decodeControls({
+        decodeElectricLock(sw7) // 7WLS
+    });
+    codec.encodeIndications({
+        encodeElectricLock(sw7) // 7WLK
+    });
+
+    // 1. Initial State: locked -> reports (7WLK)
+    IndicationVector ind;
+    cp.exportIndicationVector(ind);
+    char buf[128];
+    codec.encodeIndications(ind, buf, sizeof(buf));
+    assert(strcmp(buf, "(7WLK)") == 0);
+    printf("  -> Initially locked: Indication reports (7WLK)\n");
+
+    // 2. Dispatcher transmits 7WLS (Unlock demand)
+    ControlTransaction ctl;
+    codec.decodeControls("7WLS", ctl);
+    assert(ctl.lockDemands[0] == ElectricLockDemand::UNLOCK);
+
+    // Apply to ControlPoint: releases lock
+    cp.applyControlTransaction(ctl, 1000);
+    assert((sw7->activeLocks() & SwitchLock::HAND_LOCKED) == SwitchLock::UNLOCKED);
+
+    // 3. Outbound indication now reports 7WLK (asserted / unlocked)
+    cp.exportIndicationVector(ind);
+    codec.encodeIndications(ind, buf, sizeof(buf));
+    assert(strcmp(buf, "7WLK") == 0);
+    printf("  -> Dispatcher unlocked: Indication reports 7WLK\n");
+
+    // 4. Dispatcher sends (7WLS) to relock
+    codec.decodeControls("(7WLS)", ctl);
+    assert(ctl.lockDemands[0] == ElectricLockDemand::LOCK);
+    cp.applyControlTransaction(ctl, 1000);
+    assert((sw7->activeLocks() & SwitchLock::HAND_LOCKED) == SwitchLock::HAND_LOCKED);
+    cp.exportIndicationVector(ind);
+    codec.encodeIndications(ind, buf, sizeof(buf));
+    assert(strcmp(buf, "(7WLK)") == 0);
+    printf("  -> PASS: Electric Switch Lock WLS / WLK cycle verified!\n\n");
+}
+
 int main() {
     printf("====================================================\n");
     printf("   FIELDUNIT WIRE CODEC COMPREHENSIVE TEST SUITE    \n");
@@ -236,6 +284,7 @@ int main() {
     testAarTextCodecVitalConflictIsolation();
     testAarTextCodecSignalConflict();
     testBitPackedCodecSequentialStream();
+    testElectricLockCodec();
 
     printf("====================================================\n");
     printf("   ALL WIRE CODEC TESTS PASSED SUCCESSFULLY!        \n");

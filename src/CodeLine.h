@@ -84,6 +84,108 @@ private:
     bool    hasOutbound_;
 };
 
+// Lightweight, non-blocking MQTT CodeLine transport adapter
+// Bridges between MQTT subscribe callbacks and publish calls without third-party library dependencies.
+class MqttCodeLine : public CodeLine {
+public:
+    typedef bool (*PublishCallback)(const char* topic, const uint8_t* payload, size_t length);
+
+    MqttCodeLine(const char* publishTopic = "", PublishCallback publishCb = nullptr)
+        : publishTopic_(publishTopic),
+          publishCb_(publishCb),
+          inboundLen_(0),
+          hasInbound_(false) {
+        inboundBuffer_[0] = '\0';
+    }
+
+    void setPublishCallback(const char* topic, PublishCallback cb) {
+        publishTopic_ = topic;
+        publishCb_ = cb;
+    }
+
+    // Called from MQTT subscribe message callback (e.g. PubSubClient callback)
+    void onControlMessage(const uint8_t* payload, size_t length) {
+        if (!payload || length == 0) return;
+        size_t copyLen = (length < sizeof(inboundBuffer_) - 1) ? length : sizeof(inboundBuffer_) - 1;
+        memcpy(inboundBuffer_, payload, copyLen);
+        inboundBuffer_[copyLen] = '\0';
+        inboundLen_ = copyLen;
+        hasInbound_ = true;
+    }
+
+    void onControlMessage(const char* message) {
+        if (!message) return;
+        onControlMessage(reinterpret_cast<const uint8_t*>(message), strlen(message));
+    }
+
+    bool receiveControlPacket(uint8_t* buffer, size_t maxLen, size_t& bytesReceived) override {
+        if (!hasInbound_) return false;
+        bytesReceived = (inboundLen_ < maxLen) ? inboundLen_ : maxLen;
+        memcpy(buffer, inboundBuffer_, bytesReceived);
+        hasInbound_ = false;
+        return true;
+    }
+
+    bool transmitIndicationPacket(const uint8_t* buffer, size_t len) override {
+        if (!publishCb_ || !buffer || len == 0) return false;
+        return publishCb_(publishTopic_, buffer, len);
+    }
+
+private:
+    const char*     publishTopic_;
+    PublishCallback publishCb_;
+    uint8_t         inboundBuffer_[512];
+    size_t          inboundLen_;
+    bool            hasInbound_;
+};
+
+#if defined(ARDUINO)
+#include <Stream.h>
+
+// Stream-based CodeLine transport for HardwareSerial, SoftwareSerial, or USBSerial
+class StreamCodeLine : public CodeLine {
+public:
+    StreamCodeLine(Stream& stream, char delimiter = '\n')
+        : stream_(&stream), delimiter_(delimiter), rxIndex_(0) {}
+
+    bool receiveControlPacket(uint8_t* buffer, size_t maxLen, size_t& bytesReceived) override {
+        if (!stream_) return false;
+
+        while (stream_->available() > 0) {
+            int c = stream_->read();
+            if (c < 0) break;
+
+            if (static_cast<char>(c) == delimiter_ || static_cast<char>(c) == '\r') {
+                if (rxIndex_ > 0) {
+                    bytesReceived = (rxIndex_ < maxLen) ? rxIndex_ : maxLen;
+                    memcpy(buffer, rxBuffer_, bytesReceived);
+                    rxIndex_ = 0;
+                    return true;
+                }
+            } else {
+                if (rxIndex_ + 1 < sizeof(rxBuffer_)) {
+                    rxBuffer_[rxIndex_++] = static_cast<uint8_t>(c);
+                }
+            }
+        }
+        return false;
+    }
+
+    bool transmitIndicationPacket(const uint8_t* buffer, size_t len) override {
+        if (!stream_ || !buffer || len == 0) return false;
+        stream_->write(buffer, len);
+        stream_->write(delimiter_);
+        return true;
+    }
+
+private:
+    Stream* stream_;
+    char    delimiter_;
+    uint8_t rxBuffer_[512];
+    size_t  rxIndex_;
+};
+#endif
+
 } // namespace FieldUnit
 
 #endif // FIELDUNIT_CODELINE_H

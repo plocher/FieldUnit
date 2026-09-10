@@ -1,9 +1,11 @@
 #ifndef FIELDUNIT_CONTROL_POINT_H
 #define FIELDUNIT_CONTROL_POINT_H
 
+#include <string.h>
 #include "types.h"
 #include "TrackCircuit.h"
 #include "Switch.h"
+#include "Crossover.h"
 #include "SignalMast.h"
 #include "SignalControl.h"
 #include "ControlTable.h"
@@ -18,6 +20,9 @@ static constexpr uint8_t MAX_APPLIANCES = 16;
 struct ControlTransaction {
     // Desired state for every switch in this Control Point
     SwitchDemand switchDemands[MAX_APPLIANCES];
+
+    // Electric switch lock demands (WLS)
+    ElectricLockDemand lockDemands[MAX_APPLIANCES];
 
     // Desired movement authority for every signal in this Control Point
     SignalDemand signalDemands[MAX_APPLIANCES];
@@ -35,6 +40,7 @@ struct ControlTransaction {
     ControlTransaction() : vitalValid(true) {
         for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
             switchDemands[i] = SwitchDemand::NO_CHANGE;
+            lockDemands[i] = ElectricLockDemand::NO_CHANGE;
             signalDemands[i] = SignalDemand::NO_CHANGE;
             fleetDemands[i] = false;
             maintainerCall[i] = false;
@@ -47,6 +53,7 @@ struct SwitchIndication {
     SwitchPosition position; // Reported position
     bool inCorrespondence;   // AAR KR
     SwitchLock locks;        // Active locks (AAR WLR dropped if locked)
+    bool electricLockUnlocked; // AAR WLK (true if electric lock released)
 };
 
 struct TrackCircuitIndication {
@@ -62,6 +69,14 @@ struct SignalIndication {
     Aspect displayedAspect;             // Physical visual lamps
 };
 
+struct MastIndication {
+    Indication rulebookIndication;      // Operational rule
+    Aspect displayedAspect;             // Composite visual appearance
+    Aspect head1;
+    Aspect head2;
+    Aspect head3;
+};
+
 struct IndicationVector {
     uint8_t switchCount;
     SwitchIndication switches[MAX_APPLIANCES];
@@ -72,21 +87,32 @@ struct IndicationVector {
     uint8_t signalCount;
     SignalIndication signals[MAX_APPLIANCES];
 
+    uint8_t mastCount;
+    MastIndication masts[MAX_APPLIANCES];
+
     bool maintainerCall[MAX_APPLIANCES];
 };
 
 class ControlPoint {
 public:
-    ControlPoint(const char* name)
+    ControlPoint(const char* name, AspectResolver defaultPolicy = AspectPolicies::defaultRoute)
         : name_(name),
+          defaultAspectPolicy_(defaultPolicy ? defaultPolicy : AspectPolicies::defaultRoute),
           trackCircuitCount_(0),
           switchCount_(0),
           authorityCount_(0),
           mastCount_(0),
+          crossoverCount_(0),
           maintainerCallActive_(false),
           detectorLockCouplingCount_(0) {}
 
     const char* name() const { return name_; }
+
+    void setDefaultAspectPolicy(AspectResolver policy) {
+        defaultAspectPolicy_ = policy ? policy : AspectPolicies::defaultRoute;
+    }
+
+    AspectResolver defaultAspectPolicy() const { return defaultAspectPolicy_; }
 
     TrackCircuit* addTrackCircuit(const char* name, uint32_t dropoutDelayMs = 0) {
         if (trackCircuitCount_ >= MAX_APPLIANCES) return nullptr;
@@ -102,6 +128,12 @@ public:
         return &switches_[switchCount_++];
     }
 
+    Crossover* addCrossover(const char* name, Switch* swA, Switch* swB) {
+        if (crossoverCount_ >= MAX_APPLIANCES) return nullptr;
+        crossovers_[crossoverCount_] = Crossover(name, swA, swB);
+        return &crossovers_[crossoverCount_++];
+    }
+
     SignalControl* addSignalControl(const char* name) {
         if (authorityCount_ >= MAX_APPLIANCES) return nullptr;
         authorities_[authorityCount_] = SignalControl(name);
@@ -109,9 +141,11 @@ public:
         return &authorities_[authorityCount_++];
     }
 
-    SignalMast* addSignalMast(const char* name, MastType type) {
+    SignalMast* addSignalMast(const char* name, MastType type, AspectResolver policy = nullptr) {
         if (mastCount_ >= MAX_APPLIANCES) return nullptr;
-        masts_[mastCount_] = SignalMast(name, type);
+        AspectResolver effectivePolicy = policy ? policy : defaultAspectPolicy_;
+        masts_[mastCount_] = SignalMast(name, type, effectivePolicy);
+        masts_[mastCount_].setIndex(mastCount_);
         return &masts_[mastCount_++];
     }
 
@@ -122,8 +156,61 @@ public:
         }
     }
 
+    void bindDetectorLock(const char* switchName, const char* trackCircuitName) {
+        Switch* sw = findSwitch(switchName);
+        TrackCircuit* tc = findTrackCircuit(trackCircuitName);
+        if (sw && tc) {
+            bindDetectorLock(sw, tc);
+        }
+    }
+
+    Crossover* addCrossover(const char* name, const char* swAName, const char* swBName) {
+        Switch* swA = findSwitch(swAName);
+        Switch* swB = findSwitch(swBName);
+        if (swA && swB) {
+            return addCrossover(name, swA, swB);
+        }
+        return nullptr;
+    }
+
+    // Configuration-time name lookups
+    TrackCircuit* findTrackCircuit(const char* name) {
+        if (!name) return nullptr;
+        for (uint8_t i = 0; i < trackCircuitCount_; ++i) {
+            if (strcmp(trackCircuits_[i].name(), name) == 0) return &trackCircuits_[i];
+        }
+        return nullptr;
+    }
+
+    Switch* findSwitch(const char* name) {
+        if (!name) return nullptr;
+        for (uint8_t i = 0; i < switchCount_; ++i) {
+            if (strcmp(switches_[i].name(), name) == 0) return &switches_[i];
+        }
+        for (uint8_t i = 0; i < crossoverCount_; ++i) {
+            if (strcmp(crossovers_[i].name(), name) == 0) return &crossovers_[i];
+        }
+        return nullptr;
+    }
+
+    SignalControl* findSignalControl(const char* name) {
+        if (!name) return nullptr;
+        for (uint8_t i = 0; i < authorityCount_; ++i) {
+            if (strcmp(authorities_[i].name(), name) == 0) return &authorities_[i];
+        }
+        return nullptr;
+    }
+
+    SignalMast* findSignalMast(const char* name) {
+        if (!name) return nullptr;
+        for (uint8_t i = 0; i < mastCount_; ++i) {
+            if (strcmp(masts_[i].name(), name) == 0) return &masts_[i];
+        }
+        return nullptr;
+    }
+
     Route& route(const char* name) {
-        return engine_.addRoute(name);
+        return engine_.addRoute(name, this);
     }
 
 // Ingress: Process incoming plant-wide control transaction
@@ -161,18 +248,45 @@ public:
                 SignalDemand demand = ctl.signalDemands[i];
                 bool fleet = ctl.fleetDemands[i];
 
-                if (demand == SignalDemand::STOP) {
-                    authorities_[i].updateCommand(DirectionAuthority::STOP, fleet, nowMs);
-                } else if (demand == SignalDemand::LEFT) {
-                    authorities_[i].updateCommand(DirectionAuthority::LEFT, fleet, nowMs);
-                } else if (demand == SignalDemand::RIGHT) {
-                    authorities_[i].updateCommand(DirectionAuthority::RIGHT, fleet, nowMs);
+                if (demand == SignalDemand::STOP || demand == SignalDemand::LEFT || demand == SignalDemand::RIGHT) {
+                    DirectionAuthority req = DirectionAuthority::STOP;
+                    if (demand == SignalDemand::LEFT) req = DirectionAuthority::LEFT;
+                    else if (demand == SignalDemand::RIGHT) req = DirectionAuthority::RIGHT;
+
+                    bool approachOccupied = true;
+                    if (authorities_[i].activeDirection() != DirectionAuthority::STOP && req != authorities_[i].activeDirection()) {
+                        const Route* activeR = engine_.activeRouteForAuthority(&authorities_[i]);
+                        if (activeR != nullptr && activeR->approachBlock() != nullptr) {
+                            approachOccupied = !activeR->approachBlock()->isClear();
+                        } else {
+                            approachOccupied = false;
+                        }
+                    }
+                    authorities_[i].updateCommand(req, fleet, nowMs, approachOccupied);
                 }
                 // NO_CHANGE leaves existing authority and stick state intact
             }
+            // 3. Process Electric Switch Lock demands (WLS)
+            for (uint8_t i = 0; i < switchCount_; ++i) {
+                ElectricLockDemand demand = ctl.lockDemands[i];
+                if (demand == ElectricLockDemand::UNLOCK) {
+                    bool signalsSafe = true;
+                    for (uint8_t a = 0; a < authorityCount_; ++a) {
+                        if (authorities_[a].activeDirection() != DirectionAuthority::STOP || authorities_[a].isTimeLocked()) {
+                            signalsSafe = false;
+                            break;
+                        }
+                    }
+                    if (signalsSafe) {
+                        switches_[i].removeLock(SwitchLock::HAND_LOCKED);
+                    }
+                } else if (demand == ElectricLockDemand::LOCK) {
+                    switches_[i].addLock(SwitchLock::HAND_LOCKED);
+                }
+            }
         }
 
-        // 3. Update Maintainer Calls (non-vital, safe to process regardless of vital safety gate)
+        // 4. Update Maintainer Calls (non-vital, safe to process regardless of vital safety gate)
         maintainerCallActive_ = ctl.maintainerCall[0];
     }
 
@@ -182,6 +296,7 @@ public:
         for (uint8_t i = 0; i < switchCount_; ++i) {
             switches_[i].removeLock(SwitchLock::DETECTOR_LOCKED);
             switches_[i].removeLock(SwitchLock::ROUTE_LOCKED);
+            switches_[i].removeLock(SwitchLock::TIME_LOCKED);
         }
 
         for (uint8_t i = 0; i < detectorLockCouplingCount_; ++i) {
@@ -202,15 +317,20 @@ public:
 
         // C. Evaluate signal authority stick / fleet logic
         for (uint8_t i = 0; i < authorityCount_; ++i) {
-            // Siding plant is clear if all local circuits are clear
-            bool allClear = true;
-            for (uint8_t j = 0; j < trackCircuitCount_; ++j) {
-                if (!trackCircuits_[j].isClear()) {
-                    allClear = false;
-                    break;
+            bool routeClear = true;
+            DirectionAuthority cmdDir = authorities_[i].commandedDirection();
+            if (cmdDir != DirectionAuthority::STOP) {
+                for (uint8_t rIdx = 0; rIdx < engine_.routeCount(); ++rIdx) {
+                    const Route& r = engine_.route(rIdx);
+                    if (r.authority() == &authorities_[i] && r.direction() == cmdDir) {
+                        if (!engine_.checkRouteBlocksClear(r)) {
+                            routeClear = false;
+                            break;
+                        }
+                    }
                 }
             }
-            authorities_[i].evaluate(allClear, nowMs);
+            authorities_[i].evaluate(routeClear, nowMs);
         }
 
         // D. Interlocking Control Table vital route evaluation
@@ -224,7 +344,8 @@ public:
             ind.switches[i] = {
                 switches_[i].reportedPosition(),
                 switches_[i].KR(),
-                switches_[i].activeLocks()
+                switches_[i].activeLocks(),
+                (switches_[i].activeLocks() & SwitchLock::HAND_LOCKED) == SwitchLock::UNLOCKED
             };
         }
 
@@ -243,7 +364,18 @@ public:
                 authorities_[i].isFleet(),
                 authorities_[i].isTimeLocked(),
                 (i < mastCount_) ? masts_[i].currentIndication() : Indication::STOP,
-                (i < mastCount_) ? masts_[i].head1() : Aspect::RED
+                (i < mastCount_) ? masts_[i].compositeAspect() : Aspect::RED
+            };
+        }
+
+        ind.mastCount = mastCount_;
+        for (uint8_t i = 0; i < mastCount_; ++i) {
+            ind.masts[i] = {
+                masts_[i].currentIndication(),
+                masts_[i].compositeAspect(),
+                masts_[i].head1(),
+                masts_[i].head2(),
+                masts_[i].head3()
             };
         }
 
@@ -259,11 +391,15 @@ private:
     };
 
     const char* name_;
+    AspectResolver defaultAspectPolicy_;
     TrackCircuit trackCircuits_[MAX_APPLIANCES];
     uint8_t trackCircuitCount_;
 
     Switch switches_[MAX_APPLIANCES];
     uint8_t switchCount_;
+
+    Crossover crossovers_[MAX_APPLIANCES];
+    uint8_t crossoverCount_;
 
     SignalControl authorities_[MAX_APPLIANCES];
     uint8_t authorityCount_;
@@ -278,6 +414,70 @@ private:
 
     InterlockingEngine engine_;
 };
+
+// -------------------------------------------------------------
+// Route String-Based Configuration Implementations
+// Resolves string names once during setup to retain O(1) runtime pointer execution.
+// -------------------------------------------------------------
+
+inline Route& Route::governedBy(const char* signalName, DirectionAuthority dir) {
+    authority_ = cp_ ? cp_->findSignalControl(signalName) : nullptr;
+    direction_ = dir;
+    return *this;
+}
+
+inline Route& Route::displays(const char* mastName, uint8_t headIndex, Indication maxIndication) {
+    mast_ = cp_ ? cp_->findSignalMast(mastName) : nullptr;
+    targetHeadIndex_ = headIndex;
+    aspectCeiling_ = maxIndication;
+    return *this;
+}
+
+inline Route& Route::displays(const char* mastName, Indication maxIndication) {
+    return displays(mastName, 0, maxIndication);
+}
+
+inline Route& Route::aligns(std::initializer_list<NamedSwitchRequirement> swList) {
+    switchCount_ = 0;
+    for (const auto& s : swList) {
+        if (switchCount_ < MAX_ROUTE_SWITCHES) {
+            Switch* sw = cp_ ? cp_->findSwitch(s.switchName) : nullptr;
+            if (sw) {
+                switches_[switchCount_++] = { sw, s.requiredPosition };
+            }
+        }
+    }
+    return *this;
+}
+
+inline Route& Route::clears(std::initializer_list<const char*> tcNames) {
+    blockCount_ = 0;
+    for (const char* tcName : tcNames) {
+        if (blockCount_ < MAX_ROUTE_BLOCKS) {
+            TrackCircuit* tc = cp_ ? cp_->findTrackCircuit(tcName) : nullptr;
+            if (tc) {
+                blocks_[blockCount_++] = tc;
+            }
+        }
+    }
+    return *this;
+}
+
+inline Route& Route::entrance(const char* tcName) {
+    entranceBlock_ = cp_ ? cp_->findTrackCircuit(tcName) : nullptr;
+    return *this;
+}
+
+inline Route& Route::approaching(const char* tcName) {
+    approachBlock_ = cp_ ? cp_->findTrackCircuit(tcName) : nullptr;
+    return *this;
+}
+
+inline Route& Route::engineReturn(const char* standingCarsName, const char* islandName) {
+    TrackCircuit* standing = cp_ ? cp_->findTrackCircuit(standingCarsName) : nullptr;
+    TrackCircuit* island = cp_ ? cp_->findTrackCircuit(islandName) : nullptr;
+    return engineReturn(standing, island);
+}
 
 } // namespace FieldUnit
 

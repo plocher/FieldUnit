@@ -56,7 +56,7 @@ auto sw7 = cp.addSwitch("SW7_INDUSTRY");
 auto tcDoor = cp.addTrackCircuit("SW7_DOOR");
 
 // Initially, the switch is locked by the electric lock
-sw7->addLock(SwitchLock::HAND_UNLOCKED); // Locked until released
+sw7->addLock(SwitchLock::HAND_LOCKED); // Locked until released
 ```
 
 ### In Your Control Table
@@ -76,11 +76,41 @@ cp.route("MAIN_CLEAR")
 When the dispatcher sends the `WLS = UNLOCK` bit in a `ControlTransaction`:
 1. The Control Point verifies that no approaching train has cleared a signal over the switch.
 2. If the plant is clear, the solenoid energizes (`WLR` relay picks up).
-3. `sw7->removeLock(SwitchLock::HAND_UNLOCKED)`.
+3. `sw7->removeLock(SwitchLock::HAND_LOCKED);`
 4. If a signal was showing Clear, it immediately knocks down to Stop.
 5. The crew can now manually throw the switch.
 
 When the crew finishes and re-locks the switch stand:
-1. `sw7->addLock(SwitchLock::HAND_UNLOCKED)`.
+1. `sw7->addLock(SwitchLock::HAND_LOCKED);`
 2. The CP verifies Normal correspondence (`sw7->NWCR()`).
 3. Mainline signals can clear once again.
+
+---
+
+## 4. CodeLine Wire Mapping (`WLS` and `WLK`)
+
+FieldUnit integrates Electric Switch Locks directly into the CodeLine codec and transaction pipeline:
+
+### In Your Codec Configuration
+
+```cpp
+codec.decodeControls({
+    decodeSwitch(sw1),
+    decodeElectricLock(sw7)  // 7WLS: bare = UNLOCK, parenthesized = LOCK
+});
+
+codec.encodeIndications({
+    encodeSwitch(sw1),
+    encodeElectricLock(sw7)  // 7WLK: bare = UNLOCKED, parenthesized = LOCKED
+});
+```
+
+### Operational Execution
+
+1. **Dispatcher releases lock**: Sends `7WLS` across the CodeLine.
+   - `ControlPoint::applyControlTransaction` verifies that all signals over the plant are at `STOP` and no time locks are active.
+   - If safe, `SwitchLock::HAND_LOCKED` is removed automatically.
+   - The field unit transmits `7WLK` to illuminate the unlocked lamp on the dispatcher's panel.
+2. **Dispatcher relocks switch**: Sends `(7WLS)` across the CodeLine.
+   - `SwitchLock::HAND_LOCKED` engages immediately.
+   - The field unit transmits `(7WLK)` (locked / dark lamp).

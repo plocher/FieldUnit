@@ -298,6 +298,128 @@ void runCPChristopherTests() {
     assert((rawIndicationBytes[2] & 0x02) != 0);
     printf("  -> PASS: Raw wire byte decoding matches XML schema; Indication packet correctly formatted\n\n");
 
+    // -------------------------------------------------------------
+    // TEST 7: Approach Locking, Switch TIME_LOCKED, and Safe Cancellation
+    // -------------------------------------------------------------
+    printf("[TEST 7] Approach Locking: Hazardous cancellation vs Safe cancellation\n");
+    // Part A: Hazardous cancellation (train is approaching on 2SA)
+    tc2SA->update(Occupancy::OCCUPIED); // Train is approaching Northbound on MT2
+    cp.tick(clockMs);
+    assert(mast2N->currentIndication() == Indication::APPROACH);
+
+    // Dispatcher cancels signal (sends 2H) while train is approaching
+    ControlTransaction ctlCancel;
+    ctlCancel.signalDemands[0] = SignalDemand::STOP;
+    cp.applyControlTransaction(ctlCancel, clockMs);
+    cp.tick(clockMs);
+
+    // Signal drops to STOP immediately
+    assert(mast2N->currentIndication() == Indication::STOP);
+    assert(sig2->isTimeLocked()); // Approach time lock running!
+    // Switches on the cancelled route must be TIME_LOCKED
+    assert((sw3B->activeLocks() & SwitchLock::TIME_LOCKED) == SwitchLock::TIME_LOCKED);
+    assert(!sw3B->isMovable());
+    printf("  -> PASS: Hazardous cancellation engaged TER: sw3B is TIME_LOCKED and cannot move\n");
+
+    // Advance clock past time lock duration
+    clockMs += 35000;
+    cp.tick(clockMs);
+    assert(!sig2->isTimeLocked());
+    assert((sw3B->activeLocks() & SwitchLock::TIME_LOCKED) == SwitchLock::UNLOCKED);
+    assert(sw3B->isMovable());
+    printf("  -> PASS: Timer expired: sw3B TIME_LOCKED cleared, switches freed\n");
+
+    // Part B: Safe cancellation (approach is VACANT)
+    tc2SA->update(Occupancy::VACANT); // No train approaching
+    ControlTransaction ctlClearAgain;
+    ctlClearAgain.signalDemands[0] = SignalDemand::LEFT;
+    cp.applyControlTransaction(ctlClearAgain, clockMs);
+    cp.tick(clockMs);
+    assert(mast2N->currentIndication() == Indication::CLEAR);
+
+    // Dispatcher cancels signal while approach is vacant -> IMMEDIATE RELEASE!
+    ControlTransaction ctlSafeCancel;
+    ctlSafeCancel.signalDemands[0] = SignalDemand::STOP;
+    cp.applyControlTransaction(ctlSafeCancel, clockMs);
+    cp.tick(clockMs);
+
+    assert(mast2N->currentIndication() == Indication::STOP);
+    assert(!sig2->isTimeLocked()); // ZERO delay, no time lock running!
+    assert((sw3B->activeLocks() & SwitchLock::TIME_LOCKED) == SwitchLock::UNLOCKED);
+    assert(sw3B->isMovable());
+    printf("  -> PASS: Safe cancellation with vacant approach released plant with zero delay!\n\n");
+
+    // Part C: Decoupled mast indication inspection
+    IndicationVector mastInd;
+    cp.exportIndicationVector(mastInd);
+    assert(mastInd.mastCount == 3);
+    assert(mastInd.masts[0].displayedAspect == Aspect::RED_OVER_RED);
+    printf("  -> PASS: Decoupled mast telemetry verified: mastCount = 3\n\n");
+
+    // -------------------------------------------------------------
+    // TEST 8: First-Class Crossover Appliance Integration
+    // -------------------------------------------------------------
+    printf("[TEST 8] First-Class Crossover Appliance Integration\n");
+    Crossover* xover3 = cp.addCrossover("3X", sw3, sw3B);
+    assert(xover3->switchA() == sw3);
+    assert(xover3->switchB() == sw3B);
+    assert(xover3->reportedPosition() == SwitchPosition::NORMAL);
+    assert(xover3->inCorrespondence());
+
+    // Throw via Crossover
+    xover3->throwSwitch(SwitchPosition::REVERSE, clockMs);
+    assert(xover3->reportedPosition() == SwitchPosition::MOVING);
+    assert(!xover3->inCorrespondence());
+
+    // One switch arrives early -> Still MOVING
+    sw3->updateFeedback(SwitchPosition::REVERSE);
+    assert(xover3->reportedPosition() == SwitchPosition::MOVING);
+
+    // Both arrive -> REVERSE correspondence
+    sw3B->updateFeedback(SwitchPosition::REVERSE);
+    assert(xover3->reportedPosition() == SwitchPosition::REVERSE);
+    assert(xover3->inCorrespondence());
+
+    // Route alignment via Crossover pointer directly
+    cp.route("XOVER_TEST")
+      .governedBy(sig2, DirectionAuthority::LEFT)
+      .displays(mast2N, Indication::DIVERGING_CLEAR)
+      .aligns({ {xover3, SwitchPosition::REVERSE} })
+      .clears({ tc3BT1, tc3T1 });
+    printf("  -> PASS: Crossover appliance correctly coordinates two switches in unison\n\n");
+
+    // -------------------------------------------------------------
+    // TEST 9: MqttCodeLine Transport Integration
+    // -------------------------------------------------------------
+    printf("[TEST 9] MqttCodeLine Transport Integration\n");
+    static char lastPublishedTopic[64] = {0};
+    static char lastPublishedPayload[256] = {0};
+
+    auto mockPublish = [](const char* topic, const uint8_t* payload, size_t len) -> bool {
+        strncpy(lastPublishedTopic, topic, sizeof(lastPublishedTopic) - 1);
+        size_t copyLen = (len < sizeof(lastPublishedPayload) - 1) ? len : sizeof(lastPublishedPayload) - 1;
+        memcpy(lastPublishedPayload, payload, copyLen);
+        lastPublishedPayload[copyLen] = '\0';
+        return true;
+    };
+
+    MqttCodeLine mqtt("railroad/cp_christopher/indications", mockPublish);
+
+    // 1. Ingress: simulate MQTT message arrival on control topic
+    mqtt.onControlMessage("3NWS, 3BNWS, 2NGS");
+    uint8_t rxBuf[128];
+    size_t rxLen = 0;
+    assert(mqtt.receiveControlPacket(rxBuf, sizeof(rxBuf), rxLen));
+    rxBuf[rxLen] = '\0';
+    assert(strcmp(reinterpret_cast<char*>(rxBuf), "3NWS, 3BNWS, 2NGS") == 0);
+
+    // 2. Egress: transmit indication packet via MQTT
+    const char* sampleInd = "1NWK, 3NWK, 3BNWK";
+    assert(mqtt.transmitIndicationPacket(reinterpret_cast<const uint8_t*>(sampleInd), strlen(sampleInd)));
+    assert(strcmp(lastPublishedTopic, "railroad/cp_christopher/indications") == 0);
+    assert(strcmp(lastPublishedPayload, "1NWK, 3NWK, 3BNWK") == 0);
+    printf("  -> PASS: MqttCodeLine successfully exchanges control and indication payloads\n\n");
+
     printf("====================================================\n");
     printf("   CP CHRISTOPHER ALL PROTO TESTS PASSED!           \n");
     printf("====================================================\n");

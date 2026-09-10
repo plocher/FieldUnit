@@ -18,6 +18,7 @@ public:
           index_(0),
           stickDropped_(false),
           timeLockRunning_(false),
+          timeLockDirection_(DirectionAuthority::STOP),
           timeLockExpiryMs_(0),
           timeLockDurationMs_(30000) {}
 
@@ -29,6 +30,7 @@ public:
     DirectionAuthority activeDirection() const { return active_; }
     bool isFleet() const { return fleetMode_; }
     bool isTimeLocked() const { return timeLockRunning_; }
+    DirectionAuthority timeLockDirection() const { return timeLockDirection_; }
 
     uint32_t approachTimeRemainingMs(uint32_t nowMs) const {
         if (!timeLockRunning_ || nowMs >= timeLockExpiryMs_) return 0;
@@ -94,6 +96,7 @@ public:
 
         // If direction changes while signal is actively cleared, or if commanded to STOP:
         if (active_ != DirectionAuthority::STOP && req != active_) {
+            DirectionAuthority prevActive = active_;
             commanded_ = req;
             active_ = DirectionAuthority::STOP; // Immediately cancel permissive aspect
             stickDropped_ = false;
@@ -101,10 +104,12 @@ public:
             if (approachOccupied) {
                 // Hazardous cancellation: train is approaching, engage ASR time lock countdown
                 timeLockRunning_ = true;
+                timeLockDirection_ = prevActive;
                 timeLockExpiryMs_ = nowMs + timeLockDurationMs_;
             } else {
                 // Safe cancellation: approach track is vacant, release plant immediately!
                 timeLockRunning_ = false;
+                timeLockDirection_ = DirectionAuthority::STOP;
                 timeLockExpiryMs_ = 0;
             }
             return;
@@ -142,6 +147,7 @@ public:
         if (timeLockRunning_) {
             if (nowMs >= timeLockExpiryMs_) {
                 timeLockRunning_ = false; // Time expired, ASR picks back up
+                timeLockDirection_ = DirectionAuthority::STOP;
             }
         }
 
@@ -170,6 +176,7 @@ private:
     uint8_t index_;
     bool stickDropped_;
     bool timeLockRunning_;
+    DirectionAuthority timeLockDirection_;
     uint32_t timeLockExpiryMs_;
     uint32_t timeLockDurationMs_;
 };

@@ -17,11 +17,40 @@ void runChristopherSketchIntegrationTest() {
     MockCodeLine mockLine;
     uint32_t clockMs = 1000;
 
+    // Resolve appliances by name from ControlPoint
+    Switch* sw1  = cp.findSwitch("1");
+    Switch* sw3  = cp.findSwitch("3");
+    Switch* sw3B = cp.findSwitch("3B");
+    Switch* sw5  = cp.findSwitch("5");
+
+    TrackCircuit* tc1T1  = cp.findTrackCircuit("1T1");
+    TrackCircuit* tc3T1  = cp.findTrackCircuit("3T1");
+    TrackCircuit* tc3BT1 = cp.findTrackCircuit("3BT1");
+    TrackCircuit* tc5T1  = cp.findTrackCircuit("5T1");
+    TrackCircuit* tc1SA  = cp.findTrackCircuit("1SA");
+    TrackCircuit* tc2SA  = cp.findTrackCircuit("2SA");
+    TrackCircuit* tc1NA  = cp.findTrackCircuit("1NA");
+    TrackCircuit* tc2NA  = cp.findTrackCircuit("2NA");
+    TrackCircuit* tcIND  = cp.findTrackCircuit("IND");
+
+    SignalMast* mast2N = cp.findSignalMast("2Nab");
+
     // Initially, all switches settle in Normal correspondence
     sw1->updateFeedback(SwitchPosition::NORMAL);
     sw3->updateFeedback(SwitchPosition::NORMAL);
     sw3B->updateFeedback(SwitchPosition::NORMAL);
     sw5->updateFeedback(SwitchPosition::NORMAL);
+
+    // Initially, all track circuits are clear/vacant
+    tc1T1->update(Occupancy::VACANT);
+    tc3T1->update(Occupancy::VACANT);
+    tc3BT1->update(Occupancy::VACANT);
+    tc5T1->update(Occupancy::VACANT);
+    tc1SA->update(Occupancy::VACANT);
+    tc2SA->update(Occupancy::VACANT);
+    tc1NA->update(Occupancy::VACANT);
+    tc2NA->update(Occupancy::VACANT);
+    tcIND->update(Occupancy::VACANT);
 
     // Initial cycle with no incoming packets: exports baseline indications
     executeCycle(mockLine, clockMs);

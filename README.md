@@ -86,11 +86,13 @@ This allows you to focus on expressing your railroad's operational routes and ru
 Learn how to turn a track diagram into working code:
 - **[Tutorial 1: Drawing Your Signaling Track Plan](docs/tutorials/01_drawing_your_signaling_track_plan.md)**: Learn where to place rail gaps (island blocks), how to position and name signals, and how to create a data collection sheet.
 - **[Tutorial 2: Building Your First Control Point](docs/tutorials/02_building_your_first_cp.md)**: A step-by-step walkthrough turning a plan into working C++ code using CP Corporal as an example.
+- **[Tutorial 3: Signal Operation, Masts, and Aspects](docs/tutorials/03_Signal_Operation.md)**: Learn how multi-head signals derive aspects, configure Southern Pacific lunar vs flashing red rulebooks, and write custom aspect policies.
 
 ### 2. Connecting Hardware
 Learn how to map physical hardware to FieldUnit appliances:
 - **[How-To: Hardware Wiring and AAR Bit Mapping](docs/how-to/01_data_collection_and_aar_bits.md)**: Connect Tortoise motors, DCCOD detectors, searchlight LEDs, and cpNode/IOX boards.
 - **[How-To: Dual-Control Switches and Electric Locks](docs/how-to/03_dual_control_and_electric_locks.md)**: Model hand-throw switches and dispatcher switch locks (`WL`).
+- **[How-To: Semaphores and Eastern Speed Signaling](docs/how-to/04_semaphores_and_eastern_signaling.md)**: Drive mechanical semaphore blades with hobby servos (PCA9685) and configure NYC 3-head speed signaling and PRR position lights.
 
 ### 3. Dispatcher and Network Integration
 Learn how to connect FieldUnit to your control plane:

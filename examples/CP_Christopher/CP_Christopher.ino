@@ -36,122 +36,106 @@ using namespace FieldUnit;
 ControlPoint cp("CP_Christopher");
 AarTextCodec codec;
 
-// Appliance handles
-TrackCircuit* tc1T1;
-TrackCircuit* tc3T1;
-TrackCircuit* tc3BT1;
-TrackCircuit* tc5T1;
-TrackCircuit* tc1SA;
-TrackCircuit* tc2SA;
-TrackCircuit* tc1NA;
-TrackCircuit* tc2NA;
-TrackCircuit* tcIND;
-
-Switch* sw1;
-Switch* sw3;
-Switch* sw3B;
-Switch* sw5;
-
-SignalControl* sig2;
-SignalMast* mast2N;
-SignalMast* mast2S;
-SignalMast* mast2Nc;
-
 void configurePlant() {
     // 1. Declare Track Circuits
-    tc1T1  = cp.addTrackCircuit("1T1");  // SW1 OS
-    tc3T1  = cp.addTrackCircuit("3T1");  // SW3 OS (MT1)
-    tc3BT1 = cp.addTrackCircuit("3BT1"); // SW3B OS (MT2)
-    tc5T1  = cp.addTrackCircuit("5T1");  // SW5 OS
-    tc1SA  = cp.addTrackCircuit("1SA");  // MT1 Northbound approach
-    tc2SA  = cp.addTrackCircuit("2SA");  // MT2 Southbound approach
-    tc1NA  = cp.addTrackCircuit("1NA");  // MT1 Southbound exit/approach
-    tc2NA  = cp.addTrackCircuit("2NA");  // MT2 Northbound exit/approach
-    tcIND  = cp.addTrackCircuit("IND");  // Industry spur
+    cp.addTrackCircuit("1T1");  // SW1 OS
+    cp.addTrackCircuit("3T1");  // SW3 OS (MT1)
+    cp.addTrackCircuit("3BT1"); // SW3B OS (MT2)
+    cp.addTrackCircuit("5T1");  // SW5 OS
+    cp.addTrackCircuit("1SA");  // MT1 Northbound approach
+    cp.addTrackCircuit("2SA");  // MT2 Southbound approach
+    cp.addTrackCircuit("1NA");  // MT1 Southbound exit/approach
+    cp.addTrackCircuit("2NA");  // MT2 Northbound exit/approach
+    cp.addTrackCircuit("IND");  // Industry spur
 
-    // 2. Declare Switches & Crossover Pairing
-    sw1  = cp.addSwitch("1");
-    sw3  = cp.addSwitch("3");
-    sw3B = cp.addSwitch("3B");
-    sw5  = cp.addSwitch("5");
+    // 2. Declare Switches & Crossover
+    cp.addSwitch("1");
+    cp.addSwitch("3");
+    cp.addSwitch("3B");
+    cp.addSwitch("5");
+    cp.addCrossover("3", "3", "3B"); // Logical crossover wrapping machines 3 and 3B
 
-    sw3->pairCrossover(sw3B); // SW3 and SW3B move and lock in unison
-
-    cp.bindDetectorLock(sw1, tc1T1);
-    cp.bindDetectorLock(sw3, tc3T1);
-    cp.bindDetectorLock(sw3B, tc3BT1);
-    cp.bindDetectorLock(sw5, tc5T1);
+    cp.bindDetectorLock("1", "1T1");
+    cp.bindDetectorLock("3", "3T1");
+    cp.bindDetectorLock("3B", "3BT1");
+    cp.bindDetectorLock("5", "5T1");
 
     // 3. Declare Signal Control & Masts
-    sig2    = cp.addSignalControl("2");
-    mast2N  = cp.addSignalMast("2Nab", MastType::TWO_HEAD);
-    mast2S  = cp.addSignalMast("2Sab", MastType::TWO_HEAD);
-    mast2Nc = cp.addSignalMast("2Nc", MastType::DWARF);
+    // Set plant-wide default rulebook to Southern Pacific 1969 (lunar era)
+    cp.setDefaultAspectPolicy(AspectPolicies::sp1969);
 
-    // 4. Declare Interlocking Control Table
-    // Route 1: MT2-MT2 Northbound Straight (SW3B Normal) -> Top head H2NA CLEAR
+    cp.addSignalControl("2");
+    cp.addSignalMast("2Nab", MastType::TWO_HEAD);
+    cp.addSignalMast("2Sab", MastType::TWO_HEAD);
+    cp.addSignalMast("2Nc",  MastType::DWARF);
+
+    // 4. Declare Interlocking Control Table by name
+    // Route 1: MT2-MT2 Northbound Straight (Crossover 3 Normal) -> Top head H2NA CLEAR
     cp.route("MT2-MT2-STRAIGHT")
-      .governedBy(sig2, DirectionAuthority::LEFT)
-      .displays(mast2N, 0, Indication::CLEAR)
-      .aligns({ {sw3B, SwitchPosition::NORMAL} })
-      .clears({ tc3BT1 })
-      .approaching(tc2SA);
+      .governedBy("2", DirectionAuthority::LEFT)
+      .displays("2Nab", 0, Indication::CLEAR)
+      .aligns({ {"3", SwitchPosition::NORMAL} })
+      .clears({ "3BT1" })
+      .entrance("3BT1")
+      .approaching("2SA");
 
-    // Route 2: MT2-MT1 Northbound Crossover (SW3/3B Reverse) -> Lower head H2NB DIVERGING_CLEAR
+    // Route 2: MT2-MT1 Northbound Crossover (Crossover 3 Reverse) -> Lower head H2NB DIVERGING_CLEAR
     cp.route("MT2-MT1-CROSSOVER")
-      .governedBy(sig2, DirectionAuthority::LEFT)
-      .displays(mast2N, 1, Indication::DIVERGING_CLEAR)
-      .aligns({ {sw3, SwitchPosition::REVERSE},
-                {sw3B, SwitchPosition::REVERSE},
-                {sw1, SwitchPosition::NORMAL} })
-      .clears({ tc3BT1, tc3T1, tc1T1 })
-      .approaching(tc1SA);
+      .governedBy("2", DirectionAuthority::LEFT)
+      .displays("2Nab", 1, Indication::DIVERGING_CLEAR)
+      .aligns({ {"3", SwitchPosition::REVERSE},
+                {"1", SwitchPosition::NORMAL} })
+      .clears({ "3BT1", "3T1", "1T1" })
+      .entrance("3BT1")
+      .approaching("1SA");
 
-    // Route 3: MT1-MT1 Southbound Straight (SW1=N, SW3=N, SW5=N) -> Top head H2SA CLEAR
+    // Route 3: MT1-MT1 Southbound Straight (SW1=N, Crossover 3=N, SW5=N) -> Top head H2SA CLEAR
     cp.route("MT1-MT1-STRAIGHT")
-      .governedBy(sig2, DirectionAuthority::RIGHT)
-      .displays(mast2S, 0, Indication::CLEAR)
-      .aligns({ {sw1, SwitchPosition::NORMAL},
-                {sw3, SwitchPosition::NORMAL},
-                {sw5, SwitchPosition::NORMAL} })
-      .clears({ tc1T1, tc3T1, tc5T1 })
-      .approaching(tc1NA);
+      .governedBy("2", DirectionAuthority::RIGHT)
+      .displays("2Sab", 0, Indication::CLEAR)
+      .aligns({ {"1", SwitchPosition::NORMAL},
+                {"3", SwitchPosition::NORMAL},
+                {"5", SwitchPosition::NORMAL} })
+      .clears({ "1T1", "3T1", "5T1" })
+      .entrance("1T1")
+      .approaching("1NA");
 
-    // Route 4: MT1-MT2 Southbound Crossover (SW1=N, SW3/3B=R) -> Lower head H2SB DIVERGING_CLEAR
+    // Route 4: MT1-MT2 Southbound Crossover (SW1=N, Crossover 3=R) -> Lower head H2SB DIVERGING_CLEAR
     cp.route("MT1-MT2-CROSSOVER")
-      .governedBy(sig2, DirectionAuthority::RIGHT)
-      .displays(mast2S, 1, Indication::DIVERGING_CLEAR)
-      .aligns({ {sw1, SwitchPosition::NORMAL},
-                {sw3, SwitchPosition::REVERSE},
-                {sw3B, SwitchPosition::REVERSE} })
-      .clears({ tc1T1, tc3T1 })
-      .approaching(tc2NA);
+      .governedBy("2", DirectionAuthority::RIGHT)
+      .displays("2Sab", 1, Indication::DIVERGING_CLEAR)
+      .aligns({ {"1", SwitchPosition::NORMAL},
+                {"3", SwitchPosition::REVERSE} })
+      .clears({ "1T1", "3T1" })
+      .entrance("1T1")
+      .approaching("2NA");
 
-    // 5. Configure Wire Codec (AAR Symbolic CodeLine)
+    // 5. Configure Wire Codec
     codec.decodeControls({
-        decodeSwitch(sw1),   // 1NWS, 1RWS
-        decodeSwitch(sw3),   // 3NWS, 3RWS
-        decodeSwitch(sw3B),  // 3BNWS, 3BRWS
-        decodeSwitch(sw5),   // 5NWS, 5RWS
-        decodeSignal(sig2),  // 2SGS, 2NGS, 2HS
-        decodeMaintainer(0)  // MC1S
+        decodeSwitch(cp.findSwitch("1")),
+        decodeSwitch(cp.findSwitch("3")),
+        decodeSwitch(cp.findSwitch("3B")),
+        decodeSwitch(cp.findSwitch("5")),
+        decodeSignal(cp.findSignalControl("2")),
+        decodeMaintainer(0)
     });
 
     codec.encodeIndications({
-        encodeSwitch(sw1),   // 1NWK, 1RWK
-        encodeSwitch(sw3),   // 3NWK, 3RWK
-        encodeSwitch(sw3B),  // 3BNWK, 3BRWK
-        encodeSwitch(sw5),   // 5NWK, 5RWK
-        encodeTrack(tc1T1),  // 1T1K
-        encodeTrack(tc3T1),  // 3T1K
-        encodeTrack(tc3BT1), // 3BT1K
-        encodeTrack(tc5T1),  // 5T1K
-        encodeTrack(tc1SA),  // 1SAK
-        encodeTrack(tc2SA),  // 2SAK
-        encodeTrack(tc1NA),  // 1NAK
-        encodeTrack(tc2NA),  // 2NAK
-        encodeSignal(sig2),  // 2SGK, 2NGK, 2TEK
-        encodeTrack(tcIND)   // INDK
+        encodeSwitch(cp.findSwitch("1")),
+        encodeSwitch(cp.findSwitch("3")),
+        encodeSwitch(cp.findSwitch("3B")),
+        encodeSwitch(cp.findSwitch("5")),
+        encodeTrack(cp.findTrackCircuit("1T1")),
+        encodeTrack(cp.findTrackCircuit("3T1")),
+        encodeTrack(cp.findTrackCircuit("3BT1")),
+        encodeTrack(cp.findTrackCircuit("5T1")),
+        encodeTrack(cp.findTrackCircuit("1SA")),
+        encodeTrack(cp.findTrackCircuit("2SA")),
+        encodeTrack(cp.findTrackCircuit("1NA")),
+        encodeTrack(cp.findTrackCircuit("2NA")),
+        encodeSignal(cp.findSignalControl("2")),
+        encodeTrack(cp.findTrackCircuit("IND")),
+        encodeMaintainer(0)
     });
 }
 
@@ -212,23 +196,23 @@ SignalMastDriver mast2S_drv;
 
 void configureHardwareDrivers() {
     // Track Circuits (DCCOD active-low detectors on Port A = offset 0)
-    tc1T1_drv  = TrackCircuitDriver(tc1T1,  InputBit(0, 0, 2, Polarity::INVERTED));
-    tc3T1_drv  = TrackCircuitDriver(tc3T1,  InputBit(1, 0, 2, Polarity::INVERTED));
-    tc3BT1_drv = TrackCircuitDriver(tc3BT1, InputBit(1, 0, 6, Polarity::INVERTED));
-    tc5T1_drv  = TrackCircuitDriver(tc5T1,  InputBit(0, 0, 6, Polarity::INVERTED));
+    tc1T1_drv  = TrackCircuitDriver(cp.findTrackCircuit("1T1"),  InputBit(0, 0, 2, Polarity::INVERTED));
+    tc3T1_drv  = TrackCircuitDriver(cp.findTrackCircuit("3T1"),  InputBit(1, 0, 2, Polarity::INVERTED));
+    tc3BT1_drv = TrackCircuitDriver(cp.findTrackCircuit("3BT1"), InputBit(1, 0, 6, Polarity::INVERTED));
+    tc5T1_drv  = TrackCircuitDriver(cp.findTrackCircuit("5T1"),  InputBit(0, 0, 6, Polarity::INVERTED));
 
     // Switches (Tortoise motor + Normal & Reverse feedback microswitches)
-    sw1_drv  = SwitchDriver(sw1,  OutputBit(0, 0, 3), InputBit(0, 0, 1, Polarity::INVERTED), InputBit(0, 0, 0, Polarity::INVERTED));
-    sw5_drv  = SwitchDriver(sw5,  OutputBit(0, 0, 7), InputBit(0, 0, 5, Polarity::INVERTED), InputBit(0, 0, 4, Polarity::INVERTED));
-    sw3_drv  = SwitchDriver(sw3,  OutputBit(1, 0, 3), InputBit(1, 0, 1, Polarity::INVERTED), InputBit(1, 0, 0, Polarity::INVERTED));
-    sw3B_drv = SwitchDriver(sw3B, OutputBit(1, 0, 7), InputBit(1, 0, 5, Polarity::INVERTED), InputBit(1, 0, 4, Polarity::INVERTED));
+    sw1_drv  = SwitchDriver(cp.findSwitch("1"),  OutputBit(0, 0, 3), InputBit(0, 0, 1, Polarity::INVERTED), InputBit(0, 0, 0, Polarity::INVERTED));
+    sw5_drv  = SwitchDriver(cp.findSwitch("5"),  OutputBit(0, 0, 7), InputBit(0, 0, 5, Polarity::INVERTED), InputBit(0, 0, 4, Polarity::INVERTED));
+    sw3_drv  = SwitchDriver(cp.findSwitch("3"),  OutputBit(1, 0, 3), InputBit(1, 0, 1, Polarity::INVERTED), InputBit(1, 0, 0, Polarity::INVERTED));
+    sw3B_drv = SwitchDriver(cp.findSwitch("3B"), OutputBit(1, 0, 7), InputBit(1, 0, 5, Polarity::INVERTED), InputBit(1, 0, 4, Polarity::INVERTED));
 
     // Signal Masts (Color-Light 2-Head LED Driving on Expander 2)
-    mast2N_drv = SignalMastDriver(mast2N);
+    mast2N_drv = SignalMastDriver(cp.findSignalMast("2Nab"));
     mast2N_drv.addHead(OutputBit(2, 0, 0) /*H2NA Red*/, OutputBit(2, 0, 1) /*Yellow*/, OutputBit(2, 0, 2) /*Green*/);
     mast2N_drv.addHead(OutputBit(2, 0, 3) /*H2NB Red*/, OutputBit(2, 0, 4) /*Yellow*/, OutputBit(2, 0, 5) /*Green*/);
 
-    mast2S_drv = SignalMastDriver(mast2S);
+    mast2S_drv = SignalMastDriver(cp.findSignalMast("2Sab"));
     mast2S_drv.addHead(OutputBit(2, 0, 6) /*H2SA Red*/, OutputBit(2, 0, 7) /*Yellow*/, OutputBit(2, 1, 0) /*Green*/);
     mast2S_drv.addHead(OutputBit(2, 1, 1) /*H2SB Red*/, OutputBit(2, 1, 2) /*Yellow*/, OutputBit(2, 1, 3) /*Green*/);
 }
