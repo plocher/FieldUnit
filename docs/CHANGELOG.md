@@ -5,6 +5,11 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **`MqttApplianceBus`**: Seam (C) Appliance-Level Device Bus connecting FieldUnit logical appliances directly to discrete MQTT domain topics (e.g. JMRI MQTT schemas: `track/sensor/<name>`, `track/turnout/<name>`, `track/signalmast/<name>`):
+  - Ingress: Implements `onUnpack(topic, payload)` to translate sensor occupancy (`ACTIVE`/`INACTIVE`) and turnout point feedback (`CLOSED`/`THROWN`) into appliance updates.
+  - Egress: Implements `onPack(handler)` and `sync()` to publish turnout movement commands and signal mast aspect changes (`"Clear"`, `"Approach"`, `"Stop"`).
+  - Auto-binding: `bus.bind(cp)` automatically registers all declared track circuits, switches, and masts in a Control Point using standard topic schemas.
+  - Three-Seam Taxonomy: Formalized Seam (A) Supervisory CodeLine, Seam (B) Electrical I/O Bit Seam, and Seam (C) Device / Smart Appliance Seam in `CONTROL_POINT_ARCHITECTURE.md`.
 - **`AarTextCodec`**: Human-readable, self-documenting AAR symbolic token codec for CodeLine and MQTT transports:
   - **Conservative Producer**: Emits indication snapshot vectors strictly in declared order using authentic `'K'` suffix (`1NWK`, `(1RWK)`, `1T1K`, `2NGK`, `(2SGK)`, `(2TEK)`, `MC1K`).
   - **Liberal Consumer**: Parses control messages in any sequence with whitespace and case tolerance.

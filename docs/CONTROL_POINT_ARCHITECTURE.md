@@ -198,57 +198,74 @@ The architecture accommodates multiple North American operating regimes:
    Track circuits provide occupancy indications to dispatcher screens.
    Electric locks on switches enforce lock-and-block discipline.
 
-### 3.3 Control Point Autonomy and the Two Seams ("A" vs. "B")
+### 3.3 Control Point Autonomy and the Three Seams ("A", "B", "C")
 
-FieldUnit defines two independent architectural seams:
+FieldUnit defines three independent architectural seams, depending on where the boundary between intelligence and physical actuation sits:
 
 ```
-[ Dispatcher Office / CTC Panel / JMRI ]
-               │
-               │   <-- Seam "A" : Supervisory CodeLine Interface
-               │             (Plant-wide AAR Snapshots: Controls <-> Indications)
-               ▼
-┌────────────────────────────────────────────────────────┐
-│  FieldUnit Vital Engine (Tiers 2 & 3)                  │
-│  - Evaluates Interlocking Safety Rules                 │
-│  - Manages Track Circuits, Switches, Masts, Crossovers │
-│  - Enforces Route Locks, Approach Locking, Knockdown   │
-└────────────────────────────────────────────────────────┘
-               │
-               │   <-- Seam "B" : Appliance Driver / I/O Bus Interface
-               │             (Device-level pin/angle/state actuation & sensing)
-               ▼
-[ Physical Trackside Appliances: Motors, Detectors, LEDs, Servos ]
+[ Dispatcher Office / CTC Machine / JMRI Panel ]
+                       │
+                       │  <=== Seam (A): Supervisory CodeLine
+                       │        (Plant-wide atomic snapshots: Controls <-> Indications)
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│  FieldUnit Vital Engine & Logical Appliances                │
+│  (ControlPoint, ControlTable, TrackCircuit, Switch, Mast)   │
+└─────────────────────────────────────────────────────────────┘
+        │                                             │
+        │ [Smart Networked Nodes]                     │ [Dumb Electrical Hardware]
+        │                                             ▼
+        │                              ┌─────────────────────────────┐
+        │                              │  Appliance Hardware Drivers │
+        │                              │  (SwitchDriver, MastDriver) │
+        │                              └─────────────────────────────┘
+        │                                             │
+        │  <=== Seam (C): Device Seam                 │  <=== Seam (B): IOBit Seam
+        │        (Domain Entities over MQTT / LCC:    │        (Typed Pins over IOBus:
+        │         Turnouts, Sensors, Masts)           │         InputBit, OutputBit, PWM)
+        ▼                                             ▼
+[ MQTT / LCC Smart Trackside Nodes ]          [ GPIO, MCP23017 I2C, C/MRI Shift Registers ]
 ```
 
-#### Seam "A": The Supervisory CodeLine Interface
+#### Seam (A): The Supervisory CodeLine Interface
 The boundary between the Control Plane (Dispatcher / Tower) and the Field Interlocking:
 - Transfers complete plant snapshots (`ControlTransaction` ingress, `IndicationVector` egress).
 - Handled by `AarTextCodec` (symbolic text) or `BitPackedCodec` (binary bitstreams).
 - Transported by `StreamCodeLine` (RS-485 serial), `MqttCodeLine` (MQTT supervisory topic), or in-memory direct dispatch.
 - Control Points are strictly autonomous: they never share pointers or private memory across the CodeLine.
 
-#### Seam "B": The Appliance Driver / I/O Bus Interface
-The boundary between logical appliances and physical trackside hardware:
+#### Seam (B): The Electrical I/O Bit Seam
+The boundary between appliance drivers and dumb electrical hardware:
 - Abstracted by `IOBus`, `IOBit`, and dedicated drivers (`SwitchDriver`, `TrackCircuitDriver`, `SignalMastDriver`, `SemaphoreDriver`).
-- Decouples the vital interlocking logic from how bits and angles are physically transported.
+- Decomposes appliances into electrical coordinates: `(device, offset, bitIndex, polarity)` and PWM degrees.
 - Supported "B" implementations:
   1. **`B.onboardIO`**: Direct microcontroller GPIO pins (`digitalRead`/`digitalWrite`).
   2. **`B.I2Cexpander`**: Local I2C port expanders (MCP23017, cpNode-IOX) via `I2CexpanderIOBus`.
-  3. **`B.CMRInet`**: Classic C/MRI serial polling of remote nodes via `CmriIOBus` (`IB[]`/`OB[]`).
+  3. **`B.CMRInet`**: Classic C/MRI serial polling of remote shift register nodes via `CmriIOBus` (`IB[]`/`OB[]`).
   4. **`B.CMRInet_over_TCP`**: C/MRI packets pumped across network sockets to Ethernet/WiFi nodes.
-  5. **`B.AAR_over_MQTT`**: Device-level discrete MQTT topics (`track/turnout/305`, `track/sensor/1001`).
-  6. **`B.Mock`**: Simulated pin contacts and servo angles for desktop automated testing (`MockIOBus`).
+  5. **`B.Mock`**: Simulated pin contacts and servo angles for desktop automated testing (`MockIOBus`).
 
-#### The 4-Way Deployment Matrix
-Because the vital engine is insulated between Seam "A" and Seam "B", the exact same plant definition runs across four distinct deployment topologies:
+#### Seam (C): The Device / Smart Appliance Seam
+The boundary between logical appliances and autonomous, networked smart devices:
+- Abstracted by `MqttApplianceBus`.
+- Operates at the **named domain appliance level** rather than pin bit-fields:
+  - `TrackCircuit` $\longleftrightarrow$ `track/sensor/<name>` (`ACTIVE` / `INACTIVE` or `OCCUPIED` / `VACANT`)
+  - `Switch` $\longleftrightarrow$ `track/turnout/<name>` (`CLOSED` / `THROWN`) and feedback `track/turnout/<name>/state`
+  - `SignalMast` $\longleftrightarrow$ `track/signalmast/<name>` (Aspect strings: `"Clear"`, `"Approach"`, `"Stop"`, etc.)
+  - `Light` $\longleftrightarrow$ `track/light/<name>` (`ON` / `OFF`)
+- Implements symmetric **`onPack` / `onUnpack`** callback vocabulary matching MQTT subscription ingress and publication egress.
+- Enables future smart integrations without altering interlocking code, such as Matter / HomeAutomation bridges for fastclock-driven layout room ambient lighting.
 
-| Deployment Topology | Where is Seam "A" (CodeLine)? | Where is Seam "B" (Appliance I/O)? |
-| :--- | :--- | :--- |
-| **1. Smart Bungalow (Distributed)** | **Across layout wire**<br>(RS-485 serial or CodeLine MQTT) | **Local inside bungalow**<br>(`B.onboardIO` or `B.I2Cexpander`) |
-| **2. Central Host (Classic C/MRI)** | **Local in host memory**<br>(Internal C++ function call) | **Across layout wire**<br>(`B.CMRInet` serial or `B.CMRInet_over_TCP`) |
-| **3. IoT Layout (Full MQTT)** | **Supervisory MQTT topic**<br>(`railroad/cp_corporal/control`) | **Device MQTT topics**<br>(`B.AAR_over_MQTT`: `track/sensor/101`) |
-| **4. Desktop Test Bench / Simulation** | **`MockCodeLine`**<br>(Injected text test vectors) | **`B.Mock` (`MockIOBus`)**<br>(In-memory pin states & servo angles) |
+#### The Deployment Matrix
+Because the vital engine is insulated across these seams, the exact same plant definition runs across multiple deployment topologies:
+
+| Deployment Topology | Seam (A) CodeLine | Seam (B) Electrical I/O | Seam (C) Device Bus |
+| :--- | :--- | :--- | :--- |
+| **1. Smart Bungalow (Distributed)** | **Across layout wire**<br>(RS-485 serial or CodeLine MQTT) | **Local inside bungalow**<br>(`B.onboardIO` or `B.I2Cexpander`) | — |
+| **2. Central Host (Classic C/MRI)** | **Local in host memory**<br>(Internal C++ function call) | **Across layout wire**<br>(`B.CMRInet` serial or TCP) | — |
+| **3. IoT Smart Layout (MQTT Devices)** | **Supervisory MQTT topic**<br>(`railroad/cp_corporal/control`) | — | **Device MQTT topics**<br>(`MqttApplianceBus`: `track/sensor/1T1`) |
+| **4. Hybrid Layout** | **CodeLine Serial or MQTT** | **Local I2C detectors** | **WiFi/MQTT turnouts & masts** |
+| **5. Desktop Test Bench / Simulation** | **`MockCodeLine`**<br>(Injected text test vectors) | **`B.Mock` (`MockIOBus`)** | — |
 
 ### 3.4 Interlocking Tower Control as a Hybrid Model
 An Interlocking Tower combines elements of both a Control Plane and a Control Point:

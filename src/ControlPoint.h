@@ -109,6 +109,15 @@ public:
 
     const char* name() const { return name_; }
 
+    uint8_t trackCircuitCount() const { return trackCircuitCount_; }
+    TrackCircuit* trackCircuit(uint8_t idx) { return (idx < trackCircuitCount_) ? &trackCircuits_[idx] : nullptr; }
+
+    uint8_t switchCount() const { return switchCount_; }
+    Switch* getSwitch(uint8_t idx) { return (idx < switchCount_) ? &switches_[idx] : nullptr; }
+
+    uint8_t mastCount() const { return mastCount_; }
+    SignalMast* mast(uint8_t idx) { return (idx < mastCount_) ? &masts_[idx] : nullptr; }
+
     void setDefaultAspectPolicy(AspectResolver policy) {
         defaultAspectPolicy_ = policy ? policy : AspectPolicies::defaultRoute;
     }
