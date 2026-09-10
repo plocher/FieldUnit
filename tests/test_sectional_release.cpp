@@ -214,6 +214,61 @@ void runSectionalReleaseTests() {
     assert(testRoute.releasingBlock(1) == tc2);
     printf("  -> PASS: Explicit releasing block successfully bound in NamedSwitchRequirement\n\n");
 
+    // -------------------------------------------------------------
+    // TEST 10: Fleeting Mode with Progressive Sectional Release
+    // -------------------------------------------------------------
+    printf("[TEST 10] Fleeting Mode: Automatic signal restoration after complete sectional release\n");
+
+    // 1. Dispatcher clears Signal 2 with FLEETING enabled
+    ControlTransaction ctlFleet;
+    ctlFleet.signalDemands[sig2->index()] = SignalDemand::RIGHT;
+    ctlFleet.fleetDemands[sig2->index()] = true;
+    cp.applyControlTransaction(ctlFleet, clockMs);
+    cp.tick(clockMs);
+
+    assert(sig2->activeDirection() == DirectionAuthority::RIGHT);
+    assert(sig2->isFleet() == true);
+    assert(mast2E->head1() == Aspect::GREEN);
+    assert(sw1->isRouteLocked() && sw3->isRouteLocked());
+    printf("  -> Signal 2 cleared with FLEETING enabled for Train 1\n");
+
+    // 2. Train 1 enters 1T (Knockdown)
+    clockMs += 100;
+    tc1->update(Occupancy::OCCUPIED, Quality::GOOD, clockMs);
+    cp.tick(clockMs);
+    assert(mast2E->head1() == Aspect::RED);
+    assert(sig2->activeDirection() == DirectionAuthority::STOP); // Authority dropped for transit
+    assert(sw3->isRouteLocked()); // SW3 still locked ahead in 2T
+
+    // 3. Train 1 enters 2T and vacates 1T (SW1 sectional release)
+    clockMs += 100;
+    tc2->update(Occupancy::OCCUPIED, Quality::GOOD, clockMs);
+    tc1->update(Occupancy::VACANT, Quality::GOOD, clockMs);
+    cp.tick(clockMs);
+    assert(sw1->isRouteLocked() == false);  // SW1 released behind Train 1
+    assert(sw3->isRouteLocked() == true);   // SW3 locked under Train 1
+    assert(mast2E->head1() == Aspect::RED); // Signal MUST remain STOP while plant in transit
+
+    // 4. Train 1 enters 3T and vacates 2T (SW3 sectional release)
+    clockMs += 100;
+    tc3->update(Occupancy::OCCUPIED, Quality::GOOD, clockMs);
+    tc2->update(Occupancy::VACANT, Quality::GOOD, clockMs);
+    cp.tick(clockMs);
+    assert(sw3->isRouteLocked() == false);  // SW3 released behind Train 1
+    assert(mast2E->head1() == Aspect::RED); // Signal still STOP (3T still occupied)
+
+    // 5. Train 1 completely clears exit block 3T:
+    // With fleeting enabled, Signal 2 MUST automatically restore to CLEAR for Train 2!
+    clockMs += 100;
+    tc3->update(Occupancy::VACANT, Quality::GOOD, clockMs);
+    cp.tick(clockMs);
+
+    assert(sig2->activeDirection() == DirectionAuthority::RIGHT);
+    assert(mast2E->head1() == Aspect::GREEN);
+    assert(sw1->isRouteLocked() == true);
+    assert(sw3->isRouteLocked() == true);
+    printf("  -> PASS: Signal 2 automatically restored to CLEAR and re-locked switches for Train 2!\n\n");
+
     printf("====================================================\n");
     printf("   ALL SECTIONAL ROUTE RELEASE TESTS PASSED (100%%)  \n");
     printf("====================================================\n");
