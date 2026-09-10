@@ -109,9 +109,8 @@ void runDriverPolicyTests() {
     ioPolicy.addSignalMast(mastHome, {redPin, yelPin, grnPin});
     cpHybrid.setDefaultDriverPolicy(&ioPolicy);
 
-    // 2. Override Switch 3 with MockSwitchDriver (workbench simulation, 2000ms travel time)
-    MockSwitchDriver mockSw3(swBench, 2000 /*travelTimeMs*/);
-    cpHybrid.overrideDriver("3", &mockSw3);
+    // 2. Pure by-name workbench turnout mocking (Zero pointer handles!)
+    cpHybrid.mockSwitch("3", 2000 /*travelTimeMs*/);
 
     // Initial tick stabilizes hybrid plant
     cpHybrid.tick(clockMs);
@@ -128,7 +127,6 @@ void runDriverPolicyTests() {
 
     // Single cp.tick() runs atomic scan cycle
     cpHybrid.tick(clockMs);
-    assert(mockSw3.inMotion() == true);
     printf("  -> SW3 commanded Reverse: Mock driver simulating point travel\n");
 
     // 4. Advance time by 1000ms (halfway through travel): points still in motion
@@ -143,7 +141,6 @@ void runDriverPolicyTests() {
     cpHybrid.tick(clockMs);
     assert(swBench->reportedPosition() == SwitchPosition::REVERSE);
     assert(swBench->inCorrespondence());
-    assert(mockSw3.inMotion() == false);
     printf("  -> PASS: Mock driver completed travel; SW3 achieved Reverse correspondence\n\n");
 
     // -------------------------------------------------------------

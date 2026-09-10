@@ -97,6 +97,7 @@ struct IndicationVector {
 class ControlPoint;
 class DriverPolicy;
 class ApplianceDriver;
+class MockSwitchDriver;
 
 class ControlPoint {
 public:
@@ -105,6 +106,7 @@ public:
           defaultAspectPolicy_(defaultPolicy ? defaultPolicy : AspectPolicies::defaultRoute),
           defaultDriverPolicy_(nullptr),
           driverOverrideCount_(0),
+          mockSwitchCount_(0),
           trackCircuitCount_(0),
           switchCount_(0),
           authorityCount_(0),
@@ -121,11 +123,8 @@ public:
 
     DriverPolicy* defaultDriverPolicy() const { return defaultDriverPolicy_; }
 
-    void overrideDriver(const char* applianceName, ApplianceDriver* driver) {
-        if (driverOverrideCount_ < MAX_APPLIANCES && applianceName && driver) {
-            driverOverrides_[driverOverrideCount_++] = { applianceName, driver };
-        }
-    }
+    void overrideDriver(const char* applianceName, ApplianceDriver* driver);
+    void mockSwitch(const char* applianceName, uint32_t travelTimeMs = 2000);
 
     uint8_t trackCircuitCount() const { return trackCircuitCount_; }
     TrackCircuit* trackCircuit(uint8_t idx) { return (idx < trackCircuitCount_) ? &trackCircuits_[idx] : nullptr; }
@@ -470,6 +469,8 @@ private:
     DriverPolicy* defaultDriverPolicy_;
     DriverOverride driverOverrides_[MAX_APPLIANCES];
     uint8_t driverOverrideCount_;
+    MockSwitchDriver* mockSwitches_[MAX_APPLIANCES];
+    uint8_t mockSwitchCount_;
     TrackCircuit trackCircuits_[MAX_APPLIANCES];
     uint8_t trackCircuitCount_;
 

@@ -21,6 +21,7 @@ namespace FieldUnit {
 class ApplianceDriver {
 public:
     virtual ~ApplianceDriver() = default;
+    virtual void setAppliance(void* appliance) {}
     virtual void sample(uint32_t nowMs) {}
     virtual void drive(uint32_t nowMs) {}
 };
@@ -31,8 +32,15 @@ public:
  */
 class MockSwitchDriver : public ApplianceDriver {
 public:
-    MockSwitchDriver(Switch* sw = nullptr, uint32_t travelTimeMs = 2000)
+    MockSwitchDriver(uint32_t travelTimeMs = 2000)
+        : sw_(nullptr), travelTimeMs_(travelTimeMs), moveStartMs_(0), inMotion_(false) {}
+
+    MockSwitchDriver(Switch* sw, uint32_t travelTimeMs = 2000)
         : sw_(sw), travelTimeMs_(travelTimeMs), moveStartMs_(0), inMotion_(false) {}
+
+    void setAppliance(void* appliance) override {
+        sw_ = static_cast<Switch*>(appliance);
+    }
 
     void setSwitch(Switch* sw) { sw_ = sw; }
 
@@ -91,6 +99,35 @@ inline void ControlPoint::driveOutputs(uint32_t nowMs) {
         if (driverOverrides_[i].driver) {
             driverOverrides_[i].driver->drive(nowMs);
         }
+    }
+}
+
+inline void ControlPoint::overrideDriver(const char* applianceName, ApplianceDriver* driver) {
+    if (driverOverrideCount_ < MAX_APPLIANCES && applianceName && driver) {
+        Switch* sw = findSwitch(applianceName);
+        if (sw) {
+            driver->setAppliance(sw);
+        } else {
+            TrackCircuit* tc = findTrackCircuit(applianceName);
+            if (tc) {
+                driver->setAppliance(tc);
+            } else {
+                SignalMast* mast = findSignalMast(applianceName);
+                if (mast) {
+                    driver->setAppliance(mast);
+                }
+            }
+        }
+        driverOverrides_[driverOverrideCount_++] = { applianceName, driver };
+    }
+}
+
+inline void ControlPoint::mockSwitch(const char* applianceName, uint32_t travelTimeMs) {
+    static MockSwitchDriver s_pool[MAX_APPLIANCES];
+    if (mockSwitchCount_ < MAX_APPLIANCES) {
+        s_pool[mockSwitchCount_] = MockSwitchDriver(nullptr, travelTimeMs);
+        mockSwitches_[mockSwitchCount_] = &s_pool[mockSwitchCount_];
+        overrideDriver(applianceName, mockSwitches_[mockSwitchCount_++]);
     }
 }
 
