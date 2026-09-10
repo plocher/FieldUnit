@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 #include <initializer_list>
-
 #include "types.h"
 #include "ControlPoint.h"
 #include "Switch.h"
@@ -17,6 +17,7 @@
 namespace FieldUnit {
 
 static constexpr uint8_t MAX_MAP_ENTRIES = 32;
+static constexpr uint8_t MAX_ENTRY_NAME_LEN = 16;
 static constexpr uint8_t MAX_CODE_BYTES  = 16;
 
 // Strips common modeler prefixes like "SW" or "SIG" defensively to obtain authentic railroad ID
@@ -66,7 +67,7 @@ struct DecodeEntry {
     };
     Type type;
     uint8_t applianceIndex;
-    char name[16];
+    char name[MAX_ENTRY_NAME_LEN];
     uint8_t skipCount;
 };
 
@@ -83,7 +84,7 @@ struct EncodeEntry {
     };
     Type type;
     uint8_t applianceIndex;
-    char name[16];
+    char name[MAX_ENTRY_NAME_LEN];
     uint8_t skipCount;
     bool activeHigh;
 };

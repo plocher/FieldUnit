@@ -176,7 +176,7 @@ public:
     }
 
 private:
-    char name_[32];
+    char name_[MAX_APPLIANCE_NAME_LEN];
     DirectionAuthority commanded_;
     DirectionAuthority active_;
     bool fleetMode_;

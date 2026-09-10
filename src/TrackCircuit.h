@@ -113,7 +113,7 @@ public:
     }
 
 private:
-    char name_[32];
+    char name_[MAX_APPLIANCE_NAME_LEN];
     Qualified<Occupancy> state_;
     Occupancy rawOccupancy_;
     uint8_t index_;

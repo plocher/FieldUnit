@@ -75,11 +75,12 @@ public:
     }
 
 private:
-    uint8_t inboundBuffer_[256];
+    static constexpr size_t MOCK_BUFFER_SIZE = 256;
+    uint8_t inboundBuffer_[MOCK_BUFFER_SIZE];
     size_t  inboundLen_;
     bool    hasInbound_;
 
-    uint8_t outboundBuffer_[256];
+    uint8_t outboundBuffer_[MOCK_BUFFER_SIZE];
     size_t  outboundLen_;
     bool    hasOutbound_;
 };

@@ -131,7 +131,7 @@ public:
     }
 
 private:
-    char name_[32];
+    char name_[MAX_APPLIANCE_NAME_LEN];
     MastType type_;
     AspectResolver policy_;
     uint8_t index_;

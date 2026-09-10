@@ -72,13 +72,17 @@ void setup() {
         if (LittleFS.exists("/plant.json")) {
             File f = LittleFS.open("/plant.json", "r");
             if (f) {
-                String jsonStr = f.readString();
+                char jsonBuf[4096];
+                int bytesRead = f.readBytes(jsonBuf, sizeof(jsonBuf) - 1);
                 f.close();
-                if (cp.deserialize(jsonStr.c_str())) {
-                    loadedFromFile = true;
+                if (bytesRead > 0) {
+                    jsonBuf[bytesRead] = '\0';
+                    if (cp.deserialize(jsonBuf)) {
+                        loadedFromFile = true;
 #if defined(ARDUINO)
-                    Serial.println(F("Loaded plant configuration from /plant.json in LittleFS"));
+                        Serial.println(F("Loaded plant configuration from /plant.json in LittleFS"));
 #endif
+                    }
                 }
             }
         }

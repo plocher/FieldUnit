@@ -13,6 +13,8 @@
 namespace FieldUnit {
 
 static constexpr uint8_t MAX_APPLIANCES = 16;
+static constexpr uint8_t MAX_CROSSOVERS = 8;
+static constexpr uint8_t MAX_MOCK_SWITCHES = 8;
 
 // Ingress: Complete Plant-Wide Control Transaction from dispatcher / CodeLine
 // In railroad vital logic, safety cannot be evaluated on isolated commands;
@@ -493,12 +495,12 @@ private:
         ApplianceDriver* driver;
     };
 
-    char name_[32];
+    char name_[MAX_ROUTE_NAME_LEN];
     AspectResolver defaultAspectPolicy_;
     DriverPolicy* defaultDriverPolicy_;
     DriverOverride driverOverrides_[MAX_APPLIANCES];
     uint8_t driverOverrideCount_;
-    MockSwitchDriver* mockSwitches_[MAX_APPLIANCES];
+    MockSwitchDriver* mockSwitches_[MAX_MOCK_SWITCHES];
     uint8_t mockSwitchCount_;
     TrackCircuit trackCircuits_[MAX_APPLIANCES];
     uint8_t trackCircuitCount_;
@@ -506,7 +508,7 @@ private:
     Switch switches_[MAX_APPLIANCES];
     uint8_t switchCount_;
 
-    Crossover crossovers_[MAX_APPLIANCES];
+    Crossover crossovers_[MAX_CROSSOVERS];
     uint8_t crossoverCount_;
 
     SignalControl authorities_[MAX_APPLIANCES];

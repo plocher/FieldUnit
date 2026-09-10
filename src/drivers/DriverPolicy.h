@@ -123,8 +123,8 @@ inline void ControlPoint::overrideDriver(const char* applianceName, ApplianceDri
 }
 
 inline void ControlPoint::mockSwitch(const char* applianceName, uint32_t travelTimeMs) {
-    static MockSwitchDriver s_pool[MAX_APPLIANCES];
-    if (mockSwitchCount_ < MAX_APPLIANCES) {
+    static MockSwitchDriver s_pool[MAX_MOCK_SWITCHES];
+    if (mockSwitchCount_ < MAX_MOCK_SWITCHES) {
         s_pool[mockSwitchCount_] = MockSwitchDriver(nullptr, travelTimeMs);
         mockSwitches_[mockSwitchCount_] = &s_pool[mockSwitchCount_];
         overrideDriver(applianceName, mockSwitches_[mockSwitchCount_++]);

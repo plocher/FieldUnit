@@ -232,7 +232,7 @@ public:
     TrackCircuit* osBlock() const { return osBlock_; }
 
 private:
-    char               name_[32];
+    char               name_[MAX_ROUTE_NAME_LEN];
     SignalControl*     authority_;
     DirectionAuthority direction_;
     SignalMast*        mast_;

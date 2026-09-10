@@ -196,7 +196,7 @@ public:
     }
 
 private:
-    char name_[32];
+    char name_[MAX_APPLIANCE_NAME_LEN];
     SwitchPosition commanded_;
     SwitchPosition reported_;
     SwitchLock locks_;

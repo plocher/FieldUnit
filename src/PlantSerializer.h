@@ -5,7 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#if !defined(__AVR__)
 #include <strings.h>
+#endif
 #include "types.h"
 #include "SignalAspectPolicy.h"
 #include "ControlPoint.h"
