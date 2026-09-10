@@ -23,7 +23,7 @@ static bool testPublishHandler(const char* topic, const char* payload, bool reta
 void runMqttApplianceBusTests() {
     printf("====================================================\n");
     printf("   FIELDUNIT MQTT APPLIANCE BUS TEST SUITE          \n");
-    printf("   Seam B: Domain Device Abstraction & MQTT Driver  \n");
+    printf("   Device Interface: Domain Appliance & MQTT Driver \n");
     printf("====================================================\n\n");
 
     g_publishedMessages.clear();

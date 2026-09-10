@@ -32,21 +32,21 @@ FieldUnit brings this exact prototype behavior to model railroad control:
 ```
 [ Dispatcher (JMRI / CTC Panel / CodeLine) ]
                      │
-          (Seam "A": Supervisory CodeLine)  <-- AAR Snapshots: 1NWS, 2NGS <-> 1NWK, 1T1K
+          (CodeLine Interface)              <-- Transactional Snapshots: 1NWS, 2NGS <-> 1NWK, 1T1K
                      │
                      v
        +----------------------------+
        |   Control Point Engine     |  <-- FieldUnit Vital Interlocking Logic
        |  (Evaluates Safety Rules)  |      (Zero Heap Allocation, O(1) Execution)
        +----------------------------+
-            │                  │
-  (Seam "C": Device Bus)   (Seam "B": IOBit Bus)
-            │                  │
-            v                  v
-     [ Smart Nodes ]    [ Hardware Drivers ]
-       (MQTT / LCC)            │
-                               v
-                        [ Pins / Servos ]
+                     │
+             (Device Interface)             <-- Single Boundary to Trackside World
+            ┌────────┴────────┐
+            ▼                 ▼
+   [ Smart Appliances ] [ Hardware Drivers ]
+   - MQTT (JMRI topics) - I2C MCP23017, GPIO
+   - LCC / OpenLCB      - C/MRI shift registers
+   - Fastclock Lighting - A/D, D/A, Servos
 ```
 
 ---
@@ -91,10 +91,15 @@ All appliance names resolve once during startup, preserving $O(1)$ raw pointer d
   - Dispatcher unlock commands (`WLS`) and verified field unlock indications (`WLK`) with automatic signal-safety interlocks.
 - **Zero Heap Allocation After Startup**: Safe for operating sessions without memory leaks or fragmentation.
 - **Declarative String Wiring**: Eliminates file-scope pointer handles while keeping $O(1)$ runtime execution.
-- **Three-Seam Architecture**:
-  - **Seam "A" (Supervisory)**: Protocol independence via `AarTextCodec`, `BitPackedCodec` (C/MRI), `StreamCodeLine` (Serial/RS-485), and `MqttCodeLine`.
-  - **Seam "B" (Electrical I/O)**: Hardware independence via `IOBus` (onboard GPIO, MCP23017 I2C expanders, C/MRI byte arrays, and servos).
-  - **Seam "C" (Device / Smart Appliance)**: Domain appliance independence via `MqttApplianceBus` (JMRI MQTT topics: `track/sensor/`, `track/turnout/`, `track/signalmast/`).
+- **Two-Interface Architecture**:
+  - **CodeLine Interface**: Transactional snapshot exchange (`ControlTransaction` $\longleftrightarrow$ `IndicationVector`) via `AarTextCodec`, `BitPackedCodec` (C/MRI), `StreamCodeLine` (Serial/RS-485), and `MqttCodeLine`.
+  - **Device Interface**: Unified trackside boundary supporting both:
+    - *Low-Level Hardware*: Electrical pins, A/D, D/A, and PWM servos via `IOBus` (onboard GPIO, MCP23017 I2C, C/MRI shift registers).
+    - *High-Level Semantic Appliances*: Smart domain messaging via `MqttApplianceBus` (JMRI MQTT topics: `track/sensor/`, `track/turnout/`, `track/signalmast/`).
+- **Encapsulated Vital Scan Cycle**:
+  - `cp.tick(nowMs)` atomically runs Sample Inputs $\longrightarrow$ Vital Safety Rules $\longrightarrow$ Drive Outputs. Every sketch `loop()` collapses down to `cp.tick()`.
+- **Driver Policies & Hybrid Mocking**:
+  - Configure plant-wide driver policies (`cp.setDefaultDriverPolicy(...)`) and override individual devices (`cp.overrideDriver("3", &mockSw)`) to bench-test uninstalled turnouts before physical wiring.
 - **Sectional Route Release**:
   - Trailing switches release progressively as a train clears each switch's detector fouling point, freeing vacated switches for conflicting moves while maintaining route locking ahead of and under the train.
 - **Deployment Flexibility**:

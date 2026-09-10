@@ -94,11 +94,17 @@ struct IndicationVector {
     bool maintainerCall[MAX_APPLIANCES];
 };
 
+class ControlPoint;
+class DriverPolicy;
+class ApplianceDriver;
+
 class ControlPoint {
 public:
     ControlPoint(const char* name, AspectResolver defaultPolicy = AspectPolicies::defaultRoute)
         : name_(name),
           defaultAspectPolicy_(defaultPolicy ? defaultPolicy : AspectPolicies::defaultRoute),
+          defaultDriverPolicy_(nullptr),
+          driverOverrideCount_(0),
           trackCircuitCount_(0),
           switchCount_(0),
           authorityCount_(0),
@@ -108,6 +114,18 @@ public:
           detectorLockCouplingCount_(0) {}
 
     const char* name() const { return name_; }
+
+    void setDefaultDriverPolicy(DriverPolicy* policy) {
+        defaultDriverPolicy_ = policy;
+    }
+
+    DriverPolicy* defaultDriverPolicy() const { return defaultDriverPolicy_; }
+
+    void overrideDriver(const char* applianceName, ApplianceDriver* driver) {
+        if (driverOverrideCount_ < MAX_APPLIANCES && applianceName && driver) {
+            driverOverrides_[driverOverrideCount_++] = { applianceName, driver };
+        }
+    }
 
     uint8_t trackCircuitCount() const { return trackCircuitCount_; }
     TrackCircuit* trackCircuit(uint8_t idx) { return (idx < trackCircuitCount_) ? &trackCircuits_[idx] : nullptr; }
@@ -321,8 +339,28 @@ public:
         maintainerCallActive_ = ctl.maintainerCall[0];
     }
 
-    // Vital Cycle: Evaluate plant safety and route logic
-    void tick(uint32_t nowMs) {
+    void sampleInputs(uint32_t nowMs);
+    void driveOutputs(uint32_t nowMs);
+
+    // Vital Scan Cycle: Periodic atomic scan period
+    // 1. Ingress: Sample physical pins / MQTT subscriptions
+    // 2. Vital Interlocking: Locks, correspondence, route evaluation
+    // 3. Egress: Actuate switch motors, PWM servos, signal lamps
+    void tick(uint32_t nowMs = 0) {
+#if defined(ARDUINO)
+        if (nowMs == 0) nowMs = millis();
+#endif
+        // 1. Ingress
+        sampleInputs(nowMs);
+
+        // 2. Vital Evaluation
+        evaluateVitalRules(nowMs);
+
+        // 3. Egress
+        driveOutputs(nowMs);
+    }
+
+    void evaluateVitalRules(uint32_t nowMs) {
         // A. Clear and re-evaluate Detector Locks based on current track occupancy
         for (uint8_t i = 0; i < switchCount_; ++i) {
             switches_[i].removeLock(SwitchLock::DETECTOR_LOCKED);
@@ -422,8 +460,16 @@ private:
         TrackCircuit* tc;
     };
 
+    struct DriverOverride {
+        const char* name;
+        ApplianceDriver* driver;
+    };
+
     const char* name_;
     AspectResolver defaultAspectPolicy_;
+    DriverPolicy* defaultDriverPolicy_;
+    DriverOverride driverOverrides_[MAX_APPLIANCES];
+    uint8_t driverOverrideCount_;
     TrackCircuit trackCircuits_[MAX_APPLIANCES];
     uint8_t trackCircuitCount_;
 

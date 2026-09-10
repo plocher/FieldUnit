@@ -13,7 +13,7 @@
 namespace FieldUnit {
 
 /**
- * MqttApplianceBus - Seam "B" Appliance-Level Driver Bus ("B.AAR_over_MQTT" / JMRI MQTT)
+ * MqttApplianceBus - High-Level Semantic Device Interface (JMRI MQTT / IoT Domain Topics)
  *
  * Connects FieldUnit logical appliances (TrackCircuit, Switch, SignalMast) directly
  * to discrete MQTT domain topics rather than pin bit-fields.
