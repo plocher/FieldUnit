@@ -3,8 +3,13 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 namespace FieldUnit {
+
+// Standard string buffer bounds
+static constexpr uint8_t MAX_APPLIANCE_NAME_LEN = 16;
+static constexpr uint8_t MAX_ROUTE_NAME_LEN     = 32;
 
 // Quality and health for all physical inputs
 enum class Quality : uint8_t {

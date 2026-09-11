@@ -13,6 +13,8 @@
 namespace FieldUnit {
 
 static constexpr uint8_t MAX_APPLIANCES = 16;
+static constexpr uint8_t MAX_CROSSOVERS = 8;
+static constexpr uint8_t MAX_MOCK_SWITCHES = 8;
 
 // Ingress: Complete Plant-Wide Control Transaction from dispatcher / CodeLine
 // In railroad vital logic, safety cannot be evaluated on isolated commands;
@@ -102,8 +104,7 @@ class MockSwitchDriver;
 class ControlPoint {
 public:
     ControlPoint(const char* name, AspectResolver defaultPolicy = AspectPolicies::defaultRoute)
-        : name_(name),
-          defaultAspectPolicy_(defaultPolicy ? defaultPolicy : AspectPolicies::defaultRoute),
+        : defaultAspectPolicy_(defaultPolicy ? defaultPolicy : AspectPolicies::defaultRoute),
           defaultDriverPolicy_(nullptr),
           driverOverrideCount_(0),
           mockSwitchCount_(0),
@@ -113,9 +114,33 @@ public:
           mastCount_(0),
           crossoverCount_(0),
           maintainerCallActive_(false),
-          detectorLockCouplingCount_(0) {}
+          detectorLockCouplingCount_(0) {
+        setName(name);
+    }
+
+    void setName(const char* name) {
+        if (!name) { name_[0] = '\0'; return; }
+        strncpy(name_, name, sizeof(name_) - 1);
+        name_[sizeof(name_) - 1] = '\0';
+    }
 
     const char* name() const { return name_; }
+
+    void reset() {
+        trackCircuitCount_ = 0;
+        switchCount_ = 0;
+        crossoverCount_ = 0;
+        authorityCount_ = 0;
+        mastCount_ = 0;
+        maintainerCallActive_ = false;
+        detectorLockCouplingCount_ = 0;
+        driverOverrideCount_ = 0;
+        mockSwitchCount_ = 0;
+        defaultDriverPolicy_ = nullptr;
+        defaultAspectPolicy_ = AspectPolicies::defaultRoute;
+        setName("Blank");
+        engine_.clear();
+    }
 
     void setDefaultDriverPolicy(DriverPolicy* policy) {
         defaultDriverPolicy_ = policy;
@@ -127,13 +152,35 @@ public:
     void mockSwitch(const char* applianceName, uint32_t travelTimeMs = 2000);
 
     uint8_t trackCircuitCount() const { return trackCircuitCount_; }
+    const TrackCircuit* trackCircuit(uint8_t idx) const { return (idx < trackCircuitCount_) ? &trackCircuits_[idx] : nullptr; }
     TrackCircuit* trackCircuit(uint8_t idx) { return (idx < trackCircuitCount_) ? &trackCircuits_[idx] : nullptr; }
 
     uint8_t switchCount() const { return switchCount_; }
+    const Switch* getSwitch(uint8_t idx) const { return (idx < switchCount_) ? &switches_[idx] : nullptr; }
     Switch* getSwitch(uint8_t idx) { return (idx < switchCount_) ? &switches_[idx] : nullptr; }
 
     uint8_t mastCount() const { return mastCount_; }
+    const SignalMast* mast(uint8_t idx) const { return (idx < mastCount_) ? &masts_[idx] : nullptr; }
     SignalMast* mast(uint8_t idx) { return (idx < mastCount_) ? &masts_[idx] : nullptr; }
+
+    uint8_t authorityCount() const { return authorityCount_; }
+    const SignalControl* authority(uint8_t idx) const { return (idx < authorityCount_) ? &authorities_[idx] : nullptr; }
+    SignalControl* authority(uint8_t idx) { return (idx < authorityCount_) ? &authorities_[idx] : nullptr; }
+
+    uint8_t crossoverCount() const { return crossoverCount_; }
+    const Crossover* crossover(uint8_t idx) const { return (idx < crossoverCount_) ? &crossovers_[idx] : nullptr; }
+    Crossover* crossover(uint8_t idx) { return (idx < crossoverCount_) ? &crossovers_[idx] : nullptr; }
+
+    uint8_t detectorLockCount() const { return detectorLockCouplingCount_; }
+    Switch* detectorLockSwitch(uint8_t idx) const { return (idx < detectorLockCouplingCount_) ? detectorLocks_[idx].sw : nullptr; }
+    TrackCircuit* detectorLockTrackCircuit(uint8_t idx) const { return (idx < detectorLockCouplingCount_) ? detectorLocks_[idx].tc : nullptr; }
+
+    InterlockingEngine& engine() { return engine_; }
+    const InterlockingEngine& engine() const { return engine_; }
+
+    // Serialization & Deserialization
+    bool serialize(char* buffer, size_t maxLen, bool pretty = true) const;
+    bool deserialize(const char* json);
 
     void setDefaultAspectPolicy(AspectResolver policy) {
         defaultAspectPolicy_ = policy ? policy : AspectPolicies::defaultRoute;
@@ -464,12 +511,12 @@ private:
         ApplianceDriver* driver;
     };
 
-    const char* name_;
+    char name_[MAX_ROUTE_NAME_LEN];
     AspectResolver defaultAspectPolicy_;
     DriverPolicy* defaultDriverPolicy_;
     DriverOverride driverOverrides_[MAX_APPLIANCES];
     uint8_t driverOverrideCount_;
-    MockSwitchDriver* mockSwitches_[MAX_APPLIANCES];
+    MockSwitchDriver* mockSwitches_[MAX_MOCK_SWITCHES];
     uint8_t mockSwitchCount_;
     TrackCircuit trackCircuits_[MAX_APPLIANCES];
     uint8_t trackCircuitCount_;
@@ -477,7 +524,7 @@ private:
     Switch switches_[MAX_APPLIANCES];
     uint8_t switchCount_;
 
-    Crossover crossovers_[MAX_APPLIANCES];
+    Crossover crossovers_[MAX_CROSSOVERS];
     uint8_t crossoverCount_;
 
     SignalControl authorities_[MAX_APPLIANCES];
@@ -530,6 +577,17 @@ inline Route& Route::aligns(std::initializer_list<NamedSwitchRequirement> swList
     return *this;
 }
 
+inline Route& Route::align(const char* swName, SwitchPosition pos, const char* relName) {
+    if (switchCount_ < MAX_ROUTE_SWITCHES && cp_) {
+        Switch* sw = cp_->findSwitch(swName);
+        TrackCircuit* rel = relName ? cp_->findTrackCircuit(relName) : nullptr;
+        if (sw) {
+            switches_[switchCount_++] = { sw, pos, rel };
+        }
+    }
+    return *this;
+}
+
 inline TrackCircuit* Route::releasingBlock(uint8_t idx) const {
     if (idx >= switchCount_) return nullptr;
     if (switches_[idx].releasingBlock != nullptr) {
@@ -552,6 +610,16 @@ inline Route& Route::clears(std::initializer_list<const char*> tcNames) {
             if (tc) {
                 blocks_[blockCount_++] = tc;
             }
+        }
+    }
+    return *this;
+}
+
+inline Route& Route::clearBlock(const char* tcName) {
+    if (blockCount_ < MAX_ROUTE_BLOCKS && cp_) {
+        TrackCircuit* tc = cp_->findTrackCircuit(tcName);
+        if (tc) {
+            blocks_[blockCount_++] = tc;
         }
     }
     return *this;

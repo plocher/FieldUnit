@@ -56,8 +56,7 @@ struct NamedSwitchRequirement {
 class Route {
 public:
     Route()
-        : name_(""),
-          authority_(nullptr),
+        : authority_(nullptr),
           direction_(DirectionAuthority::STOP),
           mast_(nullptr),
           targetHeadIndex_(0),
@@ -71,6 +70,7 @@ public:
           osBlock_(nullptr),
           cp_(nullptr),
           state_(RouteState::IDLE) {
+        name_[0] = '\0';
         for (uint8_t i = 0; i < MAX_ROUTE_SWITCHES; ++i) {
             sectionStates_[i] = SectionState::LOCKED;
         }
@@ -114,7 +114,9 @@ public:
     TrackCircuit* releasingBlock(uint8_t idx) const;
 
     Route& name(const char* n) {
-        name_ = n;
+        if (!n) { name_[0] = '\0'; return *this; }
+        strncpy(name_, n, sizeof(name_) - 1);
+        name_[sizeof(name_) - 1] = '\0';
         return *this;
     }
 
@@ -152,6 +154,15 @@ public:
 
     Route& aligns(std::initializer_list<NamedSwitchRequirement> swList);
 
+    Route& align(Switch* sw, SwitchPosition pos, TrackCircuit* rel = nullptr) {
+        if (switchCount_ < MAX_ROUTE_SWITCHES && sw) {
+            switches_[switchCount_++] = { sw, pos, rel };
+        }
+        return *this;
+    }
+
+    Route& align(const char* swName, SwitchPosition pos, const char* relName = nullptr);
+
     Route& clears(std::initializer_list<TrackCircuit*> tcList) {
         blockCount_ = 0;
         for (auto tc : tcList) {
@@ -163,6 +174,15 @@ public:
     }
 
     Route& clears(std::initializer_list<const char*> tcNames);
+
+    Route& clearBlock(TrackCircuit* tc) {
+        if (blockCount_ < MAX_ROUTE_BLOCKS && tc) {
+            blocks_[blockCount_++] = tc;
+        }
+        return *this;
+    }
+
+    Route& clearBlock(const char* tcName);
 
     Route& entrance(TrackCircuit* tc) {
         entranceBlock_ = tc;
@@ -212,7 +232,7 @@ public:
     TrackCircuit* osBlock() const { return osBlock_; }
 
 private:
-    const char*        name_;
+    char               name_[MAX_ROUTE_NAME_LEN];
     SignalControl*     authority_;
     DirectionAuthority direction_;
     SignalMast*        mast_;
@@ -239,6 +259,10 @@ private:
 class InterlockingEngine {
 public:
     InterlockingEngine() : routeCount_(0) {}
+
+    void clear() {
+        routeCount_ = 0;
+    }
 
     Route& addRoute(const char* name, ControlPoint* cp = nullptr) {
         if (routeCount_ >= MAX_ROUTES) {

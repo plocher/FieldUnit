@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdio.h>
 #include <initializer_list>
-
 #include "types.h"
 #include "ControlPoint.h"
 #include "Switch.h"
@@ -17,6 +17,7 @@
 namespace FieldUnit {
 
 static constexpr uint8_t MAX_MAP_ENTRIES = 32;
+static constexpr uint8_t MAX_ENTRY_NAME_LEN = 16;
 static constexpr uint8_t MAX_CODE_BYTES  = 16;
 
 // Strips common modeler prefixes like "SW" or "SIG" defensively to obtain authentic railroad ID
@@ -66,7 +67,7 @@ struct DecodeEntry {
     };
     Type type;
     uint8_t applianceIndex;
-    char name[16];
+    char name[MAX_ENTRY_NAME_LEN];
     uint8_t skipCount;
 };
 
@@ -83,7 +84,7 @@ struct EncodeEntry {
     };
     Type type;
     uint8_t applianceIndex;
-    char name[16];
+    char name[MAX_ENTRY_NAME_LEN];
     uint8_t skipCount;
     bool activeHigh;
 };
@@ -401,6 +402,12 @@ public:
         }
     }
 
+    void addDecodeEntry(const DecodeEntry& entry) {
+        if (decodeEntryCount_ < MAX_MAP_ENTRIES) {
+            decodeEntries_[decodeEntryCount_++] = entry;
+        }
+    }
+
     void encodeIndications(std::initializer_list<EncodeEntry> entries) {
         encodeEntryCount_ = 0;
         for (const auto& entry : entries) {
@@ -410,182 +417,256 @@ public:
         }
     }
 
+    void addEncodeEntry(const EncodeEntry& entry) {
+        if (encodeEntryCount_ < MAX_MAP_ENTRIES) {
+            encodeEntries_[encodeEntryCount_++] = entry;
+        }
+    }
+
+    void clearEntries() {
+        decodeEntryCount_ = 0;
+        encodeEntryCount_ = 0;
+    }
+
     // Decode inbound comma-separated control tokens into a ControlTransaction
-    // Order-independent: tokens may appear in any sequence.
-    // If a vital conflict occurs, ctl.vitalValid is marked false (vital isolation).
+    // Strictly sequential: Steps must arrive in the exact order declared in decodeControls().
+    // Every term must be explicitly present as asserted (TOKEN) or unasserted ((TOKEN)).
+    // Missing steps (Gate 1) or conflicting demands (Gate 2) immediately set vitalValid = false.
     bool decodeControls(const char* text, ControlTransaction& ctl) {
         if (!text) return false;
 
         ctl = ControlTransaction(); // Defaults: all NO_CHANGE, vitalValid = true
 
         const char* p = text;
-        while (*p) {
-            // 1. Skip commas and leading whitespace
-            while (*p && (*p == ',' || *p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')) {
-                p++;
-            }
-            if (!*p) break;
+        char token[32];
+        char rawToken[32];
+        bool asserted = true;
 
-            // 2. Extract next token up to comma or end-of-string
-            const char* tokStart = p;
-            while (*p && *p != ',') {
-                p++;
-            }
-            const char* tokEnd = p;
+        for (uint8_t i = 0; i < decodeEntryCount_; ++i) {
+            const DecodeEntry& entry = decodeEntries_[i];
 
-            // Trim trailing whitespace from raw token
-            while (tokEnd > tokStart && (tokEnd[-1] == ' ' || tokEnd[-1] == '\t' || tokEnd[-1] == '\r' || tokEnd[-1] == '\n')) {
-                tokEnd--;
-            }
-
-            size_t rawLen = tokEnd - tokStart;
-            if (rawLen == 0) continue;
-
-            // Copy raw token for fault inspection
-            char rawToken[32];
-            size_t copyLen = (rawLen < sizeof(rawToken) - 1) ? rawLen : sizeof(rawToken) - 1;
-            memcpy(rawToken, tokStart, copyLen);
-            rawToken[copyLen] = '\0';
-
-            // 3. Determine polarity: parenthesized (TOKEN) is negated; bare TOKEN is asserted
-            bool asserted = true;
-            const char* coreStart = tokStart;
-            const char* coreEnd = tokEnd;
-
-            if (*coreStart == '(') {
-                coreStart++;
-                while (coreStart < coreEnd && (*coreStart == ' ' || *coreStart == '\t')) {
-                    coreStart++;
+            if (entry.type == DecodeEntry::Type::SWITCH) {
+                // Step A: must match entry.name + "NW"
+                if (!extractNextToken(p, token, sizeof(token), asserted, rawToken)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    return false;
                 }
-                if (coreEnd > coreStart && coreEnd[-1] == ')') {
-                    coreEnd--;
-                    while (coreEnd > coreStart && (coreEnd[-1] == ' ' || coreEnd[-1] == '\t')) {
-                        coreEnd--;
-                    }
-                    asserted = false;
+                char nwExpected[32];
+                snprintf(nwExpected, sizeof(nwExpected), "%sNW", entry.name);
+                if (!tokenEqualsIgnoreCase(token, nwExpected)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    recordUnknownSymbol(rawToken);
+                    return false;
                 }
-            }
+                bool nwAsserted = asserted;
 
-            size_t coreLen = coreEnd - coreStart;
-            if (coreLen == 0) continue;
-
-            char token[32];
-            copyLen = (coreLen < sizeof(token) - 1) ? coreLen : sizeof(token) - 1;
-            memcpy(token, coreStart, copyLen);
-            token[copyLen] = '\0';
-
-            // 4. Strict railroad convention: Control tokens MUST end in 'S' or 's'
-            size_t tlen = strlen(token);
-            if (tlen < 2 || (token[tlen - 1] != 'S' && token[tlen - 1] != 's')) {
-                // Not a valid control token (e.g. missing S suffix, or indication token K sent on control line)
-                unknownSymbolCount_++;
-                strncpy(lastUnknownSymbol_, rawToken, sizeof(lastUnknownSymbol_) - 1);
-                lastUnknownSymbol_[sizeof(lastUnknownSymbol_) - 1] = '\0';
-                continue;
-            }
-
-            // Strip the trailing 'S' to compare with base mnemonic (e.g. "1NW", "2SG", "MC1")
-            token[tlen - 1] = '\0';
-
-            // 5. Match against configured decode entries
-            bool matched = false;
-            for (uint8_t i = 0; i < decodeEntryCount_; ++i) {
-                const DecodeEntry& entry = decodeEntries_[i];
-
-                if (entry.type == DecodeEntry::Type::SWITCH) {
-                    char nwExpected[32], rwExpected[32];
-                    snprintf(nwExpected, sizeof(nwExpected), "%sNW", entry.name);
-                    snprintf(rwExpected, sizeof(rwExpected), "%sRW", entry.name);
-
-                    if (tokenEqualsIgnoreCase(token, nwExpected)) {
-                        matched = true;
-                        if (asserted) {
-                            if (ctl.switchDemands[entry.applianceIndex] == SwitchDemand::REVERSE) {
-                                // Conflicting demands for the same switch in one transmission!
-                                ctl.vitalValid = false;
-                                vitalConflictCount_++;
-                            }
-                            ctl.switchDemands[entry.applianceIndex] = SwitchDemand::NORMAL;
-                        }
-                        break;
-                    } else if (tokenEqualsIgnoreCase(token, rwExpected)) {
-                        matched = true;
-                        if (asserted) {
-                            if (ctl.switchDemands[entry.applianceIndex] == SwitchDemand::NORMAL) {
-                                ctl.vitalValid = false;
-                                vitalConflictCount_++;
-                            }
-                            ctl.switchDemands[entry.applianceIndex] = SwitchDemand::REVERSE;
-                        }
-                        break;
-                    }
-                } else if (entry.type == DecodeEntry::Type::SIGNAL) {
-                    char sgExpected[32], ngExpected[32], hExpected[32];
-                    snprintf(sgExpected, sizeof(sgExpected), "%sSG", entry.name);
-                    snprintf(ngExpected, sizeof(ngExpected), "%sNG", entry.name);
-                    snprintf(hExpected, sizeof(hExpected), "%sH", entry.name);
-
-                    if (tokenEqualsIgnoreCase(token, sgExpected)) {
-                        matched = true;
-                        if (asserted) {
-                            if (ctl.signalDemands[entry.applianceIndex] != SignalDemand::NO_CHANGE &&
-                                ctl.signalDemands[entry.applianceIndex] != SignalDemand::RIGHT) {
-                                ctl.vitalValid = false;
-                                vitalConflictCount_++;
-                            }
-                            ctl.signalDemands[entry.applianceIndex] = SignalDemand::RIGHT;
-                        }
-                        break;
-                    } else if (tokenEqualsIgnoreCase(token, ngExpected)) {
-                        matched = true;
-                        if (asserted) {
-                            if (ctl.signalDemands[entry.applianceIndex] != SignalDemand::NO_CHANGE &&
-                                ctl.signalDemands[entry.applianceIndex] != SignalDemand::LEFT) {
-                                ctl.vitalValid = false;
-                                vitalConflictCount_++;
-                            }
-                            ctl.signalDemands[entry.applianceIndex] = SignalDemand::LEFT;
-                        }
-                        break;
-                    } else if (tokenEqualsIgnoreCase(token, hExpected)) {
-                        matched = true;
-                        if (asserted) {
-                            if (ctl.signalDemands[entry.applianceIndex] != SignalDemand::NO_CHANGE &&
-                                ctl.signalDemands[entry.applianceIndex] != SignalDemand::STOP) {
-                                ctl.vitalValid = false;
-                                vitalConflictCount_++;
-                            }
-                            ctl.signalDemands[entry.applianceIndex] = SignalDemand::STOP;
-                        }
-                        break;
-                    }
-                } else if (entry.type == DecodeEntry::Type::ELECTRIC_LOCK) {
-                    char wlExpected[32];
-                    snprintf(wlExpected, sizeof(wlExpected), "%sWL", entry.name);
-                    if (tokenEqualsIgnoreCase(token, wlExpected)) {
-                        matched = true;
-                        ctl.lockDemands[entry.applianceIndex] = asserted ? ElectricLockDemand::UNLOCK : ElectricLockDemand::LOCK;
-                        break;
-                    }
-                } else if (entry.type == DecodeEntry::Type::MAINTAINER) {
-                    if (tokenEqualsIgnoreCase(token, entry.name)) {
-                        matched = true;
-                        ctl.maintainerCall[entry.applianceIndex] = asserted;
-                        break;
-                    }
+                // Step B: must match entry.name + "RW"
+                if (!extractNextToken(p, token, sizeof(token), asserted, rawToken)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    return false;
                 }
-            }
+                char rwExpected[32];
+                snprintf(rwExpected, sizeof(rwExpected), "%sRW", entry.name);
+                if (!tokenEqualsIgnoreCase(token, rwExpected)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    recordUnknownSymbol(rawToken);
+                    return false;
+                }
+                bool rwAsserted = asserted;
 
-            if (!matched) {
-                unknownSymbolCount_++;
-                strncpy(lastUnknownSymbol_, rawToken, sizeof(lastUnknownSymbol_) - 1);
-                lastUnknownSymbol_[sizeof(lastUnknownSymbol_) - 1] = '\0';
+                // Gate 2: Self-Consistency
+                if (nwAsserted && rwAsserted) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    return false;
+                }
+
+                if (nwAsserted) {
+                    ctl.switchDemands[entry.applianceIndex] = SwitchDemand::NORMAL;
+                } else if (rwAsserted) {
+                    ctl.switchDemands[entry.applianceIndex] = SwitchDemand::REVERSE;
+                } else {
+                    ctl.switchDemands[entry.applianceIndex] = SwitchDemand::NO_CHANGE;
+                }
+
+            } else if (entry.type == DecodeEntry::Type::SIGNAL) {
+                // Step A: SG
+                if (!extractNextToken(p, token, sizeof(token), asserted, rawToken)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    return false;
+                }
+                char sgExpected[32];
+                snprintf(sgExpected, sizeof(sgExpected), "%sSG", entry.name);
+                if (!tokenEqualsIgnoreCase(token, sgExpected)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    recordUnknownSymbol(rawToken);
+                    return false;
+                }
+                bool sgAsserted = asserted;
+
+                // Step B: NG
+                if (!extractNextToken(p, token, sizeof(token), asserted, rawToken)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    return false;
+                }
+                char ngExpected[32];
+                snprintf(ngExpected, sizeof(ngExpected), "%sNG", entry.name);
+                if (!tokenEqualsIgnoreCase(token, ngExpected)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    recordUnknownSymbol(rawToken);
+                    return false;
+                }
+                bool ngAsserted = asserted;
+
+                // Step C: H
+                if (!extractNextToken(p, token, sizeof(token), asserted, rawToken)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    return false;
+                }
+                char hExpected[32];
+                snprintf(hExpected, sizeof(hExpected), "%sH", entry.name);
+                if (!tokenEqualsIgnoreCase(token, hExpected)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    recordUnknownSymbol(rawToken);
+                    return false;
+                }
+                bool hAsserted = asserted;
+
+                // Gate 2: Self-Consistency
+                uint8_t count = (sgAsserted ? 1 : 0) + (ngAsserted ? 1 : 0) + (hAsserted ? 1 : 0);
+                if (count > 1) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    return false;
+                }
+
+                if (sgAsserted) {
+                    ctl.signalDemands[entry.applianceIndex] = SignalDemand::RIGHT;
+                } else if (ngAsserted) {
+                    ctl.signalDemands[entry.applianceIndex] = SignalDemand::LEFT;
+                } else if (hAsserted) {
+                    ctl.signalDemands[entry.applianceIndex] = SignalDemand::STOP;
+                } else {
+                    ctl.signalDemands[entry.applianceIndex] = SignalDemand::NO_CHANGE;
+                }
+
+            } else if (entry.type == DecodeEntry::Type::ELECTRIC_LOCK) {
+                if (!extractNextToken(p, token, sizeof(token), asserted, rawToken)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    return false;
+                }
+                char wlExpected[32];
+                snprintf(wlExpected, sizeof(wlExpected), "%sWL", entry.name);
+                if (!tokenEqualsIgnoreCase(token, wlExpected)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    recordUnknownSymbol(rawToken);
+                    return false;
+                }
+                ctl.lockDemands[entry.applianceIndex] = asserted ? ElectricLockDemand::UNLOCK : ElectricLockDemand::LOCK;
+
+            } else if (entry.type == DecodeEntry::Type::MAINTAINER) {
+                if (!extractNextToken(p, token, sizeof(token), asserted, rawToken)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    return false;
+                }
+                if (!tokenEqualsIgnoreCase(token, entry.name)) {
+                    ctl.vitalValid = false;
+                    vitalConflictCount_++;
+                    recordUnknownSymbol(rawToken);
+                    return false;
+                }
+                ctl.maintainerCall[entry.applianceIndex] = asserted;
             }
+        }
+
+        // Final check: extra tokens
+        if (extractNextToken(p, token, sizeof(token), asserted, rawToken)) {
+            ctl.vitalValid = false;
+            vitalConflictCount_++;
+            recordUnknownSymbol(rawToken);
+            return false;
         }
 
         return true;
     }
 
+private:
+    void recordUnknownSymbol(const char* raw) {
+        if (!raw) return;
+        unknownSymbolCount_++;
+        strncpy(lastUnknownSymbol_, raw, sizeof(lastUnknownSymbol_) - 1);
+        lastUnknownSymbol_[sizeof(lastUnknownSymbol_) - 1] = '\0';
+    }
+
+    bool extractNextToken(const char*& p, char* tokenOut, size_t maxLen, bool& assertedOut, char* rawTokenOut = nullptr) {
+        while (*p && (*p == ',' || *p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')) {
+            p++;
+        }
+        if (!*p) return false;
+
+        const char* tokStart = p;
+        while (*p && *p != ',') {
+            p++;
+        }
+        const char* tokEnd = p;
+
+        while (tokEnd > tokStart && (tokEnd[-1] == ' ' || tokEnd[-1] == '\t' || tokEnd[-1] == '\r' || tokEnd[-1] == '\n')) {
+            tokEnd--;
+        }
+
+        size_t rawLen = tokEnd - tokStart;
+        if (rawLen == 0) return false;
+
+        if (rawTokenOut) {
+            size_t copyLen = (rawLen < 31) ? rawLen : 31;
+            memcpy(rawTokenOut, tokStart, copyLen);
+            rawTokenOut[copyLen] = '\0';
+        }
+
+        assertedOut = true;
+        const char* coreStart = tokStart;
+        const char* coreEnd = tokEnd;
+
+        if (*coreStart == '(') {
+            coreStart++;
+            while (coreStart < coreEnd && (*coreStart == ' ' || *coreStart == '\t')) coreStart++;
+            if (coreEnd > coreStart && coreEnd[-1] == ')') {
+                coreEnd--;
+                while (coreEnd > coreStart && (coreEnd[-1] == ' ' || coreEnd[-1] == '\t')) coreEnd--;
+                assertedOut = false;
+            }
+        }
+
+        size_t coreLen = coreEnd - coreStart;
+        if (coreLen == 0) return false;
+
+        size_t copyLen = (coreLen < maxLen - 1) ? coreLen : maxLen - 1;
+        memcpy(tokenOut, coreStart, copyLen);
+        tokenOut[copyLen] = '\0';
+
+        size_t tlen = strlen(tokenOut);
+        if (tlen < 2 || (tokenOut[tlen - 1] != 'S' && tokenOut[tlen - 1] != 's')) {
+            recordUnknownSymbol(rawTokenOut);
+            return false;
+        }
+        tokenOut[tlen - 1] = '\0'; // strip 'S'
+        return true;
+    }
+
+public:
     // Encode plant indication vector into human-readable comma-delimited AAR tokens
     // Strictly formatted in the exact order declared in encodeIndications()
     bool encodeIndications(const IndicationVector& ind, char* buffer, size_t maxLength, size_t& lengthOut) const {

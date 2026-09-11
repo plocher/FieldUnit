@@ -10,6 +10,7 @@
 #include "SignalMast.h"
 #include "ControlTable.h"
 #include "ControlPoint.h"
+#include "PlantSerializer.h"
 #include "WireCodec.h"
 #include "CodeLine.h"
 

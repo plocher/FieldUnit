@@ -7,8 +7,8 @@
 
 using namespace FieldUnit;
 
-void testAarTextCodecBasicOrderIndependent() {
-    printf("[TEST] AarTextCodec: Order-independent decoding and strict declaration-order encoding\n");
+void testAarTextCodecSequentialStepping() {
+    printf("[TEST] AarTextCodec: Strict sequential step decoding and declaration-order encoding\n");
 
     ControlPoint cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1");
@@ -18,10 +18,10 @@ void testAarTextCodecBasicOrderIndependent() {
 
     AarTextCodec codec;
     codec.decodeControls({
-        decodeSwitch(sw1),   // 1NWS, 1RWS
-        decodeSwitch(sw3),   // 3NWS, 3RWS
-        decodeSignal(sig2),  // 2SGS, 2NGS, 2HS
-        decodeMaintainer(0)  // MC1S
+        decodeSwitch(sw1),   // Step 0: 1NW, Step 1: 1RW
+        decodeSwitch(sw3),   // Step 2: 3NW, Step 3: 3RW
+        decodeSignal(sig2),  // Step 4: 2SG, Step 5: 2NG, Step 6: 2H
+        decodeMaintainer(0)  // Step 7: MC1
     });
 
     codec.encodeIndications({
@@ -32,19 +32,43 @@ void testAarTextCodecBasicOrderIndependent() {
         encodeMaintainer(0)  // MC1K
     });
 
-    // 1. Inbound message in completely shuffled order with mixed whitespace and casing
-    const char* shuffledInput = "  mc1s , (3nws), 3rws , 2NGS , 1nws, (1rws) ";
+    // 1. Inbound message in exact sequential order (Step 0 to Step 7)
+    const char* validInput = "1nws, (1rws), (3nws), 3rws, (2sgs), 2NGS, (2hs), mc1s";
     ControlTransaction ctl;
-    bool ok = codec.decodeControls(shuffledInput, ctl);
+    bool ok = codec.decodeControls(validInput, ctl);
     assert(ok);
     assert(ctl.vitalValid == true);
     assert(ctl.switchDemands[0] == SwitchDemand::NORMAL);
     assert(ctl.switchDemands[1] == SwitchDemand::REVERSE);
     assert(ctl.signalDemands[0] == SignalDemand::LEFT);
     assert(ctl.maintainerCall[0] == true);
-    printf("  -> PASS: Shuffled, case-insensitive, whitespace-tolerant tokens correctly decoded\n");
+    printf("  -> PASS: Strict sequential step tokens correctly decoded\n");
 
-    // 2. Outbound indication formatting in exact declaration order
+    // 2. Out-of-sequence message: MC1S sent first -> must be rejected immediately!
+    const char* outOfOrder = "mc1s, 1nws, (1rws), (3nws), 3rws, (2sgs), 2NGS, (2hs)";
+    ControlTransaction ctlBadSeq;
+    bool badSeqOk = codec.decodeControls(outOfOrder, ctlBadSeq);
+    assert(badSeqOk == false);
+    assert(ctlBadSeq.vitalValid == false);
+    printf("  -> PASS: Out-of-sequence transmission rejected immediately\n");
+
+    // 3. Truncated message: Omitted switches and signals -> must be rejected immediately!
+    const char* truncated = "1nws, (1rws)";
+    ControlTransaction ctlTrunc;
+    bool truncOk = codec.decodeControls(truncated, ctlTrunc);
+    assert(truncOk == false);
+    assert(ctlTrunc.vitalValid == false);
+    printf("  -> PASS: Truncated transmission rejected immediately (Gate 1 failure)\n");
+
+    // 4. Missing term for Switch 1: Only 1NWS sent, 1RWS omitted -> must be rejected!
+    const char* missingTerm = "1nws, (3nws), 3rws, (2sgs), 2NGS, (2hs), mc1s";
+    ControlTransaction ctlMissing;
+    bool missOk = codec.decodeControls(missingTerm, ctlMissing);
+    assert(missOk == false);
+    assert(ctlMissing.vitalValid == false);
+    printf("  -> PASS: Transmission missing required step term rejected immediately\n");
+
+    // 5. Outbound indication formatting in exact declaration order
     sw1->updateFeedback(SwitchPosition::NORMAL);
     sw3->throwSwitch(SwitchPosition::REVERSE);
     sw3->updateFeedback(SwitchPosition::REVERSE);
@@ -83,12 +107,12 @@ void testAarTextCodecMandatorySuffixes() {
     ControlTransaction ctl;
     codec.decodeControls("1NW, 2NGK", ctl);
 
-    // Neither 1NW nor 2NGK end in 'S' -> must be rejected as unknown symbols
-    assert(codec.unknownSymbolCount() == 2);
+    // First token 1NW lacks 'S' -> rejected immediately on Step 0!
+    assert(codec.unknownSymbolCount() == 1);
     assert(ctl.switchDemands[0] == SwitchDemand::NO_CHANGE);
     assert(ctl.signalDemands[0] == SignalDemand::NO_CHANGE);
-    assert(ctl.vitalValid == true); // No vital conflict, just ignored non-control tokens
-    printf("  -> PASS: Tokens lacking 'S' suffix rejected; unknownSymbolCount = %u\n\n",
+    assert(ctl.vitalValid == false); // Truncated / malformed step
+    printf("  -> PASS: Malformed step token lacking 'S' suffix rejected immediately; unknownSymbolCount = %u\n\n",
            codec.unknownSymbolCount());
 }
 
@@ -112,17 +136,15 @@ void testAarTextCodecVitalConflictIsolation() {
 
     // Inbound packet has conflicting switch demand: 1NWS AND 1RWS both asserted!
     // But maintainer call MC1S is also present and valid.
-    const char* corruptInput = "1NWS, 1RWS, MC1S";
+    const char* corruptInput = "1NWS, 1RWS, (2SGS), (2NGS), (2HS), MC1S";
     ControlTransaction ctl;
     codec.decodeControls(corruptInput, ctl);
 
     // 1. Transaction must be flagged invalid for vital safety
     assert(ctl.vitalValid == false);
     assert(codec.vitalConflictCount() == 1);
-    // Received raw demands are preserved for diagnostics
-    assert(ctl.switchDemands[0] == SwitchDemand::REVERSE);
-    // Non-vital maintainer call is parsed
-    assert(ctl.maintainerCall[0] == true);
+    // Demands remain safe at NO_CHANGE
+    assert(ctl.switchDemands[0] == SwitchDemand::NO_CHANGE);
     printf("  -> PASS: Conflicting vital demand flagged (vitalValid = false, vitalConflictCount = 1)\n");
 
     // 2. Apply to ControlPoint: vital appliances must NOT be invoked!
@@ -132,11 +154,7 @@ void testAarTextCodecVitalConflictIsolation() {
     // Switch points must be UNTOUCHED in Normal position
     assert(sw1->reportedPosition() == SwitchPosition::NORMAL);
     assert(sw1->commandedPosition() == SwitchPosition::NORMAL);
-    // Maintainer call was non-vital and MUST be updated
-    IndicationVector ind;
-    cp.exportIndicationVector(ind);
-    assert(ind.maintainerCall[0] == true);
-    printf("  -> PASS: Vital appliances untouched; non-vital maintainer call activated\n\n");
+    printf("  -> PASS: Vital appliances untouched on corrupted transmission\n\n");
 }
 
 void testAarTextCodecSignalConflict() {
@@ -152,7 +170,7 @@ void testAarTextCodecSignalConflict() {
 
     // Inbound commands opposing directions: 2SGS and 2NGS both asserted
     ControlTransaction ctl;
-    codec.decodeControls("2SGS, 2NGS", ctl);
+    codec.decodeControls("2SGS, 2NGS, (2HS)", ctl);
 
     assert(ctl.vitalValid == false);
     assert(codec.vitalConflictCount() == 1);
@@ -279,7 +297,7 @@ int main() {
     printf("   FIELDUNIT WIRE CODEC COMPREHENSIVE TEST SUITE    \n");
     printf("====================================================\n\n");
 
-    testAarTextCodecBasicOrderIndependent();
+    testAarTextCodecSequentialStepping();
     testAarTextCodecMandatorySuffixes();
     testAarTextCodecVitalConflictIsolation();
     testAarTextCodecSignalConflict();

@@ -11,8 +11,7 @@ public:
     SignalControl() : SignalControl("") {}
 
     SignalControl(const char* name)
-        : name_(name),
-          commanded_(DirectionAuthority::STOP),
+        : commanded_(DirectionAuthority::STOP),
           active_(DirectionAuthority::STOP),
           fleetMode_(false),
           index_(0),
@@ -20,7 +19,15 @@ public:
           timeLockRunning_(false),
           timeLockDirection_(DirectionAuthority::STOP),
           timeLockExpiryMs_(0),
-          timeLockDurationMs_(30000) {}
+          timeLockDurationMs_(30000) {
+        setName(name);
+    }
+
+    void setName(const char* name) {
+        if (!name) { name_[0] = '\0'; return; }
+        strncpy(name_, name, sizeof(name_) - 1);
+        name_[sizeof(name_) - 1] = '\0';
+    }
 
     const char* name() const { return name_; }
     uint8_t index() const { return index_; }
@@ -169,7 +176,7 @@ public:
     }
 
 private:
-    const char* name_;
+    char name_[MAX_APPLIANCE_NAME_LEN];
     DirectionAuthority commanded_;
     DirectionAuthority active_;
     bool fleetMode_;

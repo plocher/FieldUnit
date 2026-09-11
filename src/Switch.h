@@ -12,14 +12,21 @@ public:
     virtual ~Switch() = default;
 
     Switch(const char* name)
-        : name_(name),
-          commanded_(SwitchPosition::NORMAL),
+        : commanded_(SwitchPosition::NORMAL),
           reported_(SwitchPosition::NORMAL),
           locks_(SwitchLock::UNLOCKED),
           pairedSwitch_(nullptr),
           index_(0),
           motionStartMs_(0),
-          travelTimeoutMs_(5000) {}
+          travelTimeoutMs_(5000) {
+        setName(name);
+    }
+
+    void setName(const char* name) {
+        if (!name) { name_[0] = '\0'; return; }
+        strncpy(name_, name, sizeof(name_) - 1);
+        name_[sizeof(name_) - 1] = '\0';
+    }
 
     const char* name() const { return name_; }
     uint8_t index() const { return index_; }
@@ -189,7 +196,7 @@ public:
     }
 
 private:
-    const char* name_;
+    char name_[MAX_APPLIANCE_NAME_LEN];
     SwitchPosition commanded_;
     SwitchPosition reported_;
     SwitchLock locks_;

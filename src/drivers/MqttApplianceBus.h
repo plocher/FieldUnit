@@ -4,7 +4,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#if !defined(__AVR__)
 #include <strings.h>
+#endif
 #include "../TrackCircuit.h"
 #include "../Switch.h"
 #include "../SignalMast.h"
