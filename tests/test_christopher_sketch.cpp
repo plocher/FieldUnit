@@ -74,7 +74,7 @@ void runChristopherSketchIntegrationTest() {
     // SCENARIO 1: Dispatcher clears Northbound MT2 straight (SIG2 LEFT)
     // -------------------------------------------------------------
     printf("[SCENARIO 1] Dispatcher transmits Control Packet: SIG2 LEFT with switches Normal\n");
-    mockLine.injectControlText("1NWS, (1RWS), 3NWS, (3RWS), 3BNWS, (3BRWS), 5NWS, (5RWS), 2NGS, (2SGS), (2HS)");
+    mockLine.injectControlText("1NWS, (1RWS), 3NWS, (3RWS), 3BNWS, (3BRWS), 5NWS, (5RWS), (2SGS), 2NGS, (2HS), (MC1S)");
 
     executeCycle(mockLine, clockMs);
 
@@ -113,7 +113,7 @@ void runChristopherSketchIntegrationTest() {
     // SCENARIO 3: Dispatcher attempts to throw crossover while train on 3BT1
     // -------------------------------------------------------------
     printf("[SCENARIO 3] Dispatcher attempts to throw Crossover SW3/3B while 3BT1 occupied\n");
-    mockLine.injectControlText("3RWS, 3BRWS");
+    mockLine.injectControlText("(1NWS), (1RWS), (3NWS), 3RWS, (3BNWS), 3BRWS, (5NWS), (5RWS), (2SGS), (2NGS), (2HS), (MC1S)");
 
     executeCycle(mockLine, clockMs);
 
@@ -138,7 +138,7 @@ void runChristopherSketchIntegrationTest() {
     mockLine.clearOutbound();
 
     // Command SW1 Normal, SW3/SW3B Reverse, SW5 Normal, SIG2 LEFT
-    mockLine.injectControlText("1NWS, 3RWS, 3BRWS, 5NWS, 2NGS");
+    mockLine.injectControlText("1NWS, (1RWS), (3NWS), 3RWS, (3BNWS), 3BRWS, 5NWS, (5RWS), (2SGS), 2NGS, (2HS), (MC1S)");
 
     executeCycle(mockLine, clockMs);
 

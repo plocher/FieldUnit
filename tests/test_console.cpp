@@ -103,7 +103,7 @@ void runConsoleTests() {
 
     // 6. Send AAR CodeLine Transaction Snapshot over the same CDC link!
     printf("[TEST 4] AAR CodeLine Transaction: Dispatcher clears Signal 2 Right\n");
-    console.processLine("1NWS, 2SGS", clockMs);
+    console.processLine("1NWS, (1RWS), 2SGS, (2NGS), (2HS)", clockMs);
     assert(g_consoleResponses.size() == 1);
     const std::string& indLine = g_consoleResponses[0];
     // Must contain 1NWK (asserted) and 2SGK (asserted)
@@ -122,7 +122,7 @@ void runConsoleTests() {
     g_consoleResponses.clear();
 
     // Next cycle: signal knocks down to STOP!
-    console.processLine("1NWS", clockMs);
+    console.processLine("1NWS, (1RWS), (2SGS), (2NGS), 2HS", clockMs);
     assert(g_consoleResponses.size() == 1);
     const std::string& indKnockdown = g_consoleResponses[0];
     assert(indKnockdown.find("1T1K") != std::string::npos && indKnockdown.find("(1T1K)") == std::string::npos);
@@ -154,6 +154,29 @@ void runConsoleTests() {
     assert(cp.engine().routeCount() == 0);
     assert(strcmp(cp.name(), "Blank") == 0);
     printf("  -> PASS: 'reset' wiped plant to empty: 0 tracks, 0 switches, 0 masts, 0 routes\n\n");
+    g_consoleResponses.clear();
+
+    // 10. Test loopback verb with simulated jumpered bus
+    printf("[TEST 8] C&C Hardware loopback verb\n");
+    class JumperedMockIO : public MockIOBus {
+    public:
+        void writeBit(OutputBit b, bool value) override {
+            MockIOBus::writeBit(b, value);
+            // Simulate Port B jumpered to Port A on Device 0
+            if (b.device == 0 && b.offset == 1) {
+                setPinState(InputBit(0, 0, b.bitIndex), value);
+            }
+        }
+    };
+    JumperedMockIO jumperedBus;
+    console.setIOBus(&jumperedBus);
+    console.processLine("loopback 0xA5", clockMs);
+    assert(g_consoleResponses.size() == 1);
+    assert(g_consoleResponses[0].find("\"status\":\"OK\"") != std::string::npos);
+    assert(g_consoleResponses[0].find("\"written\":165") != std::string::npos);
+    assert(g_consoleResponses[0].find("\"read\":165") != std::string::npos);
+    assert(g_consoleResponses[0].find("\"match\":true") != std::string::npos);
+    printf("  -> PASS: 'loopback 0xA5' verified matching Port A readback: %s\n\n", g_consoleResponses[0].c_str());
 
     printf("====================================================\n");
     printf("   ALL CONSOLE MUX TESTS PASSED (100%%)              \n");

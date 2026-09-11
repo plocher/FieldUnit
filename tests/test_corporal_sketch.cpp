@@ -75,7 +75,7 @@ void runCorporalSketchIntegrationTest() {
     // SCENARIO 1: Dispatcher clears Northbound Single-Track to MT2 (SIG2 LEFT)
     // -------------------------------------------------------------
     printf("[SCENARIO 1] Dispatcher clears Route MT-NB: SIG2 LEFT with SW1=N, SW3=N\n");
-    mockLine.injectControlText("1NWS, (1RWS), 3NWS, (3RWS), 2NGS, (2SGS), (2HS)");
+    mockLine.injectControlText("1NWS, (1RWS), 3NWS, (3RWS), (5NWS), (5RWS), (2SGS), 2NGS, (2HS), (4SGS), (4NGS), (4HS), (MC1S)");
 
     executeCycle(mockLine, clockMs);
 
@@ -118,7 +118,7 @@ void runCorporalSketchIntegrationTest() {
     mockLine.clearOutbound();
 
     // Dispatcher commands SW1 REVERSE and clears SIG4 RIGHT (into industry)
-    mockLine.injectControlText("1RWS, 4SGS");
+    mockLine.injectControlText("(1NWS), 1RWS, (3NWS), (3RWS), (5NWS), (5RWS), (2SGS), (2NGS), (2HS), 4SGS, (4NGS), (4HS), (MC1S)");
 
     executeCycle(mockLine, clockMs);
 

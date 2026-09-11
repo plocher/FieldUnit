@@ -34,13 +34,17 @@ class FieldUnitConsole {
 public:
     typedef void (*OutputCallback)(const char* line);
 
-    FieldUnitConsole(ControlPoint& cp, OutputCallback outCb = nullptr)
-        : cp_(&cp), outCb_(outCb), linePos_(0) {
+    FieldUnitConsole(ControlPoint& cp, OutputCallback outCb = nullptr, IOBus* ioBus = nullptr)
+        : cp_(&cp), outCb_(outCb), ioBus_(ioBus), linePos_(0) {
         lineBuf_[0] = '\0';
     }
 
     void setOutputCallback(OutputCallback cb) {
         outCb_ = cb;
+    }
+
+    void setIOBus(IOBus* ioBus) {
+        ioBus_ = ioBus;
     }
 
     // Process a single byte received from stream
@@ -98,6 +102,13 @@ public:
             return;
         }
 
+        if (strncasecmp(p, "loopback", 8) == 0) {
+            const char* arg = p + 8;
+            while (*arg == ' ' || *arg == '\t') arg++;
+            handleLoopback(arg);
+            return;
+        }
+
         if (strncasecmp(p, "throw ", 6) == 0) {
             handleThrow(p + 6, nowMs);
             return;
@@ -139,9 +150,9 @@ private:
     }
 
     void handleDumpJson() {
-        char jsonBuf[8192];
-        if (cp_->serialize(jsonBuf, sizeof(jsonBuf), false /*compact*/)) {
-            sendResponse(jsonBuf);
+        static char s_jsonBuf[4096];
+        if (cp_->serialize(s_jsonBuf, sizeof(s_jsonBuf), false /*compact*/)) {
+            sendResponse(s_jsonBuf);
         } else {
             sendResponse("{\"status\":\"ERROR\",\"msg\":\"Serialization buffer overflow\"}");
         }
@@ -181,6 +192,41 @@ private:
         } else {
             snprintf(resp, sizeof(resp), "{\"status\":\"ERROR\",\"msg\":\"Track circuit not found\",\"track\":\"%s\"}", nameBuf);
         }
+        sendResponse(resp);
+    }
+
+    void handleLoopback(const char* arg) {
+        if (!ioBus_) {
+            sendResponse("{\"status\":\"ERROR\",\"msg\":\"No IOBus attached to console\"}");
+            return;
+        }
+
+        uint8_t writeVal = 0xAA; // Default alternating pattern 10101010
+        if (arg && *arg) {
+            char* endp = nullptr;
+            writeVal = static_cast<uint8_t>(strtol(arg, &endp, 0));
+        }
+
+        // Port B (offset 1, bits 0..7) are OUTPUTS
+        for (uint8_t b = 0; b < 8; ++b) {
+            bool bitVal = (writeVal & (1 << b)) != 0;
+            ioBus_->writeBit(OutputBit(0, 1, b), bitVal);
+        }
+        ioBus_->flush();
+
+        // Port A (offset 0, bits 0..7) are INPUTS (jumpered back from Port B)
+        uint8_t readVal = 0;
+        for (uint8_t b = 0; b < 8; ++b) {
+            if (ioBus_->readBit(InputBit(0, 0, b))) {
+                readVal |= (1 << b);
+            }
+        }
+
+        char resp[128];
+        snprintf(resp, sizeof(resp),
+                 "{\"status\":\"OK\",\"action\":\"loopback\",\"written\":%u,\"read\":%u,\"match\":%s}",
+                 static_cast<unsigned>(writeVal), static_cast<unsigned>(readVal),
+                 (writeVal == readVal) ? "true" : "false");
         sendResponse(resp);
     }
 
@@ -265,6 +311,7 @@ private:
 
     ControlPoint* cp_;
     OutputCallback outCb_;
+    IOBus* ioBus_;
     char lineBuf_[4096];
     size_t linePos_;
 };
