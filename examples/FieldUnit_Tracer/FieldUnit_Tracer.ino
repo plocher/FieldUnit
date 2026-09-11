@@ -11,6 +11,7 @@
  */
 
 #include <FieldUnit.h>
+#include "FieldUnitConsole.h"
 
 using namespace FieldUnit;
 

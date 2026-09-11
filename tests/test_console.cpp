@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include "../src/FieldUnit.h"
+#include "../examples/FieldUnit_Tracer/FieldUnitConsole.h"
 
 using namespace FieldUnit;
 
