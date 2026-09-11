@@ -402,6 +402,12 @@ public:
         }
     }
 
+    void addDecodeEntry(const DecodeEntry& entry) {
+        if (decodeEntryCount_ < MAX_MAP_ENTRIES) {
+            decodeEntries_[decodeEntryCount_++] = entry;
+        }
+    }
+
     void encodeIndications(std::initializer_list<EncodeEntry> entries) {
         encodeEntryCount_ = 0;
         for (const auto& entry : entries) {
@@ -409,6 +415,17 @@ public:
                 encodeEntries_[encodeEntryCount_++] = entry;
             }
         }
+    }
+
+    void addEncodeEntry(const EncodeEntry& entry) {
+        if (encodeEntryCount_ < MAX_MAP_ENTRIES) {
+            encodeEntries_[encodeEntryCount_++] = entry;
+        }
+    }
+
+    void clearEntries() {
+        decodeEntryCount_ = 0;
+        encodeEntryCount_ = 0;
     }
 
     // Decode inbound comma-separated control tokens into a ControlTransaction

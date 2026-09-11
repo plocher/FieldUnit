@@ -5,6 +5,11 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **`FieldUnitConsole` & `FieldUnit_Tracer` Test Jig**:
+  - Implemented USB CDC serial multiplexer router (`FieldUnitConsole.h`) inspired by CMRInet's `TracerHost`/`TracerNode`.
+  - Multiplexes a single serial stream between Command & Control (C&C) verbs (`load json <payload>`, `dump json`, `status`, `shunt <tc>`, `clear <tc>`, `throw <sw> <pos>`, `reset`) and AAR CodeLine transaction snapshots (`1NWS, 2NGS` $\longleftrightarrow$ `1NWK, 2NGK...`).
+  - Added `examples/FieldUnit_Tracer/FieldUnit_Tracer.ino`: Interactive test jig firmware for Seeed Xiao ESP32 and USB microcontrollers.
+  - Added unit test suite `tests/test_console.cpp` verifying stream line framing, verb dispatch, dynamic configuration, and CodeLine transactions.
 - **Dynamic Plant Serialization & Runtime Deserialization (`PlantSerializer.h`)**:
   - Export: `cp.serialize(buffer, maxLen, pretty)` generates clean, self-contained JSON representing the entire plant topology (appliances, detector locks, crossovers, signal masts, rulebook policies, and routes).
   - Import: `cp.deserialize(json)` reconstructs the entire interlocking plant dynamically at boot from LittleFS, SPIFFS, SD card, or network flash storage.
