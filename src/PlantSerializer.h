@@ -466,6 +466,9 @@ inline bool serialize(const ControlPoint& cp, char* buffer, size_t maxLen, bool 
 inline bool deserialize(ControlPoint& cp, const char* json) {
     if (!json) return false;
 
+    // Reset plant to neutral empty state before loading new definition
+    cp.reset();
+
     const char* val = nullptr;
 
     // 0. Plant Name

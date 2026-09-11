@@ -210,7 +210,8 @@ private:
     }
 
     void handleReset() {
-        sendResponse("{\"status\":\"OK\",\"action\":\"reset\"}");
+        cp_->reset();
+        sendResponse("{\"status\":\"OK\",\"action\":\"reset\",\"msg\":\"Plant reset to empty\"}");
     }
 
     void handleHelp() {

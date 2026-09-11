@@ -260,6 +260,10 @@ class InterlockingEngine {
 public:
     InterlockingEngine() : routeCount_(0) {}
 
+    void clear() {
+        routeCount_ = 0;
+    }
+
     Route& addRoute(const char* name, ControlPoint* cp = nullptr) {
         if (routeCount_ >= MAX_ROUTES) {
             return dummyRoute_;

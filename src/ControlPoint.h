@@ -126,6 +126,22 @@ public:
 
     const char* name() const { return name_; }
 
+    void reset() {
+        trackCircuitCount_ = 0;
+        switchCount_ = 0;
+        crossoverCount_ = 0;
+        authorityCount_ = 0;
+        mastCount_ = 0;
+        maintainerCallActive_ = false;
+        detectorLockCouplingCount_ = 0;
+        driverOverrideCount_ = 0;
+        mockSwitchCount_ = 0;
+        defaultDriverPolicy_ = nullptr;
+        defaultAspectPolicy_ = AspectPolicies::defaultRoute;
+        setName("Blank");
+        engine_.clear();
+    }
+
     void setDefaultDriverPolicy(DriverPolicy* policy) {
         defaultDriverPolicy_ = policy;
     }

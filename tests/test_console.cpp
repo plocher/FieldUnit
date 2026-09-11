@@ -141,6 +141,19 @@ void runConsoleTests() {
     assert(g_consoleResponses[0].find("\"action\":\"cleared\"") != std::string::npos);
     assert(cp.findTrackCircuit("1T1")->isClear() == true);
     printf("  -> PASS: Byte-by-byte line framing parsed correctly\n\n");
+    g_consoleResponses.clear();
+
+    // 9. Send C&C verb: "reset" to return device to empty
+    printf("[TEST 7] Send 'reset' verb to return device to empty\n");
+    console.processLine("reset", clockMs);
+    assert(g_consoleResponses.size() == 1);
+    assert(g_consoleResponses[0].find("\"action\":\"reset\"") != std::string::npos);
+    assert(cp.trackCircuitCount() == 0);
+    assert(cp.switchCount() == 0);
+    assert(cp.mastCount() == 0);
+    assert(cp.engine().routeCount() == 0);
+    assert(strcmp(cp.name(), "Blank") == 0);
+    printf("  -> PASS: 'reset' wiped plant to empty: 0 tracks, 0 switches, 0 masts, 0 routes\n\n");
 
     printf("====================================================\n");
     printf("   ALL CONSOLE MUX TESTS PASSED (100%%)              \n");
