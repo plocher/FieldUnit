@@ -70,8 +70,8 @@ Territory (Subdivision)
 ```
 
 ### 4.1 Execution Topologies
-1. **Autonomous Field Unit**: Microcontrollers (ESP32, RP2040) run the vital C++ engine trackside. Studio communicates over interface "A" (Serial / MQTT).
-2. **Desktop Vital Host with Remote I/O**: Studio's internal Rust vital engine executes safety logic, driving distributed C/MRI or MQTT remote I/O nodes over interface "B".
+1. **Autonomous Field Unit**: Microcontrollers (ESP32, RP2040) run the vital C++ engine trackside. Studio communicates over the CodeLine Interface (Serial / MQTT).
+2. **Desktop Vital Host with Remote I/O**: Studio's internal Rust vital engine executes safety logic, driving distributed C/MRI or MQTT remote I/O nodes over the Device Interface.
 3. **Pure Desktop Simulation**: The virtual cTc console communicates in-memory with a software mock plant and ghost train testbed.
 
 ---
@@ -148,7 +148,7 @@ Displays all derived routes with interactive bidirectional highlighting. Clickin
   - Changing a lever position creates an immediate visual disagreement indication before the code button is punched.
 - **Approach Time-Lock Indication (`2TEK`)**: The active direction jewel flashes during the timer countdown (e.g. 180s) when a cleared signal is restored to stop.
 - **Mechanical Blocking Dogs**: Right-click any lever to clamp a **Red Dog** (Track Out of Service) or **Blue Dog** (Blue Signal Protection). Clamped levers cannot be thrown.
-- **Code Buttons**: Silver or brass buttons. Moving levers establishes intent; pressing the button transmits the interface "A" snapshot.
+- **Code Buttons**: Silver or brass buttons. Moving levers establishes intent; pressing the button transmits the CodeLine snapshot.
 
 #### Acoustic Engine
 - **Relay Stepper Clatter**: Synthesizes the authentic rhythmic cadence of 504/506 line coding relays based on station address and data vectors.
@@ -182,7 +182,7 @@ Generates a complete engineering package for the interlocking:
 - Geographic overview and track chart.
 - Complete Interlocking Control Table matrix.
 - Circuit logic descriptions and locking justification.
-- interface "A" CodeLine bit allocation ledger.
+- CodeLine bit allocation ledger.
 - optional, over-the-top: Relay ladder logic charts and bungalow terminal block wiring tags.
 
 ---

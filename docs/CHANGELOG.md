@@ -53,6 +53,10 @@ All notable changes to the FieldUnit library will be documented in this file.
 - **Unit Tests**: Added `tests/test_wire_codec.cpp` covering symbolic parsing, indication formatting, vital isolation, and binary streaming. Added `tests/test_corporal_sketch.cpp` for end-to-end sketch verification of CP Corporal. Added Test 5, 6, and 7 to `tests/test_hardware_drivers.cpp` verifying semaphores and Eastern rulebooks. Added Tests 8 and 9 to `tests/test_cp_christopher.cpp` verifying `Crossover` and `MqttCodeLine`.
 
 ### Changed
+- Standardized terminology across documentation: replaced arbitrary lettered interfaces with descriptive names (**CodeLine Interface** and **Device Interface**) and eliminated programming jargon ("seams").
+- Updated `docs/adr/0001-mqtt-aar-codeline-interface-a.md` and `docs/FIELDUNIT_STUDIO_DESIGN_SPEC.md` to establish Studio virtual cTc panels and physical microcontroller-driven hardware desks as first-class, symmetrical peers.
+- Expanded `docs/CONTROL_POINT_ARCHITECTURE.md` Section 3.2 and 3.4 to clearly contrast Centralized Traffic Control (CTC - Rule 261) with Interlocking Tower / Local Station regimes (TT&TO - Rule 251, train orders, telegraph/telephony, and fascia CodeLine-analogues).
+- Added CodeLine Interface, Device Interface, Timetable & Train Order (TT&TO), and CTC definitions to `docs/GLOSSARY.md`.
 - Refactored `examples/CP_Christopher/CP_Christopher.ino` and `examples/CP_Corporal/CP_Corporal.ino` to use declarative string configuration, eliminating all file-scope pointer variables and making plant definitions completely self-contained within `ControlPoint`.
 - Refactored example sketches to use authentic AAR appliance names (`"1"`, `"3"`, `"5"`, `"2"`, `"4"`) and fluent `AarTextCodec` declarations.
 - Updated `tests/test_christopher_sketch.cpp` to verify end-to-end sketch behavior driven by AAR text snapshots.
