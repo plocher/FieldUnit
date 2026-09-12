@@ -36,6 +36,31 @@ FieldUnit uses each term with one precise meaning:
   Failures cannot cause a collision or derailment.
   Non-vital commands bypass interlocking locks.
 
+### 1.2 Geographic and Physical Terms
+- **Territory / Subdivision**: A top-level organizational grouping of multiple Control Points governed by a single dispatcher.
+- **Control Point (CP)**: The logical unit of dispatcher authority. A named geographic location (e.g. *CP West, MP 81.2*) containing wayside signals governing train movement.
+- **Interlocking Limits**: The track area bounded by the opposing home signal masts of a Control Point.
+- **CP Boundary**: The outer edge of a Control Point where track circuits connect to external territory (e.g. ABS, APB, adjacent CTC, or Dark territory).
+- **Plant**: The physical rails, switch points, frogs, insulated joints, and signal hardware located within interlocking limits.
+- **Island Block (OS Section / On-Sheet)**: The dedicated track circuit covering a switch or crossover. Must be insulated from adjacent track circuits.
+- **Fouling Point**: The physical clearance boundary where cars on converging tracks can collide. Insulated rail joints must clear the fouling point, supported by optical sensors where unpowered rolling stock is present.
+- **Bungalow / Instrument Case**: The physical trackside enclosure housing relays, batteries, and the Field Unit controller.
+
+### 1.3 Operational and Signaling Terms
+- **interface "A" (Supervisory CodeLine)**: The communications interface between the dispatcher office and the field station. Uses strict *Controls-as-Demands* and *Indications-as-Truth*.
+- **interface "B" (Field I/O)**: The interface between the Control Point vital engine and physical appliances (switch motors, sensor pins, LED drivers).
+- **Controls-as-Demands**: Commands sent from dispatcher to field expressing operator intent (e.g. `1NWS`, `2SGS`). The field rejects invalid commands silently without crashing or queueing.
+- **Indications-as-Truth**: Verified physical status reported from field to dispatcher (e.g. `1NWK`, `1T1K`, `2SGK`).
+- **Aspect**: The physical appearance of a signal head (e.g. `RED_OVER_RED`, `YELLOW_OVER_GREEN`).
+- **Indication**: The rulebook operational instruction conveyed to train crews (e.g. `STOP`, `RESTRICTING`, `DIVERGING_CLEAR`, `CLEAR`).
+- **Aspect Ceiling**: The most favorable indication permitted over a specific route based on turnout geometry and speed restrictions.
+- **Correspondence**: Verification that a physical appliance has reached its commanded position and locked (e.g. `NWCR` energized for Normal switch points).
+- **Out of Correspondence (OOC)**: A mismatch between commanded lever intent and verified field status, or a switch currently in transit.
+- **Approach Time Locking (`2TEK`)**: A vital safety timer (e.g. 180 seconds) initiated when a cleared signal is restored to Stop in the face of an approaching train. Prevents switch movement until the train has stopped.
+- **Fleeting (`FS`)**: A dispatcher authority mode allowing a signal to re-clear automatically after a train departs.
+- **Call-On (`CO`)**: A dispatcher authority mode permitting low-speed entry into an occupied block under restricting rules.
+- **Engine Return (`ERS`)**: Vital stick relay logic permitting a detached locomotive to return to its train without waiting for approach time locking.
+
 ---
 
 ## 2. Relay Naming Conventions and Contact Notation

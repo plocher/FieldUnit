@@ -5,6 +5,11 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **FieldUnit Studio Architecture & Design Specification (`docs/FIELDUNIT_STUDIO_DESIGN_SPEC.md`)**:
+  - Comprehensive architectural specification for FieldUnit Studio (Issue #6) covering four integrated workspaces: EDA-style Schematic Track Designer, Automated Route Synthesizer & Control Table Engine, Virtual cTc Machine (Simulation & Live Layout Dual-Use), and Code/Firmware/Documentation Generator.
+  - Documents domain ontology and taxonomy from Territory/Subdivision down to appliances and hardware profiles.
+  - Formalized interface "A" (Supervisory CodeLine: Controls-as-Demands, Indications-as-Truth) and interface "B" (Field I/O) decoupled operating model.
+  - Added Geographic/Physical terms (Territory, Control Point, Interlocking Limits, CP Boundary, Plant, Island Block, Fouling Point, Bungalow) and Operational/Signaling terms (Interfaces A & B, Controls-as-Demands, Indications-as-Truth, Correspondence, Out of Correspondence, Approach Time Locking, Fleeting, Call-On, Engine Return) to `docs/GLOSSARY.md`.
 - **`FieldUnitConsole` & `FieldUnit_Tracer` Test Jig**:
   - Implemented USB CDC serial multiplexer router (`FieldUnitConsole.h`) inspired by CMRInet's `TracerHost`/`TracerNode`.
   - Multiplexes a single serial stream between Command & Control (C&C) verbs (`load json <payload>`, `dump json`, `status`, `shunt <tc>`, `clear <tc>`, `throw <sw> <pos>`, `reset`) and AAR CodeLine transaction snapshots (`1NWS, 2NGS` $\longleftrightarrow$ `1NWK, 2NGK...`).
