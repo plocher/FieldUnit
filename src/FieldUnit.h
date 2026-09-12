@@ -13,6 +13,7 @@
 #include "PlantSerializer.h"
 #include "WireCodec.h"
 #include "CodeLine.h"
+#include "cTcMachine.h"
 
 // Core hardware driver interfaces
 #include "drivers/IOBit.h"
