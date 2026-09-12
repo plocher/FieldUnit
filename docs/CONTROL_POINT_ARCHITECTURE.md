@@ -177,15 +177,18 @@ plant.route("MT2-MT1")
 ### 3.2 Operating Regimes and Methods of Operation
 The architecture accommodates multiple North American operating regimes:
 
-1. **Centralized Traffic Control (CTC)**:
-   The dispatcher controls the plant through network Control Snapshots.
-   Signals convey movement authority.
+1. **Centralized Traffic Control (CTC - Rule 261)**:
+   Train movements are authorized directly by wayside signal indication under the remote control of a train dispatcher.
+   The dispatcher controls the plant through network Control Snapshots across the CodeLine Interface.
    Power switch machines line routes remotely.
 
-2. **Interlocking Tower Control**:
-   The leverman operates local levers (pistol-grip or mechanical).
-   Local inputs feed the Control Point directly.
+2. **Interlocking Tower and Local Station Control**:
+   The operator directly controls the plant from local levers (pistol-grip, mechanical, or fascia toggle switches).
+   The local control console feeds the Control Point engine directly or via a local CodeLine-analogue connecting the fascia/desk to the trackside bungalow.
    The same Interlocking Control Table evaluates safety rules.
+   Inter-station train movements between towers are governed by separate operating rules:
+   - **Timetable and Train Order (TT&TO - Rule 251 / Manual Block)**: Authority is conveyed by written train orders and schedules, coordinated between station operators and the dispatcher via telephone or telegraph. Signals serve as train-order boards or manual block signals rather than direct traffic authority.
+   - **Track Warrant Control (TWC) / Direct Traffic Control (DTC)**: Radio-transmitted verbal authorities.
 
 3. **Automatic Block Signaling (ABS / APB)**:
    Signals provide block spacing and collision protection.
@@ -193,7 +196,7 @@ The architecture accommodates multiple North American operating regimes:
    Directional sticks (`ESR` and `WSR`) prevent opposing moves on single track.
    Switches are hand-operated with electric switch locks (`WLR`).
 
-4. **Dark Territory (Direct Traffic Control / Track Warrant)**:
+4. **Dark Territory**:
    No wayside block signals govern movement.
    Track circuits provide occupancy indications to dispatcher screens.
    Electric locks on switches enforce lock-and-block discipline.
@@ -273,16 +276,16 @@ An Interlocking Tower combines elements of both a Control Plane and a Control Po
 - **External View (To Dispatcher)**:
   The Tower is a field plant.
   The dispatcher does not directly throw tower switches.
-  The dispatcher sends movement requests to the tower.
-- **Internal View (To Leverman)**:
+  The dispatcher communicates movement requests or grants directional traffic authority to the tower.
+- **Internal View (To Tower Operator)**:
   The Tower acts as a local human Control Plane.
-  The leverman pulls local mechanical or electric levers.
+  The operator pulls local mechanical, electric, or fascia levers.
   The levers feed directly into the Control Point engine.
 - **Cooperative Locking (The Slot)**:
   Signals connecting tower territory to dispatcher territory require a cooperative handshake.
   The dispatcher grants authority.
-  The leverman lines the local route.
-  The signal clears only when both the dispatcher and the leverman agree.
+  The tower operator lines the local route.
+  The signal clears only when both the dispatcher and the operator agree.
 
 ### 3.5 AAR Relay Contact Logic Equivalence
 FieldUnit maps Association of American Railroads (AAR) relay circuits directly to C++ code:

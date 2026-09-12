@@ -5,6 +5,18 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **`cTcMachine` Office Abstraction (`src/cTcMachine.h`)**:
+  - Implemented the supervisory office console counterpart to `ControlPoint`, modeling multi-column US&S Model 503 Centralized Traffic Control (CTC) machines.
+  - Hardware Decoupling: Introduced abstract `PanelHardware` contract transforming `[read/write][column, function]` into physical I/O bit operations.
+  - Fluent Chaining: `machine.addStation(name).inColumn(1)...inColumn(2)...` allows multi-column stations to be declared cleanly with zero throwaway local variables.
+  - Atomic Code Button Processing: Pressing a station's code button harvests switch and signal lever demands across all constituent columns into an atomic AAR `ControlTransaction` snapshot.
+  - Indication Fan-Out: Ingress AAR indication tokens automatically update corresponding switch correspondence lamps, signal jewels, and track model board LEDs across all columns.
+  - Synonyms: Provided `CtcMachine` and `OfficeUnit` aliases matching railroad domain terminology.
+- **Example SPCoast Dispatcher Desk (`examples/spcoast_ctc/`)**:
+  - Added modern 14-column CTC machine sketch (`spcoast_ctc.ino`) controlling 7 Control Points (Gilroy through Watsonville staging).
+  - Modular Hardware Adapters: Added `IO-I2C.h` (driving 14x MAX7313 expanders directly over I2C) and `IO-CMRI.h` (driving a cpNode-Xiao over C/MRI RS-485 serial), selectable via a single `#include`.
+- **Unit Tests (`tests/test_ctc_machine.cpp`)**:
+  - Added unit test suite verifying mock hardware binding, fluent multi-column station chaining, atomic code button demand compilation, and indication lamp fan-out.
 - **FieldUnit Studio Architecture & Design Specification (`docs/FIELDUNIT_STUDIO_DESIGN_SPEC.md`)**:
   - Comprehensive architectural specification for FieldUnit Studio (Issue #6) covering four integrated workspaces: EDA-style Schematic Track Designer, Automated Route Synthesizer & Control Table Engine, Virtual cTc Machine (Simulation & Live Layout Dual-Use), and Code/Firmware/Documentation Generator.
   - Documents domain ontology and taxonomy from Territory/Subdivision down to appliances and hardware profiles.
@@ -53,6 +65,10 @@ All notable changes to the FieldUnit library will be documented in this file.
 - **Unit Tests**: Added `tests/test_wire_codec.cpp` covering symbolic parsing, indication formatting, vital isolation, and binary streaming. Added `tests/test_corporal_sketch.cpp` for end-to-end sketch verification of CP Corporal. Added Test 5, 6, and 7 to `tests/test_hardware_drivers.cpp` verifying semaphores and Eastern rulebooks. Added Tests 8 and 9 to `tests/test_cp_christopher.cpp` verifying `Crossover` and `MqttCodeLine`.
 
 ### Changed
+- Standardized terminology across documentation: replaced arbitrary lettered interfaces with descriptive names (**CodeLine Interface** and **Device Interface**) and eliminated programming jargon ("seams").
+- Updated `docs/adr/0001-mqtt-aar-codeline-interface-a.md` and `docs/FIELDUNIT_STUDIO_DESIGN_SPEC.md` to establish Studio virtual cTc panels and physical microcontroller-driven hardware desks as first-class, symmetrical peers.
+- Expanded `docs/CONTROL_POINT_ARCHITECTURE.md` Section 3.2 and 3.4 to clearly contrast Centralized Traffic Control (CTC - Rule 261) with Interlocking Tower / Local Station regimes (TT&TO - Rule 251, train orders, telegraph/telephony, and fascia CodeLine-analogues).
+- Added CodeLine Interface, Device Interface, Timetable & Train Order (TT&TO), and CTC definitions to `docs/GLOSSARY.md`.
 - Refactored `examples/CP_Christopher/CP_Christopher.ino` and `examples/CP_Corporal/CP_Corporal.ino` to use declarative string configuration, eliminating all file-scope pointer variables and making plant definitions completely self-contained within `ControlPoint`.
 - Refactored example sketches to use authentic AAR appliance names (`"1"`, `"3"`, `"5"`, `"2"`, `"4"`) and fluent `AarTextCodec` declarations.
 - Updated `tests/test_christopher_sketch.cpp` to verify end-to-end sketch behavior driven by AAR text snapshots.

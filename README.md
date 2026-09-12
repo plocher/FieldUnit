@@ -1,10 +1,34 @@
 # FieldUnit
 
-FieldUnit is a modular C++ toolkit that empowers model railroaders to construct their own Control Points and Interlockings.
+FieldUnit is a modular C++ toolkit that empowers model railroaders to construct their own Control Points, Dispatcher cTc machines and Tower/Trackside controls.
 The resulting control units run with the same vital safety rules, route locking, and behavioral contracts as the prototype railroad.
 
 ---
+In 1927, when the first CTC installation went live on the New York Central, the railroad did not invent a brand new safety theory. They simply cut the leverframe in half and stretched a two-wire telegraph line (CodeLine) between the two halves:
+```
+Historical Mechanical Tower (The Monolithic Safety Engine):
+┌──────────────────────────────────────────────────────────────────────────┐
+│                            THE TOWER                                     │
+│                                                                          │
+│   [ Levers ] <────── Mechanical Locking Bed ──────> [ Track & Points ]   │
+│ (Human Intent)        (AAR Safety Engine)            (Plant Reality)     │
+└──────────────────────────────────────────────────────────────────────────┘
 
+CTC: The Leverframe Cut in Half Across the CodeLine Interface:
+
+┌───────────────────────┐                                ┌───────────────────────┐
+│     CTC OFFICE        │                                │     FIELD BUNGALOW    │
+│                       │        Controls (Demands)      │   at a Control Point  │
+│  [ Remote Levers ]    │ ─────────────────────────────> │  (AAR Safety Engine)  │
+│    (Human Intent)     │ <───────────────────────────── │    (Dog Chart / WLR)  │
+│                       │      Indications (Truth)       │           │           │
+└───────────────────────┘                                └───────────┼───────────┘
+                                                                     ▼
+                                                             [ Track & Points ]
+                                                               (Plant Reality)
+```
+A dispatcher is simply a person wearing many tower operator hats located miles away from the control points they are managing.
+---
 ## What FieldUnit Does
 
 On a real railroad, a **Control Point** (or **Interlocking**) is a junction of tracks, switches, and signals.

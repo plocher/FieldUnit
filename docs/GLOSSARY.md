@@ -47,8 +47,8 @@ FieldUnit uses each term with one precise meaning:
 - **Bungalow / Instrument Case**: The physical trackside enclosure housing relays, batteries, and the Field Unit controller.
 
 ### 1.3 Operational and Signaling Terms
-- **interface "A" (Supervisory CodeLine)**: The communications interface between the dispatcher office and the field station. Uses strict *Controls-as-Demands* and *Indications-as-Truth*.
-- **interface "B" (Field I/O)**: The interface between the Control Point vital engine and physical appliances (switch motors, sensor pins, LED drivers).
+- **CodeLine Interface (Supervisory CodeLine)**: The communications interface between the dispatcher office or tower desk and the field station. Uses strict *Controls-as-Demands* and *Indications-as-Truth*.
+- **Device Interface (Field I/O)**: The interface between the Control Point vital engine and physical appliances (switch motors, sensor pins, LED drivers) or smart network appliances.
 - **Controls-as-Demands**: Commands sent from dispatcher to field expressing operator intent (e.g. `1NWS`, `2SGS`). The field rejects invalid commands silently without crashing or queueing.
 - **Indications-as-Truth**: Verified physical status reported from field to dispatcher (e.g. `1NWK`, `1T1K`, `2SGK`).
 - **Aspect**: The physical appearance of a signal head (e.g. `RED_OVER_RED`, `YELLOW_OVER_GREEN`).
@@ -323,3 +323,11 @@ cp.route("SPUR_RETURN")
 - **Interlocking Tower**:
   A local control facility where a leverman lines switches and clears signals manually.
   Operates as an autonomous plant using the same vital safety rules as remote CTC.
+- **CodeLine Interface**:
+  The transactional snapshot API connecting supervisory consoles (CTC machines, tower desks, software consoles) to Control Points across the layout network.
+- **Device Interface**:
+  The trackside boundary connecting logical appliances (`Switch`, `TrackCircuit`, `SignalMast`) to physical hardware (`IOBus`) or smart network devices (`MqttApplianceBus`).
+- **Timetable and Train Order (TT&TO)**:
+  An operating method where train movements are authorized by timetable schedules and written train orders transmitted via telegraph or telephone, rather than direct signal indication.
+- **Centralized Traffic Control (CTC - Rule 261)**:
+  An operating method where train movements are authorized directly by wayside signal indication under the remote control of a train dispatcher.
