@@ -458,8 +458,8 @@ The office transmits **one complete, atomic snapshot of desired reality** across
 ```
 
 Why must unasserted items be present?
-- `(1NWS)` explicitly confirms: *"Leave Switch 1 alone in its existing position."*
-- If tokens were missing, the field unit could not tell whether Switch 1 was supposed to be untouched or if the packet was truncated by line noise.
+- `(1NWS), (1RWS),` explicitly confirms: *"Leave Switch 1 alone in its existing position."*
+- If tokens were missing, the field unit could not tell whether Switch 1 was supposed to be untouched or if the packet was malformed.
 - **The Truncation Rule**: If any expected token is missing or truncated, the entire vital control transaction is rejected. Zero switches move and zero signals clear.
 
 #### 9.2 The Indication Stream Reports Ground Truth
