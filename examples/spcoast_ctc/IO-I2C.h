@@ -9,7 +9,7 @@
 class PanelIO : public FieldUnit::PanelHardware {
 public:
     PanelIO() {
-        memset(codePressed_, 0, sizeof(codePressed_));
+        memset(codeArmed_, 0, sizeof(codeArmed_));
     }
 
     // Maps column 1..14 to its corresponding MAX7313 expander index (0..13)
@@ -26,11 +26,16 @@ public:
             case FieldUnit::PanelInput::SIG_RIGHT:          return m_[dev].digitalRead(11) == 0;
             case FieldUnit::PanelInput::MAINTAINER_CALL_SW: return m_[dev].digitalRead(2) == 0;
             case FieldUnit::PanelInput::CODE_BUTTON: {
-                // Oneshot edge detection: fires once when button is pressed (transitions 1 -> 0)
+                // Arm on press (high-to-low / 1 -> 0), Trigger on release (low-to-high / 0 -> 1)
                 bool isDown = (m_[dev].digitalRead(12) == 0);
-                bool wasDown = codePressed_[dev];
-                codePressed_[dev] = isDown;
-                return isDown && !wasDown;
+                if (isDown) {
+                    codeArmed_[dev] = true; // Arm while pushed down
+                    return false;
+                } else if (codeArmed_[dev]) {
+                    codeArmed_[dev] = false; // Trigger on release!
+                    return true;
+                }
+                return false;
             }
             default: return false;
         }
@@ -61,13 +66,13 @@ public:
             m_[i].init(i, I2Cexpander::MAX7313, 0b0001111011000100);
             // Turn all lamps OFF at startup (active-LOW: write 1 to all output pins)
             m_[i].put((uint16_t)0xFFFF);
-            codePressed_[i] = false;
+            codeArmed_[i] = false;
         }
     }
 
 private:
     I2Cexpander m_[14];
-    bool codePressed_[14];
+    bool codeArmed_[14];
 };
 
 #endif // SPCOAST_IO_I2C_H

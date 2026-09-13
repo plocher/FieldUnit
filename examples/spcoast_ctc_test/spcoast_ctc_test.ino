@@ -301,9 +301,13 @@ void loop() {
                 Serial.printf("[COL %02d] Maintainer Call -> %s\n", col + 1, mc ? "ACTIVE" : "OFF");
                 snprintf(eventBuf, sizeof(eventBuf), "Col %02d: MC %s", col + 1, mc ? "ON" : "OFF");
             }
-            if (diff & CTC_S_CODE && code) {
-                Serial.printf("[COL %02d] *** CODE BUTTON PRESSED ***\n", col + 1);
-                snprintf(eventBuf, sizeof(eventBuf), "Col %02d: *** CODE ***", col + 1);
+            if (diff & CTC_S_CODE) {
+                if (code) {
+                    Serial.printf("[COL %02d] (CODE Button Down - Armed)\n", col + 1);
+                } else {
+                    Serial.printf("[COL %02d] *** CODE BUTTON RELEASED - TRIGGERED ***\n", col + 1);
+                    snprintf(eventBuf, sizeof(eventBuf), "Col %02d: *** CODE ***", col + 1);
+                }
             }
 
 #ifdef USE_OLED
