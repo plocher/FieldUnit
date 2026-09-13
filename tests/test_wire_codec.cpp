@@ -292,6 +292,79 @@ void testElectricLockCodec() {
     printf("  -> PASS: Electric Switch Lock WLS / WLK cycle verified!\n\n");
 }
 
+void testAarTextCodecSymmetricalOfficeAndSizing() {
+    printf("[TEST] AarTextCodec: Symmetrical Office Operations, Worst-Case Sizing, and Preallocation (Strategy B)\n");
+
+    ControlPoint cp("CP_Christopher");
+    Switch* sw1 = cp.addSwitch("1");
+    Switch* sw3 = cp.addSwitch("3");
+    SignalControl* sig2 = cp.addSignalControl("2");
+    TrackCircuit* tc1T = cp.addTrackCircuit("1T1");
+
+    AarTextCodec codec;
+    codec.decodeControls({
+        decodeSwitch(sw1),
+        decodeSwitch(sw3),
+        decodeSignal(sig2)
+    });
+    codec.encodeIndications({
+        encodeSwitch(sw1),
+        encodeSwitch(sw3),
+        encodeTrack(tc1T),
+        encodeSignal(sig2)
+    });
+
+    // 1. Verify Worst-Case Sizing:
+    // Controls:
+    // - SW1: 1NWS (4) + (1RWS) (6) = 10
+    // - SW3: 3NWS (4) + (3RWS) (6) = 10
+    // - SIG2: 2SGS (4) + (2NGS) (6) + (2HS) (5) = 15
+    // Total tokens: 7. Delimiters: 6 * 2 = 12. Null: 1. Total = 10 + 10 + 15 + 12 + 1 = 48.
+    size_t maxCtl = codec.maxControlPayloadSize();
+    assert(maxCtl >= 48);
+    printf("  -> Calculated max control payload size: %zu bytes\n", maxCtl);
+
+    size_t maxInd = codec.maxIndicationPayloadSize();
+    assert(maxInd > 0);
+    printf("  -> Calculated max indication payload size: %zu bytes\n", maxInd);
+
+    // 2. Preallocate exact buffers (Strategy B):
+    codec.preallocateBuffers();
+
+    // 3. Office encodes controls:
+    ControlTransaction ctl;
+    ctl.switchDemands[0] = SwitchDemand::NORMAL;   // 1NWS, (1RWS)
+    ctl.switchDemands[1] = SwitchDemand::REVERSE;  // (3NWS), 3RWS
+    ctl.signalDemands[0] = SignalDemand::RIGHT;    // 2SGS, (2NGS), (2HS)
+
+    const char* encodedCtl = codec.encodeControls(ctl);
+    assert(encodedCtl != nullptr);
+    assert(strcmp(encodedCtl, "1NWS, (1RWS), (3NWS), 3RWS, 2SGS, (2NGS), (2HS)") == 0);
+    printf("  -> PASS: Preallocated encodeControls produced: %s\n", encodedCtl);
+
+    // 4. Fail-fast capacity check on undersized buffer:
+    char tinyBuf[10];
+    size_t written = 0;
+    bool fits = codec.encodeControls(ctl, tinyBuf, sizeof(tinyBuf), written);
+    assert(!fits);
+    assert(written == 0);
+    printf("  -> PASS: Undersized buffer failed fast without corruption.\n");
+
+    // 5. Office decodes indications from field:
+    const char* fieldIndText = "1NWK, (1RWK), (3NWK), 3RWK, 1T1K, (2SGK), 2NGK, (2TEK)";
+    IndicationVector ind;
+    bool decOk = codec.decodeIndications(fieldIndText, ind);
+    assert(decOk);
+    assert(ind.switches[0].position == SwitchPosition::NORMAL);
+    assert(ind.switches[0].inCorrespondence == true);
+    assert(ind.switches[1].position == SwitchPosition::REVERSE);
+    assert(ind.switches[1].inCorrespondence == true);
+    assert(ind.trackCircuits[0].occupancy == Occupancy::OCCUPIED);
+    assert(ind.signals[0].activeAuthority == DirectionAuthority::LEFT);
+    assert(ind.signals[0].timeLocked == false);
+    printf("  -> PASS: decodeIndications accurately reconstructed IndicationVector.\n\n");
+}
+
 int main() {
     printf("====================================================\n");
     printf("   FIELDUNIT WIRE CODEC COMPREHENSIVE TEST SUITE    \n");
@@ -301,6 +374,7 @@ int main() {
     testAarTextCodecMandatorySuffixes();
     testAarTextCodecVitalConflictIsolation();
     testAarTextCodecSignalConflict();
+    testAarTextCodecSymmetricalOfficeAndSizing();
     testBitPackedCodecSequentialStream();
     testElectricLockCodec();
 

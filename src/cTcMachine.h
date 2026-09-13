@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <initializer_list>
 #include "types.h"
+#include "ControlPoint.h"
+#include "WireCodec.h"
 
 namespace FieldUnit {
 
@@ -70,9 +72,13 @@ public:
         : parentStation_(nullptr),
           columnNumber_(0),
           hasSwitch_(false),
+          swIdx_(0),
           hasSignal_(false),
+          sigIdx_(0),
           hasCodeButton_(false),
           hasMaintainerCall_(false),
+          mcIdx_(0),
+          tcStartIdx_(0),
           trackCount_(0) {
         swNum_[0] = '\0';
         sigNum_[0] = '\0';
@@ -94,61 +100,27 @@ public:
     // Fluent transition to another column within the same station
     PanelColumn& inColumn(uint8_t nextColumn);
 
-    PanelColumn& withSwitch(const char* swNum) {
-        if (swNum) {
-            strncpy(swNum_, swNum, sizeof(swNum_) - 1);
-            swNum_[sizeof(swNum_) - 1] = '\0';
-            hasSwitch_ = true;
-        }
-        return *this;
-    }
-
-    PanelColumn& withSignal(const char* sigNum) {
-        if (sigNum) {
-            strncpy(sigNum_, sigNum, sizeof(sigNum_) - 1);
-            sigNum_[sizeof(sigNum_) - 1] = '\0';
-            hasSignal_ = true;
-        }
-        return *this;
-    }
-
-    PanelColumn& withCodeButton() {
-        hasCodeButton_ = true;
-        return *this;
-    }
-
-    PanelColumn& withMaintainerCall(const char* mcNum = "1") {
-        if (mcNum) {
-            strncpy(mcNum_, mcNum, sizeof(mcNum_) - 1);
-            mcNum_[sizeof(mcNum_) - 1] = '\0';
-            hasMaintainerCall_ = true;
-        }
-        return *this;
-    }
-
-    PanelColumn& withTrackLamps(std::initializer_list<const char*> tracks) {
-        trackCount_ = 0;
-        for (const char* t : tracks) {
-            if (trackCount_ < MAX_LAMPS_PER_COLUMN && t) {
-                strncpy(trackNames_[trackCount_], t, sizeof(trackNames_[trackCount_]) - 1);
-                trackNames_[trackCount_][sizeof(trackNames_[trackCount_]) - 1] = '\0';
-                trackCount_++;
-            }
-        }
-        return *this;
-    }
+    PanelColumn& withSwitch(const char* swNum);
+    PanelColumn& withSignal(const char* sigNum);
+    PanelColumn& withCodeButton();
+    PanelColumn& withMaintainerCall(const char* mcNum = "1");
+    PanelColumn& withTrackLamps(std::initializer_list<const char*> tracks);
 
     bool hasSwitch() const { return hasSwitch_; }
+    uint8_t switchIndex() const { return swIdx_; }
     const char* switchNum() const { return swNum_; }
 
     bool hasSignal() const { return hasSignal_; }
+    uint8_t signalIndex() const { return sigIdx_; }
     const char* signalNum() const { return sigNum_; }
 
     bool hasCodeButton() const { return hasCodeButton_; }
     bool hasMaintainerCall() const { return hasMaintainerCall_; }
+    uint8_t maintainerIndex() const { return mcIdx_; }
     const char* maintainerNum() const { return mcNum_; }
 
     uint8_t trackCount() const { return trackCount_; }
+    uint8_t trackStartIndex() const { return tcStartIdx_; }
     const char* trackName(uint8_t idx) const {
         return (idx < trackCount_) ? trackNames_[idx] : nullptr;
     }
@@ -157,151 +129,92 @@ public:
         return hasCodeButton_ && hw.read(columnNumber_, PanelInput::CODE_BUTTON);
     }
 
-    // Read switch and signal levers into local demand tokens
-    void appendDemands(PanelHardware& hw, char* outBuf, size_t maxLen) const {
-        if (hasSwitch_) {
+    // Read switch and signal levers into ControlTransaction demands
+    void harvestDemands(PanelHardware& hw, ControlTransaction& ctl) const {
+        if (hasSwitch_ && swIdx_ < MAX_APPLIANCES) {
             bool n = hw.read(columnNumber_, PanelInput::SW_NORMAL);
             bool r = hw.read(columnNumber_, PanelInput::SW_REVERSE);
-            char swTokens[32];
             if (n && !r) {
-                snprintf(swTokens, sizeof(swTokens), "%sNWS, (%sRWS)", swNum_, swNum_);
+                ctl.switchDemands[swIdx_] = SwitchDemand::NORMAL;
             } else if (r && !n) {
-                snprintf(swTokens, sizeof(swTokens), "(%sNWS), %sRWS", swNum_, swNum_);
+                ctl.switchDemands[swIdx_] = SwitchDemand::REVERSE;
             } else {
-                snprintf(swTokens, sizeof(swTokens), "(%sNWS), (%sRWS)", swNum_, swNum_);
+                ctl.switchDemands[swIdx_] = SwitchDemand::NO_CHANGE;
             }
-            appendToken(outBuf, maxLen, swTokens);
         }
 
-        if (hasSignal_) {
+        if (hasSignal_ && sigIdx_ < MAX_APPLIANCES) {
             bool l = hw.read(columnNumber_, PanelInput::SIG_LEFT);
             bool s = hw.read(columnNumber_, PanelInput::SIG_STOP);
             bool r = hw.read(columnNumber_, PanelInput::SIG_RIGHT);
-            char sigTokens[48];
             if (r && !l) {
-                snprintf(sigTokens, sizeof(sigTokens), "%sSGS, (%sNGS), (%sHS)", sigNum_, sigNum_, sigNum_);
+                ctl.signalDemands[sigIdx_] = SignalDemand::RIGHT;
             } else if (l && !r) {
-                snprintf(sigTokens, sizeof(sigTokens), "(%sSGS), %sNGS, (%sHS)", sigNum_, sigNum_, sigNum_);
+                ctl.signalDemands[sigIdx_] = SignalDemand::LEFT;
             } else if (s || (!l && !r)) {
-                snprintf(sigTokens, sizeof(sigTokens), "(%sSGS), (%sNGS), %sHS", sigNum_, sigNum_, sigNum_);
+                ctl.signalDemands[sigIdx_] = SignalDemand::STOP;
             } else {
-                snprintf(sigTokens, sizeof(sigTokens), "(%sSGS), (%sNGS), (%sHS)", sigNum_, sigNum_, sigNum_);
+                ctl.signalDemands[sigIdx_] = SignalDemand::NO_CHANGE;
             }
-            appendToken(outBuf, maxLen, sigTokens);
         }
 
-        if (hasMaintainerCall_) {
-            bool mc = hw.read(columnNumber_, PanelInput::MAINTAINER_CALL_SW);
-            char mcToken[24];
-            if (mc) {
-                snprintf(mcToken, sizeof(mcToken), "MC%sS", mcNum_);
-            } else {
-                snprintf(mcToken, sizeof(mcToken), "(MC%sS)", mcNum_);
-            }
-            appendToken(outBuf, maxLen, mcToken);
+        if (hasMaintainerCall_ && mcIdx_ < MAX_APPLIANCES) {
+            ctl.maintainerCall[mcIdx_] = hw.read(columnNumber_, PanelInput::MAINTAINER_CALL_SW);
         }
     }
 
-    // Apply parsed field indications to this column's lamps
-    void applyIndications(PanelHardware& hw, const char* indicationText) const {
-        if (!indicationText) return;
-
-        if (hasSwitch_) {
-            char nwToken[24], rwToken[24];
-            snprintf(nwToken, sizeof(nwToken), "%sNWK", swNum_);
-            snprintf(rwToken, sizeof(rwToken), "%sRWK", swNum_);
-            bool norm = isTokenAsserted(indicationText, nwToken);
-            bool rev  = isTokenAsserted(indicationText, rwToken);
+    // Apply verified plant indications to this column's physical lamps
+    void applyIndications(PanelHardware& hw, const IndicationVector& ind) const {
+        if (hasSwitch_ && swIdx_ < ind.switchCount) {
+            const SwitchIndication& s = ind.switches[swIdx_];
+            bool norm = s.inCorrespondence && (s.position == SwitchPosition::NORMAL);
+            bool rev  = s.inCorrespondence && (s.position == SwitchPosition::REVERSE);
             hw.write(columnNumber_, PanelOutput::SW_NORMAL_LAMP, norm);
             hw.write(columnNumber_, PanelOutput::SW_REVERSE_LAMP, rev);
         }
 
-        if (hasSignal_) {
-            char ngToken[24], sgToken[24];
-            snprintf(ngToken, sizeof(ngToken), "%sNGK", sigNum_);
-            snprintf(sgToken, sizeof(sgToken), "%sSGK", sigNum_);
-            bool left  = isTokenAsserted(indicationText, ngToken);
-            bool right = isTokenAsserted(indicationText, sgToken);
+        if (hasSignal_ && sigIdx_ < ind.signalCount) {
+            const SignalIndication& s = ind.signals[sigIdx_];
+            bool left  = (s.activeAuthority == DirectionAuthority::LEFT);
+            bool right = (s.activeAuthority == DirectionAuthority::RIGHT);
             bool stop  = (!left && !right);
             hw.write(columnNumber_, PanelOutput::SIG_LEFT_LAMP, left);
             hw.write(columnNumber_, PanelOutput::SIG_RIGHT_LAMP, right);
             hw.write(columnNumber_, PanelOutput::SIG_STOP_LAMP, stop);
         }
 
-        if (hasMaintainerCall_) {
-            char mcToken[24];
-            snprintf(mcToken, sizeof(mcToken), "MC%sK", mcNum_);
-            bool mc = isTokenAsserted(indicationText, mcToken);
-            hw.write(columnNumber_, PanelOutput::MAINTAINER_LAMP, mc);
+        if (hasMaintainerCall_ && mcIdx_ < MAX_APPLIANCES) {
+            hw.write(columnNumber_, PanelOutput::MAINTAINER_LAMP, ind.maintainerCall[mcIdx_]);
         }
 
         for (uint8_t i = 0; i < trackCount_; ++i) {
-            char tkToken[24];
-            // Format: <trackName>K, e.g. 1T1K, 1EAK
-            snprintf(tkToken, sizeof(tkToken), "%sK", trackNames_[i]);
-            bool occupied = isTokenAsserted(indicationText, tkToken);
+            uint8_t tcIdx = tcStartIdx_ + i;
+            bool occupied = false;
+            if (tcIdx < ind.trackCircuitCount) {
+                occupied = (ind.trackCircuits[tcIdx].occupancy == Occupancy::OCCUPIED);
+            }
             PanelOutput lampFn = static_cast<PanelOutput>(static_cast<uint8_t>(PanelOutput::TRACK_LAMP_1) + i);
             hw.write(columnNumber_, lampFn, occupied);
         }
     }
 
 private:
+    friend class CtcStation;
     CtcStation* parentStation_;
     uint8_t columnNumber_;
     bool hasSwitch_;
+    uint8_t swIdx_;
     char swNum_[MAX_NAME_LEN];
     bool hasSignal_;
+    uint8_t sigIdx_;
     char sigNum_[MAX_NAME_LEN];
     bool hasCodeButton_;
     bool hasMaintainerCall_;
+    uint8_t mcIdx_;
     char mcNum_[MAX_NAME_LEN];
+    uint8_t tcStartIdx_;
     char trackNames_[MAX_LAMPS_PER_COLUMN][MAX_NAME_LEN];
     uint8_t trackCount_;
-
-    static void appendToken(char* outBuf, size_t maxLen, const char* token) {
-        if (!outBuf || !token || maxLen == 0) return;
-        size_t curLen = strlen(outBuf);
-        if (curLen > 0) {
-            if (curLen + 2 < maxLen) {
-                outBuf[curLen++] = ',';
-                outBuf[curLen++] = ' ';
-                outBuf[curLen] = '\0';
-            }
-        }
-        strncat(outBuf, token, maxLen - strlen(outBuf) - 1);
-    }
-
-    // Helper: checks if token appears unparenthesized in comma-separated list
-    static bool isTokenAsserted(const char* text, const char* targetToken) {
-        if (!text || !targetToken) return false;
-        const char* p = text;
-        size_t targetLen = strlen(targetToken);
-
-        while (*p) {
-            // Skip whitespace and commas
-            while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\r' || *p == '\n') p++;
-            if (!*p) break;
-
-            bool inParen = false;
-            if (*p == '(') {
-                inParen = true;
-                p++;
-            }
-
-            const char* tokenStart = p;
-            while (*p && *p != ')' && *p != ',' && *p != ' ' && *p != '\t' && *p != '\r' && *p != '\n') {
-                p++;
-            }
-            size_t tokenLen = p - tokenStart;
-
-            if (tokenLen == targetLen && strncasecmp(tokenStart, targetToken, targetLen) == 0) {
-                return !inParen; // True if unparenthesized
-            }
-
-            if (*p == ')') p++;
-        }
-        return false;
-    }
 };
 
 // =============================================================================
@@ -312,12 +225,82 @@ static constexpr uint8_t MAX_COLUMNS_PER_STATION = 4;
 
 class CtcStation {
 public:
-    CtcStation() : name_(""), columnCount_(0) {}
+    CtcStation()
+        : name_(""),
+          columnCount_(0),
+          switchCount_(0),
+          signalCount_(0),
+          trackCount_(0),
+          maintainerCount_(0),
+          codecBuilt_(false) {}
 
     explicit CtcStation(const char* name)
-        : name_(name ? name : ""), columnCount_(0) {}
+        : name_(name ? name : ""),
+          columnCount_(0),
+          switchCount_(0),
+          signalCount_(0),
+          trackCount_(0),
+          maintainerCount_(0),
+          codecBuilt_(false) {}
 
     const char* name() const { return name_; }
+
+    AarTextCodec& codec() { return codec_; }
+    const AarTextCodec& codec() const { return codec_; }
+
+    // Builds the canonical AAR wire schema (Switches -> Tracks -> Signals -> Maintainers)
+    // and preallocates Strategy B buffers once during setup()
+    void preallocateBuffers() {
+        buildCodec();
+        codec_.preallocateBuffers();
+    }
+
+    void buildCodec() {
+        if (codecBuilt_) return;
+        codec_.clearEntries();
+        switchCount_ = 0;
+        signalCount_ = 0;
+        trackCount_ = 0;
+        maintainerCount_ = 0;
+
+        // Phase 1: All switches in column order
+        for (uint8_t c = 0; c < columnCount_; ++c) {
+            if (columns_[c].hasSwitch_) {
+                columns_[c].swIdx_ = switchCount_++;
+                codec_.addDecodeEntry(decodeSwitch(columns_[c].swIdx_, columns_[c].swNum_));
+                codec_.addEncodeEntry(encodeSwitch(columns_[c].swIdx_, columns_[c].swNum_));
+            }
+        }
+
+        // Phase 2: All track circuits in column order
+        for (uint8_t c = 0; c < columnCount_; ++c) {
+            columns_[c].tcStartIdx_ = trackCount_;
+            for (uint8_t t = 0; t < columns_[c].trackCount_; ++t) {
+                uint8_t idx = trackCount_++;
+                codec_.addEncodeEntry(encodeTrack(idx, columns_[c].trackNames_[t]));
+            }
+        }
+
+        // Phase 3: All signals in column order
+        for (uint8_t c = 0; c < columnCount_; ++c) {
+            if (columns_[c].hasSignal_) {
+                columns_[c].sigIdx_ = signalCount_++;
+                codec_.addDecodeEntry(decodeSignal(columns_[c].sigIdx_, columns_[c].sigNum_));
+                codec_.addEncodeEntry(encodeSignal(columns_[c].sigIdx_, columns_[c].sigNum_));
+            }
+        }
+
+        // Phase 4: Maintainer calls in column order
+        for (uint8_t c = 0; c < columnCount_; ++c) {
+            if (columns_[c].hasMaintainerCall_) {
+                columns_[c].mcIdx_ = maintainerCount_++;
+                codec_.addDecodeEntry(decodeMaintainer(columns_[c].mcIdx_, columns_[c].mcNum_));
+                codec_.addEncodeEntry(encodeMaintainer(columns_[c].mcIdx_, columns_[c].mcNum_));
+            }
+        }
+
+        codecBuilt_ = true;
+    }
 
     PanelColumn& inColumn(uint8_t columnNumber) {
         for (uint8_t i = 0; i < columnCount_; ++i) {
@@ -335,8 +318,37 @@ public:
     uint8_t columnCount() const { return columnCount_; }
     const PanelColumn& column(uint8_t idx) const { return columns_[idx]; }
 
-    // Check if the station's CODE button was pushed; if so, gather demands across all columns
-    bool pollCode(PanelHardware& hw, char* outTokens, size_t maxLen) {
+    uint8_t currentTrackCount() const { return trackCount_; }
+
+    uint8_t registerSwitch(const char* swNum) {
+        uint8_t idx = switchCount_++;
+        codec_.addDecodeEntry(decodeSwitch(idx, swNum));
+        codec_.addEncodeEntry(encodeSwitch(idx, swNum));
+        return idx;
+    }
+
+    uint8_t registerSignal(const char* sigNum) {
+        uint8_t idx = signalCount_++;
+        codec_.addDecodeEntry(decodeSignal(idx, sigNum));
+        codec_.addEncodeEntry(encodeSignal(idx, sigNum));
+        return idx;
+    }
+
+    uint8_t registerTrack(const char* trackName) {
+        uint8_t idx = trackCount_++;
+        codec_.addEncodeEntry(encodeTrack(idx, trackName));
+        return idx;
+    }
+
+    uint8_t registerMaintainer(const char* mcNum) {
+        uint8_t idx = maintainerCount_++;
+        codec_.addDecodeEntry(decodeMaintainer(idx, mcNum));
+        codec_.addEncodeEntry(encodeMaintainer(idx, mcNum));
+        return idx;
+    }
+
+    // Typed demand polling
+    bool pollCode(PanelHardware& hw, ControlTransaction& ctl) {
         bool triggered = false;
         for (uint8_t i = 0; i < columnCount_; ++i) {
             if (columns_[i].isCodePressed(hw)) {
@@ -344,30 +356,108 @@ public:
                 break;
             }
         }
-
-        if (triggered && outTokens && maxLen > 0) {
-            outTokens[0] = '\0';
+        if (triggered) {
+            ctl = ControlTransaction();
             for (uint8_t i = 0; i < columnCount_; ++i) {
-                columns_[i].appendDemands(hw, outTokens, maxLen);
+                columns_[i].harvestDemands(hw, ctl);
             }
             return true;
         }
         return false;
     }
 
-    // Apply incoming field indications across all constituent columns
-    void applyIndications(PanelHardware& hw, const char* indicationText) {
-        for (uint8_t i = 0; i < columnCount_; ++i) {
-            columns_[i].applyIndications(hw, indicationText);
+    // AAR string token polling using configured codec
+    bool pollCode(PanelHardware& hw, char* outTokens, size_t maxLen) {
+        ControlTransaction ctl;
+        if (pollCode(hw, ctl)) {
+            size_t written = 0;
+            return codec_.encodeControls(ctl, outTokens, maxLen, written);
         }
+        return false;
+    }
+
+    // Direct preallocated encoding (Strategy B)
+    const char* pollCode(PanelHardware& hw) {
+        ControlTransaction ctl;
+        if (pollCode(hw, ctl)) {
+            return codec_.encodeControls(ctl);
+        }
+        return nullptr;
+    }
+
+    // Typed indication apply
+    void applyIndications(PanelHardware& hw, const IndicationVector& ind) {
+        for (uint8_t i = 0; i < columnCount_; ++i) {
+            columns_[i].applyIndications(hw, ind);
+        }
+    }
+
+    // AAR string token indication apply using configured codec
+    bool applyIndications(PanelHardware& hw, const char* indicationText) {
+        IndicationVector ind;
+        if (codec_.decodeIndications(indicationText, ind)) {
+            applyIndications(hw, ind);
+            return true;
+        }
+        return false;
     }
 
 private:
     const char* name_;
     PanelColumn columns_[MAX_COLUMNS_PER_STATION];
     uint8_t columnCount_;
+    uint8_t switchCount_;
+    uint8_t signalCount_;
+    uint8_t trackCount_;
+    uint8_t maintainerCount_;
+    bool codecBuilt_;
+    AarTextCodec codec_;
     PanelColumn dummyColumn_;
 };
+
+inline PanelColumn& PanelColumn::withSwitch(const char* swNum) {
+    if (swNum) {
+        strncpy(swNum_, swNum, sizeof(swNum_) - 1);
+        swNum_[sizeof(swNum_) - 1] = '\0';
+        hasSwitch_ = true;
+    }
+    return *this;
+}
+
+inline PanelColumn& PanelColumn::withSignal(const char* sigNum) {
+    if (sigNum) {
+        strncpy(sigNum_, sigNum, sizeof(sigNum_) - 1);
+        sigNum_[sizeof(sigNum_) - 1] = '\0';
+        hasSignal_ = true;
+    }
+    return *this;
+}
+
+inline PanelColumn& PanelColumn::withCodeButton() {
+    hasCodeButton_ = true;
+    return *this;
+}
+
+inline PanelColumn& PanelColumn::withMaintainerCall(const char* mcNum) {
+    if (mcNum) {
+        strncpy(mcNum_, mcNum, sizeof(mcNum_) - 1);
+        mcNum_[sizeof(mcNum_) - 1] = '\0';
+        hasMaintainerCall_ = true;
+    }
+    return *this;
+}
+
+inline PanelColumn& PanelColumn::withTrackLamps(std::initializer_list<const char*> tracks) {
+    trackCount_ = 0;
+    for (const char* t : tracks) {
+        if (trackCount_ < MAX_LAMPS_PER_COLUMN && t) {
+            strncpy(trackNames_[trackCount_], t, sizeof(trackNames_[trackCount_]) - 1);
+            trackNames_[trackCount_][sizeof(trackNames_[trackCount_]) - 1] = '\0';
+            trackCount_++;
+        }
+    }
+    return *this;
+}
 
 // Fluent jump from one column to another on the same station
 inline PanelColumn& PanelColumn::inColumn(uint8_t nextColumn) {
@@ -415,12 +505,22 @@ public:
         return nullptr;
     }
 
-    // Route inbound indication packet to the matching station
+    // Preallocate worst-case wire buffers across all stations (Strategy B)
+    void preallocateBuffers() {
+        for (uint8_t i = 0; i < stationCount_; ++i) {
+            stations_[i].preallocateBuffers();
+        }
+    }
+
+    void begin() {
+        preallocateBuffers();
+    }
+
+    // Route inbound indication packet to the matching station and verify version sync
     bool applyIndications(const char* cpName, const char* indicationText) {
         CtcStation* st = findStation(cpName);
         if (st) {
-            st->applyIndications(hardware_, indicationText);
-            return true;
+            return st->applyIndications(hardware_, indicationText);
         }
         return false;
     }

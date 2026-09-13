@@ -28,3 +28,7 @@ cmake-build-*/
 # Test binaries
 test_runner
 *.test
+
+# Credentials
+secrets.h
+*secrets.h
