@@ -1,53 +1,59 @@
 #ifndef SPCOAST_IO_I2C_H
 #define SPCOAST_IO_I2C_H
 
+#include <Arduino.h>
 #include <Wire.h>
-#include <drivers/I2CexpanderIOBus.h>
+#include <I2Cexpander.h>
 #include <cTcMachine.h>
 
 class PanelIO : public FieldUnit::PanelHardware {
 public:
-    PanelIO() : i2cBus_(Wire) {}
+    PanelIO() {}
 
-    // Maps column 1..14 to its corresponding MAX7313 expander index (4..17)
-    static uint8_t colToDev(uint8_t col) { return 3 + col; }
+    // Maps column 1..14 to its corresponding MAX7313 expander index (0..13)
+    static uint8_t colToDev(uint8_t col) { return (col >= 1 && col <= 14) ? (col - 1) : 0; }
 
     bool read(uint8_t col, FieldUnit::PanelInput fn) override {
         uint8_t dev = colToDev(col);
         switch (fn) {
-            case FieldUnit::PanelInput::SW_NORMAL:          return i2cBus_.input(dev, 6).read();
-            case FieldUnit::PanelInput::SW_REVERSE:         return i2cBus_.input(dev, 7).read();
-            case FieldUnit::PanelInput::SIG_LEFT:           return i2cBus_.input(dev, 9).read();
-            case FieldUnit::PanelInput::SIG_STOP:           return i2cBus_.input(dev, 10).read();
-            case FieldUnit::PanelInput::SIG_RIGHT:          return i2cBus_.input(dev, 11).read();
-            case FieldUnit::PanelInput::CODE_BUTTON:        return i2cBus_.input(dev, 12).readRisingEdge();
-            case FieldUnit::PanelInput::MAINTAINER_CALL_SW: return i2cBus_.input(dev, 2).read();
+            case FieldUnit::PanelInput::SW_NORMAL:          return m_[dev].digitalRead(6) != 0;
+            case FieldUnit::PanelInput::SW_REVERSE:         return m_[dev].digitalRead(7) != 0;
+            case FieldUnit::PanelInput::SIG_LEFT:           return m_[dev].digitalRead(9) != 0;
+            case FieldUnit::PanelInput::SIG_STOP:           return m_[dev].digitalRead(10) != 0;
+            case FieldUnit::PanelInput::SIG_RIGHT:          return m_[dev].digitalRead(11) != 0;
+            case FieldUnit::PanelInput::CODE_BUTTON:        return m_[dev].digitalRead(12) != 0;
+            case FieldUnit::PanelInput::MAINTAINER_CALL_SW: return m_[dev].digitalRead(2) != 0;
             default: return false;
         }
     }
 
     void write(uint8_t col, FieldUnit::PanelOutput fn, bool state) override {
         uint8_t dev = colToDev(col);
+        uint8_t val = state ? 1 : 0;
         switch (fn) {
-            case FieldUnit::PanelOutput::SW_NORMAL_LAMP:  i2cBus_.output(dev, 0).write(state); break;
-            case FieldUnit::PanelOutput::SW_REVERSE_LAMP: i2cBus_.output(dev, 1).write(state); break;
-            case FieldUnit::PanelOutput::TRACK_LAMP_1:    i2cBus_.output(dev, 3).write(state); break;
-            case FieldUnit::PanelOutput::TRACK_LAMP_2:    i2cBus_.output(dev, 4).write(state); break;
-            case FieldUnit::PanelOutput::TRACK_LAMP_3:    i2cBus_.output(dev, 5).write(state); break;
-            case FieldUnit::PanelOutput::MAINTAINER_LAMP: i2cBus_.output(dev, 8).write(state); break;
-            case FieldUnit::PanelOutput::SIG_LEFT_LAMP:   i2cBus_.output(dev, 13).write(state); break;
-            case FieldUnit::PanelOutput::SIG_RIGHT_LAMP:  i2cBus_.output(dev, 14).write(state); break;
-            case FieldUnit::PanelOutput::SIG_STOP_LAMP:   i2cBus_.output(dev, 15).write(state); break;
+            case FieldUnit::PanelOutput::SW_NORMAL_LAMP:  m_[dev].digitalWrite(0, val); break;
+            case FieldUnit::PanelOutput::SW_REVERSE_LAMP: m_[dev].digitalWrite(1, val); break;
+            case FieldUnit::PanelOutput::TRACK_LAMP_1:    m_[dev].digitalWrite(3, val); break;
+            case FieldUnit::PanelOutput::TRACK_LAMP_2:    m_[dev].digitalWrite(4, val); break;
+            case FieldUnit::PanelOutput::TRACK_LAMP_3:    m_[dev].digitalWrite(5, val); break;
+            case FieldUnit::PanelOutput::MAINTAINER_LAMP: m_[dev].digitalWrite(8, val); break;
+            case FieldUnit::PanelOutput::SIG_LEFT_LAMP:   m_[dev].digitalWrite(13, val); break;
+            case FieldUnit::PanelOutput::SIG_RIGHT_LAMP:  m_[dev].digitalWrite(14, val); break;
+            case FieldUnit::PanelOutput::SIG_STOP_LAMP:   m_[dev].digitalWrite(15, val); break;
             default: break;
         }
     }
 
-    void begin() override { Wire.begin(); i2cBus_.begin(); }
-    void syncInputs() override  { i2cBus_.readInputs(); }
-    void syncOutputs() override { i2cBus_.writeOutputs(); }
+    void begin() override {
+        Wire.begin();
+        // Initialize 14x MAX7313 expanders (I2C addresses 0..13)
+        for (uint8_t i = 0; i < 14; ++i) {
+            m_[i].init(i, I2Cexpander::MAX7313, 0b0001111011000100);
+        }
+    }
 
 private:
-    FieldUnit::I2CexpanderIOBus i2cBus_;
+    I2Cexpander m_[14];
 };
 
 #endif // SPCOAST_IO_I2C_H

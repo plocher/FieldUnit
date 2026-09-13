@@ -6,10 +6,10 @@
  * 
  * Select physical I/O backend:
  */
+#include <FieldUnit.h>
+
 #include "IO-I2C.h"
 // #include "IO-CMRI.h"
-
-#include <FieldUnit.h>
 
 using namespace FieldUnit;
 
