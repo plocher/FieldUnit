@@ -62,6 +62,11 @@ public:
         }
     }
 
+    FieldUnit::OneShot& codeOneShot(uint8_t col) override {
+        uint8_t dev = (col >= 1 && col <= 14) ? (col - 1) : 0;
+        return codeOneShot_[dev];
+    }
+
     void begin() override {}
     void syncInputs() override  {}
     void syncOutputs() override {}
@@ -72,6 +77,7 @@ public:
 private:
     uint8_t ib_[28]; // 14 columns * 2 bytes = 28 bytes
     uint8_t ob_[28];
+    FieldUnit::OneShot codeOneShot_[14];
 };
 
 #endif // SPCOAST_IO_CMRI_H

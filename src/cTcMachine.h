@@ -44,7 +44,56 @@ enum class PanelOutput : uint8_t {
 };
 
 // =============================================================================
-// 2. Abstract Hardware Interface [read / write][column, function]
+// 2. Hardware One-Shot Latch (Arms on Press, Latches on Release until Reset)
+// =============================================================================
+
+class OneShot {
+public:
+    enum class State : uint8_t {
+        WAITING = 0, // Unpressed, waiting for press
+        ARMED,       // Pressed down, armed
+        TRIGGERED    // Released after press, latched until reset()
+    };
+
+    OneShot() : state_(State::WAITING) {}
+
+    // Called on every physical device read: isPressed = true when active/pressed
+    void update(bool isPressed) {
+        switch (state_) {
+            case State::WAITING:
+                if (isPressed) {
+                    state_ = State::ARMED; // Press detected -> Arm!
+                }
+                break;
+            case State::ARMED:
+                if (!isPressed) {
+                    state_ = State::TRIGGERED; // Release detected -> Latch in TRIGGERED!
+                }
+                break;
+            case State::TRIGGERED:
+                // Latched! Do not change state until externally reset by the consumer.
+                break;
+        }
+    }
+
+    State state() const { return state_; }
+    bool isTriggered() const { return state() == State::TRIGGERED; }
+    void reset() { state_ = State::WAITING; }
+
+    bool consume() {
+        if (isTriggered()) {
+            reset();
+            return true;
+        }
+        return false;
+    }
+
+private:
+    State state_;
+};
+
+// =============================================================================
+// 3. Abstract Hardware Interface [read / write][column, function]
 // =============================================================================
 
 class PanelHardware {
@@ -52,6 +101,7 @@ public:
     virtual ~PanelHardware() = default;
     virtual bool read(uint8_t column, PanelInput fn) = 0;
     virtual void write(uint8_t column, PanelOutput fn, bool state) = 0;
+    virtual OneShot& codeOneShot(uint8_t column) = 0;
     virtual void begin() {}
     virtual void syncInputs() {}
     virtual void syncOutputs() {}
@@ -125,18 +175,10 @@ public:
         return (idx < trackCount_) ? trackNames_[idx] : nullptr;
     }
 
-    // Per-button one-shot: arms while pressed down, triggers on release
-    bool isCodeTriggered(PanelHardware& hw) {
+    // Queries hardware driver for code button trigger (consumed upon read)
+    bool isCodeTriggered(PanelHardware& hw) const {
         if (!hasCodeButton_) return false;
-        bool isDown = hw.read(columnNumber_, PanelInput::CODE_BUTTON);
-        if (isDown) {
-            codeArmed_ = true; // Armed while held down
-            return false;
-        } else if (codeArmed_) {
-            codeArmed_ = false; // Disarmed on release
-            return true;        // Triggered on release!
-        }
-        return false;
+        return hw.codeOneShot(columnNumber_).consume();
     }
 
     // Read switch and signal levers into ControlTransaction demands
@@ -219,7 +261,6 @@ private:
     uint8_t sigIdx_;
     char sigNum_[MAX_NAME_LEN];
     bool hasCodeButton_;
-    bool codeArmed_;
     bool hasMaintainerCall_;
     uint8_t mcIdx_;
     char mcNum_[MAX_NAME_LEN];

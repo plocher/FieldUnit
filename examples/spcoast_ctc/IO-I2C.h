@@ -98,11 +98,17 @@ public:
         }
     }
 
-    // Single-pass bulk read: 14 fast 16-bit reads instead of 70+ individual I2C transactions
+    // Single-pass bulk read: 14 fast 16-bit reads; feeds each column's OneShot
     void syncInputs() override {
         for (uint8_t i = 0; i < 14; ++i) {
             inputs_[i] = m_[i].get();
+            // Bit 12 is active-LOW (0 = pressed, 1 = released)
+            codeOneShot_[i].update(bitRead(inputs_[i], 12) == 0);
         }
+    }
+
+    FieldUnit::OneShot& codeOneShot(uint8_t col) override {
+        return codeOneShot_[colToDev(col)];
     }
 
     // Stateless physical pin reads: 0 = asserted/closed, 1 = unasserted/open
@@ -154,6 +160,7 @@ private:
     uint16_t inputs_[14];
     uint16_t outputs_[14];
     uint16_t lastOutputs_[14];
+    FieldUnit::OneShot codeOneShot_[14];
 };
 
 #endif // SPCOAST_IO_I2C_H

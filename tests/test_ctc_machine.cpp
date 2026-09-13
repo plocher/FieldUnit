@@ -19,6 +19,10 @@ public:
         return false;
     }
 
+    OneShot& codeOneShot(uint8_t column) override {
+        return codeOneShot_[column < 16 ? column : 0];
+    }
+
     void write(uint8_t column, PanelOutput fn, bool state) override {
         if (column < 16 && static_cast<uint8_t>(fn) < 16) {
             outputs_[column][static_cast<uint8_t>(fn)] = state;
@@ -28,6 +32,9 @@ public:
     void setInput(uint8_t column, PanelInput fn, bool val) {
         if (column < 16 && static_cast<uint8_t>(fn) < 8) {
             inputs_[column][static_cast<uint8_t>(fn)] = val;
+            if (fn == PanelInput::CODE_BUTTON) {
+                codeOneShot_[column].update(val);
+            }
         }
     }
 
@@ -41,6 +48,7 @@ public:
 private:
     bool inputs_[16][8];
     bool outputs_[16][16];
+    OneShot codeOneShot_[16];
 };
 
 void testCtcMachineAssemblyAndCodeButton() {
