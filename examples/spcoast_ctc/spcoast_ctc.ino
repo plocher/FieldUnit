@@ -195,7 +195,8 @@ void loop() {
     uint32_t nowMs = millis();
 
 #ifdef USE_OLED
-    if (nowMs - lastOledMs >= 150) {
+    // Throttle OLED refresh: only once per second for heartbeat/IP, or immediately on events
+    if (nowMs - lastOledMs >= 1000) {
         lastOledMs = nowMs;
         oledAnim++;
         if (WiFi.status() == WL_CONNECTED) {
