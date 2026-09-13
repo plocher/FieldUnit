@@ -29,8 +29,12 @@ bool oledAlive = false;
 
 char oledLine1[24] = "SPCoast cTc Desk";
 char oledLine2[24] = "Ready.";
-char oledLine3[24] = "";
-char oledLine4[24] = "";
+char oledLine3[24] = "Waiting for levers";
+char oledLine4[24] = "Scanning I2C...";
+
+uint32_t lastOledMs = 0;
+uint8_t animFrame = 0;
+const char spinnerChars[] = "|/-\\";
 
 void updateOled() {
     if (!oledAlive) return;
@@ -38,16 +42,16 @@ void updateOled() {
     oled.setTextSize(1);
     oled.setTextColor(SSD1306_WHITE);
 
-    // Header
+    // Header with live spinner
     oled.setCursor(0, 0);
-    oled.print(oledLine1);
+    oled.printf("%s [%c]", oledLine1, spinnerChars[animFrame % 4]);
     oled.drawFastHLine(0, 10, 128, SSD1306_WHITE);
 
     // Line 2 (Event / Status)
     oled.setCursor(0, 16);
     oled.print(oledLine2);
 
-    // Line 3 (Secondary Event)
+    // Line 3 (Secondary Event / Code)
     oled.setCursor(0, 32);
     oled.print(oledLine3);
 
@@ -174,12 +178,18 @@ void setup() {
     Wire.begin();
 
 #ifdef USE_OLED
-    oledAlive = oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
-    if (oledAlive) {
-        oled.clearDisplay();
-        oled.dim(true);
-        snprintf(oledLine2, sizeof(oledLine2), "Booting I2C...");
-        updateOled();
+    // Probe 0x3C before initializing SSD1306
+    Wire.beginTransmission(OLED_ADDR);
+    if (Wire.endTransmission() == 0) {
+        oledAlive = oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR, /*reset=*/false, /*periphBegin=*/false);
+        if (oledAlive) {
+            oled.clearDisplay();
+            snprintf(oledLine2, sizeof(oledLine2), "Booting I2C...");
+            updateOled();
+            Serial.println("[OLED] SSD1306 Display initialized at 0x3C.");
+        }
+    } else {
+        Serial.println("[OLED] No display found at 0x3C (running headless).");
     }
 #endif
 
@@ -225,6 +235,15 @@ void setup() {
 }
 
 void loop() {
+#ifdef USE_OLED
+    // Keep live heartbeat spinner running on OLED (~10 fps)
+    if (millis() - lastOledMs >= 150) {
+        lastOledMs = millis();
+        animFrame++;
+        updateOled();
+    }
+#endif
+
     for (int col = 0; col < NUM_COLUMNS; ++col) {
         uint16_t ival = m[col].get(); // Read active-LOW inputs
         uint16_t oval = 0xFFFF;        // Start with all lamps OFF (0xFFFF)

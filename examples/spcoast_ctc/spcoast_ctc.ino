@@ -15,6 +15,48 @@ using namespace FieldUnit;
 
 #if defined(ARDUINO) && defined(ESP32)
 #define USE_OTA
+#define USE_OLED
+#endif
+
+#ifdef USE_OLED
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+Adafruit_SSD1306 oled(128, 64, &Wire);
+bool oledAlive = false;
+uint32_t lastOledMs = 0;
+uint8_t oledAnim = 0;
+const char spinnerChars[] = "|/-\\\\";
+
+char oledStatusLine[24] = "I2C Init...";
+char oledMqttLine[24]   = "MQTT Waiting...";
+char oledLastCoded[24]  = "Ready for Levers";
+
+void updateOled() {
+    if (!oledAlive) return;
+    oled.clearDisplay();
+    oled.setTextSize(1);
+    oled.setTextColor(SSD1306_WHITE);
+
+    // Header with live spinner
+    oled.setCursor(0, 0);
+    oled.printf("SPCoast cTc [%c]", spinnerChars[oledAnim % 4]);
+    oled.drawFastHLine(0, 10, 128, SSD1306_WHITE);
+
+    // Line 2 (WiFi Status / IP)
+    oled.setCursor(0, 16);
+    oled.print(oledStatusLine);
+
+    // Line 3 (MQTT Status)
+    oled.setCursor(0, 32);
+    oled.print(oledMqttLine);
+
+    // Line 4 (Last Coded Station)
+    oled.setCursor(0, 48);
+    oled.print(oledLastCoded);
+
+    oled.display();
+}
 #endif
 
 #ifdef USE_OTA
@@ -112,6 +154,9 @@ void reconnectMqtt(uint32_t nowMs) {
         mqtt.publish("ctc/SPCoast/telemetry", "ONLINE", true);
         mqtt.subscribe("ctc/SPCoast/codeline/+/indications");
         Serial.println("MQTT connected. Subscribed to plant indications.");
+#ifdef USE_OLED
+        snprintf(oledMqttLine, sizeof(oledMqttLine), "MQTT: Connected");
+#endif
     }
 }
 #endif
@@ -119,6 +164,20 @@ void reconnectMqtt(uint32_t nowMs) {
 #ifdef ARDUINO
 void setup() {
     Serial.begin(115200);
+    Wire.begin();
+
+#ifdef USE_OLED
+    Wire.beginTransmission(0x3C);
+    if (Wire.endTransmission() == 0) {
+        oledAlive = oled.begin(SSD1306_SWITCHCAPVCC, 0x3C, false, false);
+        if (oledAlive) {
+            oled.clearDisplay();
+            snprintf(oledStatusLine, sizeof(oledStatusLine), "I2C 14 Devs OK");
+            updateOled();
+        }
+    }
+#endif
+
     hardware.begin();
     configureDesk();
     machine.begin(); // Preallocates Strategy B exact buffers and builds canonical AAR schemas
@@ -134,6 +193,19 @@ void setup() {
 
 void loop() {
     uint32_t nowMs = millis();
+
+#ifdef USE_OLED
+    if (nowMs - lastOledMs >= 150) {
+        lastOledMs = nowMs;
+        oledAnim++;
+        if (WiFi.status() == WL_CONNECTED) {
+            snprintf(oledStatusLine, sizeof(oledStatusLine), "%s", WiFi.localIP().toString().c_str());
+        } else {
+            snprintf(oledStatusLine, sizeof(oledStatusLine), "WiFi Connecting...");
+        }
+        updateOled();
+    }
+#endif
 
 #ifdef USE_OTA
     ota.poll();
@@ -153,6 +225,11 @@ void loop() {
     if (machine.pollCode(stIdx, txTokens, sizeof(txTokens))) {
         const char* targetCp = machine.station(stIdx).name();
         Serial.printf("CODED [%s]: %s\n", targetCp, txTokens);
+
+#ifdef USE_OLED
+        snprintf(oledLastCoded, sizeof(oledLastCoded), "CODED: %s", targetCp);
+        updateOled();
+#endif
 
 #ifdef USE_OTA
         if (mqtt.connected()) {
