@@ -23,14 +23,78 @@ public:
 
     void begin() override {
         Wire.begin();
-        Wire.setClock(400000UL); // 400 kHz fast I2C
+        Wire.setClock(800000UL); // 800 kHz Fast-Mode Plus I2C
+
+        // Probe for MAX7313 base address (check 0x20 first, fallback to 0x10)
+        uint8_t baseAddr = 0x20;
+        Wire.beginTransmission(0x20);
+        if (Wire.endTransmission() != 0) {
+            Wire.beginTransmission(0x10);
+            if (Wire.endTransmission() == 0) {
+                baseAddr = 0x10;
+            }
+        }
+        Serial.printf("[I2C] Running at 800 kHz. Detected MAX7313 expanders at base address 0x%02X\n", baseAddr);
+
         for (uint8_t i = 0; i < 14; ++i) {
-            m_[i].init(i, I2Cexpander::MAX7313, 0b0001111011000100);
+            uint8_t addr = baseAddr + i;
+            m_[i].init(addr, I2Cexpander::MAX7313, 0b0001111011000100);
             m_[i].put(0xFFFF); // All lamps OFF at startup (active-LOW)
             inputs_[i] = m_[i].get();
             lastOutputs_[i] = 0xFFFF;
             codeArmed_[i] = false;
             codeTriggered_[i] = false;
+        }
+    }
+
+    // Direct hardware lamp test: all ON for 2s, all OFF, then column chase
+    void runLampTest() {
+        Serial.println("--- Starting Hardware Lamp Test ---");
+        // All ON (active-LOW: write 0x0000 to all 14 expanders)
+        for (uint8_t i = 0; i < 14; ++i) m_[i].put(0x0000);
+        delay(2000);
+
+        // All OFF
+        for (uint8_t i = 0; i < 14; ++i) m_[i].put(0xFFFF);
+        delay(500);
+
+        // Column chase across 14 columns
+        uint16_t testBits[] = { 0x0001, 0x0002, 0x0008, 0x0010, 0x0020, 0x0100, 0x2000, 0x8000, 0x4000 };
+        for (uint8_t col = 0; col < 14; ++col) {
+            for (uint16_t bit : testBits) {
+                m_[col].put((uint16_t)~bit); // Light single lamp
+                delay(40);
+            }
+            m_[col].put(0xFFFF); // Off
+        }
+        Serial.println("--- Lamp Test Complete ---\n");
+    }
+
+    // Raw direct loopback mirror: connects inputs directly to outputs without 1-shot
+    void directMirrorLoop() {
+        for (uint8_t col = 0; col < 14; ++col) {
+            uint16_t ival = m_[col].get();
+            uint16_t oval = 0xFFFF; // All lamps OFF by default
+
+            // Inputs (active-LOW: 0 = asserted)
+            bool swN  = (ival & 0x0080) == 0; // bit 7
+            bool swR  = (ival & 0x0040) == 0; // bit 6
+            bool sigE = (ival & 0x0200) == 0; // bit 9
+            bool sigS = (ival & 0x0400) == 0; // bit 10
+            bool sigW = (ival & 0x0800) == 0; // bit 11
+            bool mc   = (ival & 0x0004) == 0; // bit 2
+            bool code = (ival & 0x1000) == 0; // bit 12
+
+            // Mirror directly to outputs (active-LOW: 0 = ON)
+            if (swN)  oval &= ~0x0001; // bit 0 (NK)
+            if (swR)  oval &= ~0x0002; // bit 1 (RK)
+            if (sigE) oval &= ~0x2000; // bit 13 (LK/EK)
+            if (sigS) oval &= ~0x8000; // bit 15 (SK)
+            if (sigW) oval &= ~0x4000; // bit 14 (WK)
+            if (mc)   oval &= ~0x0100; // bit 8 (MCK)
+            if (code) oval &= ~(0x0008 | 0x0010 | 0x0020); // bits 3,4,5 (M1,M2,M3)
+
+            m_[col].put(oval);
         }
     }
 

@@ -13,6 +13,9 @@
 
 using namespace FieldUnit;
 
+// Diagnostics: Uncomment to run raw direct lever-to-lamp mirror (no 1-shot, no MQTT)
+// #define TEST_DIRECT_MIRROR
+
 #if defined(ARDUINO) && defined(ESP32)
 #define USE_OTA
 #define USE_OLED
@@ -165,6 +168,7 @@ void reconnectMqtt(uint32_t nowMs) {
 void setup() {
     Serial.begin(115200);
     Wire.begin();
+    Wire.setClock(800000UL); // 800 kHz Fast-Mode Plus
 
 #ifdef USE_OLED
     Wire.beginTransmission(0x3C);
@@ -179,6 +183,10 @@ void setup() {
 #endif
 
     hardware.begin();
+
+    // Visual lamp check: all ON for 2s, all OFF, then column-by-column chase
+    hardware.runLampTest();
+
     configureDesk();
     machine.begin(); // Preallocates Strategy B exact buffers and builds canonical AAR schemas
 
@@ -193,6 +201,18 @@ void setup() {
 
 void loop() {
     uint32_t nowMs = millis();
+
+#ifdef TEST_DIRECT_MIRROR
+    uint32_t t0 = micros();
+    hardware.directMirrorLoop();
+    uint32_t dt = micros() - t0;
+    static uint32_t lastReportMs = 0;
+    if (nowMs - lastReportMs >= 1000) {
+        lastReportMs = nowMs;
+        Serial.printf("[BENCH] 14-column direct loopback latency: %u us (%u Hz)\n", dt, dt > 0 ? 1000000 / dt : 0);
+    }
+    return;
+#endif
 
 #ifdef USE_OLED
     // Throttle OLED refresh: only once per second for heartbeat/IP, or immediately on events
