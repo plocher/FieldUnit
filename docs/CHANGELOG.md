@@ -5,6 +5,17 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **AarTextCodec Symmetry & Strategy B Worst-Case Buffer Sizing (`src/WireCodec.h`)**:
+  - Implemented symmetrical Office operations on `AarTextCodec`: `encodeControls(ctl)` and `decodeIndications(text, ind)`.
+  - Added "The Physics of AAR Message Size" specification documenting exact worst-case wire payload calculations.
+  - Implemented Strategy B exact payload pre-calculation (`maxControlPayloadSize()`, `maxIndicationPayloadSize()`, and `preallocateBuffers()`) to allocate buffers once during `setup()` and eliminate all inner-loop overflow checks and stack buffers.
+  - Enforced strict sequential step verification in `decodeIndications`: transmissions with missing, unexpected, or out-of-sequence tokens are rejected immediately as out of version sync.
+- **`cTcMachine` Codec Integration (`src/cTcMachine.h`)**:
+  - Automatically compiles station appliance declarations into canonical AAR wire schemas (Switches -> Tracks -> Signals -> Maintainers).
+  - Preallocates Strategy B exact buffers during `begin()` or `preallocateBuffers()`.
+- **SPCoast CTC Desk WiFi & OTA Integration (`examples/spcoast_ctc/`)**:
+  - Added non-blocking `OtaManager` (`ota.h`, `ota.cpp`) and `secrets.h.example` adapted from CMRInet's `XiaoNode`.
+  - Connected `PubSubClient` MQTT to subscribe to `ctc/SPCoast/codeline/+/indications` and publish controls on code button pushes.
 - **`cTcMachine` Office Abstraction (`src/cTcMachine.h`)**:
   - Implemented the supervisory office console counterpart to `ControlPoint`, modeling multi-column US&S Model 503 Centralized Traffic Control (CTC) machines.
   - Hardware Decoupling: Introduced abstract `PanelHardware` contract transforming `[read/write][column, function]` into physical I/O bit operations.

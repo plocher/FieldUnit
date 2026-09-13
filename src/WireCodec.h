@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <initializer_list>
@@ -383,14 +383,50 @@ inline EncodeEntry encodeMaintainer() {
 // - Control tokens MUST end with 'S' (1NWS, 1RWS, 2SGS, 2NGS, 2HS, MC1S)
 // - Indication tokens MUST end with 'K' (1NWK, 1RWK, 1T1K, 2SGK, 2NGK, 2TEK, MC1K)
 // - Asserted = TOKEN, Negated / Dropped = (TOKEN)
+//
+// =============================================================================
+// The Physics of AAR Message Size
+// =============================================================================
+// Because an interlocking's appliance list is fixed at boot, we can calculate the
+// exact worst-case wire payload size at setup() time.
+//
+// In the worst case:
+// - Every token is negated (surrounded by parentheses (...) -> +2 bytes).
+// - Every token after the first has a delimiter (comma + space ", " -> +2 bytes).
+// - The string has a null terminator ('\0' -> +1 byte).
+//
+// The Exact Worst-Case Formula:
+// For any declared station schema:
+//   MaxTokenLen = strlen(name) + suffixLen + 2 (parens)
+//
+// 1. Each Switch (name):
+//    - Controls: 2 tokens (nameNWS, nameRWS) -> 2 * (strlen(name) + 3 + 2)
+//    - Indications: 2 tokens (nameNWK, nameRWK) -> 2 * (strlen(name) + 3 + 2)
+// 2. Each Signal (name):
+//    - Controls: 3 tokens (nameSGS, nameNGS, nameHS) -> 3 * (strlen(name) + 3 + 2)
+//    - Indications: 3 tokens (nameSGK, nameNGK, nameTEK) -> 3 * (strlen(name) + 3 + 2)
+// 3. Each Track Circuit (name):
+//    - Indications: 1 token (nameK) -> 1 * (strlen(name) + 1 + 2)
+// 4. Each Maintainer Call (name):
+//    - Controls: 1 token (nameS) -> 1 * (strlen(name) + 1 + 2)
+//    - Indications: 1 token (nameK) -> 1 * (strlen(name) + 1 + 2)
+//
+// TotalMaxPayload = sum(MaxTokenLen) + 2 * (totalTokens - 1) + 1 (null)
 class AarTextCodec {
 public:
     AarTextCodec()
         : decodeEntryCount_(0),
           encodeEntryCount_(0),
           unknownSymbolCount_(0),
-          vitalConflictCount_(0) {
+          vitalConflictCount_(0),
+          preallocatedControls_(nullptr),
+          preallocatedIndications_(nullptr) {
         lastUnknownSymbol_[0] = '\0';
+    }
+
+    ~AarTextCodec() {
+        if (preallocatedControls_)   { free(preallocatedControls_);   preallocatedControls_ = nullptr; }
+        if (preallocatedIndications_){ free(preallocatedIndications_); preallocatedIndications_ = nullptr; }
     }
 
     void decodeControls(std::initializer_list<DecodeEntry> entries) {
@@ -426,6 +462,108 @@ public:
     void clearEntries() {
         decodeEntryCount_ = 0;
         encodeEntryCount_ = 0;
+    }
+
+    // Strategy B: Preallocate exact worst-case buffers once during setup()
+    void preallocateBuffers() {
+        if (preallocatedControls_) free(preallocatedControls_);
+        if (preallocatedIndications_) free(preallocatedIndications_);
+
+        size_t ctlSize = maxControlPayloadSize();
+        size_t indSize = maxIndicationPayloadSize();
+
+        preallocatedControls_ = (char*)malloc(ctlSize > 0 ? ctlSize : 1);
+        if (preallocatedControls_) preallocatedControls_[0] = '\0';
+
+        preallocatedIndications_ = (char*)malloc(indSize > 0 ? indSize : 1);
+        if (preallocatedIndications_) preallocatedIndications_[0] = '\0';
+    }
+
+    // Exact worst-case wire size calculation for controls
+    size_t maxControlPayloadSize() const {
+        size_t totalTokenChars = 0;
+        size_t tokenCount = 0;
+
+        for (uint8_t i = 0; i < decodeEntryCount_; ++i) {
+            const DecodeEntry& e = decodeEntries_[i];
+            size_t nlen = strlen(e.name);
+            switch (e.type) {
+                case DecodeEntry::Type::SWITCH:
+                    // 2 tokens: nameNWS, nameRWS
+                    totalTokenChars += 2 * (nlen + 3 + 2); // name + "NWS" + 2 parens
+                    tokenCount += 2;
+                    break;
+                case DecodeEntry::Type::SIGNAL:
+                    // 3 tokens: nameSGS, nameNGS, nameHS
+                    totalTokenChars += 2 * (nlen + 3 + 2); // SGS, NGS
+                    totalTokenChars += (nlen + 2 + 2);     // HS
+                    tokenCount += 3;
+                    break;
+                case DecodeEntry::Type::ELECTRIC_LOCK:
+                    // 1 token: nameWLS
+                    totalTokenChars += (nlen + 3 + 2);
+                    tokenCount += 1;
+                    break;
+                case DecodeEntry::Type::MAINTAINER:
+                    // 1 token: nameS
+                    totalTokenChars += (nlen + 1 + 2);
+                    tokenCount += 1;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (tokenCount == 0) return 1;
+        return totalTokenChars + 2 * (tokenCount - 1) + 1; // delimiters + null terminator
+    }
+
+    // Exact worst-case wire size calculation for indications
+    size_t maxIndicationPayloadSize() const {
+        size_t totalTokenChars = 0;
+        size_t tokenCount = 0;
+
+        for (uint8_t i = 0; i < encodeEntryCount_; ++i) {
+            const EncodeEntry& e = encodeEntries_[i];
+            size_t nlen = strlen(e.name);
+            switch (e.type) {
+                case EncodeEntry::Type::SWITCH:
+                    // 2 tokens: nameNWK, nameRWK
+                    totalTokenChars += 2 * (nlen + 3 + 2);
+                    tokenCount += 2;
+                    break;
+                case EncodeEntry::Type::TRACK:
+                    // 1 token: nameK
+                    totalTokenChars += (nlen + (e.name[nlen - 1] == 'K' ? 0 : 1) + 2);
+                    tokenCount += 1;
+                    break;
+                case EncodeEntry::Type::SIGNAL:
+                    // 3 tokens: nameSGK, nameNGK, nameTEK
+                    totalTokenChars += 3 * (nlen + 3 + 2);
+                    tokenCount += 3;
+                    break;
+                case EncodeEntry::Type::MAST:
+                    // 1 token: nameK
+                    totalTokenChars += (nlen + 1 + 2);
+                    tokenCount += 1;
+                    break;
+                case EncodeEntry::Type::ELECTRIC_LOCK:
+                    // 1 token: nameWLK
+                    totalTokenChars += (nlen + 3 + 2);
+                    tokenCount += 1;
+                    break;
+                case EncodeEntry::Type::MAINTAINER:
+                    // 1 token: nameK
+                    totalTokenChars += (nlen + (e.name[nlen - 1] == 'K' ? 0 : 1) + 2);
+                    tokenCount += 1;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (tokenCount == 0) return 1;
+        return totalTokenChars + 2 * (tokenCount - 1) + 1; // delimiters + null terminator
     }
 
     // Decode inbound comma-separated control tokens into a ControlTransaction
@@ -667,47 +805,45 @@ private:
     }
 
 public:
-    // Encode plant indication vector into human-readable comma-delimited AAR tokens
-    // Strictly formatted in the exact order declared in encodeIndications()
+    // Encode plant indication vector into human-readable comma-delimited AAR tokens.
+    // Verifies capacity up-front based on maxIndicationPayloadSize(); never truncates or corrupts buffer.
     bool encodeIndications(const IndicationVector& ind, char* buffer, size_t maxLength, size_t& lengthOut) const {
         if (!buffer || maxLength == 0) {
             lengthOut = 0;
             return false;
         }
 
-        size_t offset = 0;
-        buffer[0] = '\0';
+        size_t maxNeeded = maxIndicationPayloadSize();
+        if (maxLength < maxNeeded) {
+            lengthOut = 0;
+            buffer[0] = '\0';
+            return false; // Fail fast: buffer insufficient for declared schema
+        }
 
-        auto appendToken = [&](const char* token, bool asserted) -> bool {
-            if (offset > 0) {
-                if (offset + 2 >= maxLength) return false;
-                buffer[offset++] = ',';
-                buffer[offset++] = ' ';
-            }
-            size_t tokLen = strlen(token);
-            if (!asserted) {
-                if (offset + tokLen + 2 >= maxLength) return false;
-                buffer[offset++] = '(';
-                memcpy(buffer + offset, token, tokLen);
-                offset += tokLen;
-                buffer[offset++] = ')';
+        char* p = buffer;
+        bool first = true;
+
+        auto writeToken = [&](const char* name, const char* suffix, bool asserted) {
+            if (first) {
+                first = false;
             } else {
-                if (offset + tokLen >= maxLength) return false;
-                memcpy(buffer + offset, token, tokLen);
-                offset += tokLen;
+                *p++ = ',';
+                *p++ = ' ';
             }
-            buffer[offset] = '\0';
-            return true;
+            if (!asserted) *p++ = '(';
+            size_t n = strlen(name);
+            memcpy(p, name, n);
+            p += n;
+            size_t s = strlen(suffix);
+            memcpy(p, suffix, s);
+            p += s;
+            if (!asserted) *p++ = ')';
         };
 
         for (uint8_t i = 0; i < encodeEntryCount_; ++i) {
             const EncodeEntry& entry = encodeEntries_[i];
             switch (entry.type) {
                 case EncodeEntry::Type::SWITCH: {
-                    char nwkToken[32], rwkToken[32];
-                    snprintf(nwkToken, sizeof(nwkToken), "%sNWK", entry.name);
-                    snprintf(rwkToken, sizeof(rwkToken), "%sRWK", entry.name);
-
                     bool nwk = false;
                     bool rwk = false;
                     if (entry.applianceIndex < ind.switchCount) {
@@ -717,32 +853,22 @@ public:
                             else if (s.position == SwitchPosition::REVERSE) rwk = true;
                         }
                     }
-                    if (!appendToken(nwkToken, nwk)) return false;
-                    if (!appendToken(rwkToken, rwk)) return false;
+                    writeToken(entry.name, "NWK", nwk);
+                    writeToken(entry.name, "RWK", rwk);
                     break;
                 }
                 case EncodeEntry::Type::TRACK: {
-                    char trackToken[32];
-                    size_t nlen = strlen(entry.name);
-                    if (nlen > 0 && (entry.name[nlen - 1] == 'K' || entry.name[nlen - 1] == 'k')) {
-                        snprintf(trackToken, sizeof(trackToken), "%s", entry.name);
-                    } else {
-                        snprintf(trackToken, sizeof(trackToken), "%sK", entry.name);
-                    }
                     bool occ = false;
                     if (entry.applianceIndex < ind.trackCircuitCount) {
                         occ = (ind.trackCircuits[entry.applianceIndex].occupancy == Occupancy::OCCUPIED);
                         if (!entry.activeHigh) occ = !occ;
                     }
-                    if (!appendToken(trackToken, occ)) return false;
+                    size_t nlen = strlen(entry.name);
+                    const char* suff = (nlen > 0 && (entry.name[nlen - 1] == 'K' || entry.name[nlen - 1] == 'k')) ? "" : "K";
+                    writeToken(entry.name, suff, occ);
                     break;
                 }
                 case EncodeEntry::Type::SIGNAL: {
-                    char sgkToken[32], ngkToken[32], tekToken[32];
-                    snprintf(sgkToken, sizeof(sgkToken), "%sSGK", entry.name);
-                    snprintf(ngkToken, sizeof(ngkToken), "%sNGK", entry.name);
-                    snprintf(tekToken, sizeof(tekToken), "%sTEK", entry.name);
-
                     bool sgk = false;
                     bool ngk = false;
                     bool tek = false;
@@ -752,50 +878,41 @@ public:
                         else if (s.activeAuthority == DirectionAuthority::LEFT) ngk = true;
                         if (s.timeLocked) tek = true;
                     }
-                    if (!appendToken(sgkToken, sgk)) return false;
-                    if (!appendToken(ngkToken, ngk)) return false;
-                    if (!appendToken(tekToken, tek)) return false;
+                    writeToken(entry.name, "SGK", sgk);
+                    writeToken(entry.name, "NGK", ngk);
+                    writeToken(entry.name, "TEK", tek);
                     break;
                 }
                 case EncodeEntry::Type::MAST: {
-                    char mastToken[32];
-                    snprintf(mastToken, sizeof(mastToken), "%sK", entry.name);
                     bool permissive = false;
                     if (entry.applianceIndex < ind.mastCount) {
                         permissive = (ind.masts[entry.applianceIndex].rulebookIndication != Indication::STOP);
                     }
-                    if (!appendToken(mastToken, permissive)) return false;
+                    writeToken(entry.name, "K", permissive);
                     break;
                 }
                 case EncodeEntry::Type::ELECTRIC_LOCK: {
-                    char wlkToken[32];
-                    snprintf(wlkToken, sizeof(wlkToken), "%sWLK", entry.name);
                     bool unlocked = false;
                     if (entry.applianceIndex < ind.switchCount) {
                         unlocked = ind.switches[entry.applianceIndex].electricLockUnlocked;
                     }
-                    if (!appendToken(wlkToken, unlocked)) return false;
+                    writeToken(entry.name, "WLK", unlocked);
                     break;
                 }
                 case EncodeEntry::Type::MAINTAINER: {
-                    char mcToken[32];
-                    size_t nlen = strlen(entry.name);
-                    if (nlen > 0 && (entry.name[nlen - 1] == 'K' || entry.name[nlen - 1] == 'k')) {
-                        snprintf(mcToken, sizeof(mcToken), "%s", entry.name);
-                    } else {
-                        snprintf(mcToken, sizeof(mcToken), "%sK", entry.name);
-                    }
                     bool mck = (entry.applianceIndex < MAX_APPLIANCES) ? ind.maintainerCall[entry.applianceIndex] : false;
-                    if (!appendToken(mcToken, mck)) return false;
+                    size_t nlen = strlen(entry.name);
+                    const char* suff = (nlen > 0 && (entry.name[nlen - 1] == 'K' || entry.name[nlen - 1] == 'k')) ? "" : "K";
+                    writeToken(entry.name, suff, mck);
                     break;
                 }
-                case EncodeEntry::Type::PAD_TO_BYTE:
-                case EncodeEntry::Type::SKIP_BITS:
+                default:
                     break;
             }
         }
 
-        lengthOut = offset;
+        *p = '\0';
+        lengthOut = p - buffer;
         return true;
     }
 
@@ -804,6 +921,407 @@ public:
         return encodeIndications(ind, buffer, maxLength, ignored);
     }
 
+    // Direct preallocated encoding for Strategy B
+    const char* encodeIndications(const IndicationVector& ind) {
+        if (!preallocatedIndications_) preallocateBuffers();
+        size_t len = 0;
+        encodeIndications(ind, preallocatedIndications_, maxIndicationPayloadSize(), len);
+        return preallocatedIndications_;
+    }
+
+    // =========================================================================
+    // Symmetrical Office Operations: encodeControls and decodeIndications
+    // =========================================================================
+
+    // Encode a ControlTransaction into comma-delimited AAR control tokens.
+    // Verifies capacity up-front based on maxControlPayloadSize(); never truncates or corrupts buffer.
+    bool encodeControls(const ControlTransaction& ctl, char* buffer, size_t maxLength, size_t& lengthOut) const {
+        if (!buffer || maxLength == 0) {
+            lengthOut = 0;
+            return false;
+        }
+
+        size_t maxNeeded = maxControlPayloadSize();
+        if (maxLength < maxNeeded) {
+            lengthOut = 0;
+            buffer[0] = '\0';
+            return false;
+        }
+
+        char* p = buffer;
+        bool first = true;
+
+        auto writeToken = [&](const char* name, const char* suffix, bool asserted) {
+            if (first) {
+                first = false;
+            } else {
+                *p++ = ',';
+                *p++ = ' ';
+            }
+            if (!asserted) *p++ = '(';
+            size_t n = strlen(name);
+            memcpy(p, name, n);
+            p += n;
+            size_t s = strlen(suffix);
+            memcpy(p, suffix, s);
+            p += s;
+            if (!asserted) *p++ = ')';
+        };
+
+        for (uint8_t i = 0; i < decodeEntryCount_; ++i) {
+            const DecodeEntry& entry = decodeEntries_[i];
+            switch (entry.type) {
+                case DecodeEntry::Type::SWITCH: {
+                    bool nw = false;
+                    bool rw = false;
+                    if (entry.applianceIndex < MAX_APPLIANCES) {
+                        SwitchDemand d = ctl.switchDemands[entry.applianceIndex];
+                        if (d == SwitchDemand::NORMAL) nw = true;
+                        else if (d == SwitchDemand::REVERSE) rw = true;
+                    }
+                    writeToken(entry.name, "NWS", nw);
+                    writeToken(entry.name, "RWS", rw);
+                    break;
+                }
+                case DecodeEntry::Type::SIGNAL: {
+                    bool sg = false;
+                    bool ng = false;
+                    bool h  = false;
+                    if (entry.applianceIndex < MAX_APPLIANCES) {
+                        SignalDemand d = ctl.signalDemands[entry.applianceIndex];
+                        if (d == SignalDemand::RIGHT) sg = true;
+                        else if (d == SignalDemand::LEFT) ng = true;
+                        else if (d == SignalDemand::STOP) h = true;
+                    }
+                    writeToken(entry.name, "SGS", sg);
+                    writeToken(entry.name, "NGS", ng);
+                    writeToken(entry.name, "HS",  h);
+                    break;
+                }
+                case DecodeEntry::Type::ELECTRIC_LOCK: {
+                    bool unlock = false;
+                    if (entry.applianceIndex < MAX_APPLIANCES) {
+                        unlock = (ctl.lockDemands[entry.applianceIndex] == ElectricLockDemand::UNLOCK);
+                    }
+                    writeToken(entry.name, "WLS", unlock);
+                    break;
+                }
+                case DecodeEntry::Type::MAINTAINER: {
+                    bool mc = (entry.applianceIndex < MAX_APPLIANCES) ? ctl.maintainerCall[entry.applianceIndex] : false;
+                    writeToken(entry.name, "S", mc);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        *p = '\0';
+        lengthOut = p - buffer;
+        return true;
+    }
+
+    bool encodeControls(const ControlTransaction& ctl, char* buffer, size_t maxLength) const {
+        size_t ignored = 0;
+        return encodeControls(ctl, buffer, maxLength, ignored);
+    }
+
+    // Direct preallocated encoding for Strategy B
+    const char* encodeControls(const ControlTransaction& ctl) {
+        if (!preallocatedControls_) preallocateBuffers();
+        size_t len = 0;
+        encodeControls(ctl, preallocatedControls_, maxControlPayloadSize(), len);
+        return preallocatedControls_;
+    }
+
+    // Decode inbound comma-delimited indication tokens from a field unit into an IndicationVector.
+    // Strictly sequential: Steps must arrive in the exact order declared in encodeIndications().
+    // An inexact match, missing step, or out-of-order token means the two sides are out of version sync.
+    bool decodeIndications(const char* text, IndicationVector& ind) {
+        if (!text) return false;
+
+        ind = IndicationVector(); // Zero-initialize
+        const char* p = text;
+        char token[32];
+        char rawToken[32];
+        bool asserted = true;
+
+        for (uint8_t i = 0; i < encodeEntryCount_; ++i) {
+            const EncodeEntry& entry = encodeEntries_[i];
+            switch (entry.type) {
+                case EncodeEntry::Type::SWITCH: {
+                    // Step A: must match entry.name + "NW" (suffix 'K')
+                    if (!extractNextTokenWithSuffix(p, token, sizeof(token), asserted, 'K', rawToken)) {
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    char nwExpected[32];
+                    snprintf(nwExpected, sizeof(nwExpected), "%sNW", entry.name);
+                    if (!tokenEqualsIgnoreCase(token, nwExpected)) {
+                        recordUnknownSymbol(rawToken);
+                        vitalConflictCount_++;
+                        return false; // Out of version sync
+                    }
+                    bool nwk = asserted;
+
+                    // Step B: must match entry.name + "RW" (suffix 'K')
+                    if (!extractNextTokenWithSuffix(p, token, sizeof(token), asserted, 'K', rawToken)) {
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    char rwExpected[32];
+                    snprintf(rwExpected, sizeof(rwExpected), "%sRW", entry.name);
+                    if (!tokenEqualsIgnoreCase(token, rwExpected)) {
+                        recordUnknownSymbol(rawToken);
+                        vitalConflictCount_++;
+                        return false; // Out of version sync
+                    }
+                    bool rwk = asserted;
+
+                    // Gate 2: Self-Consistency
+                    if (nwk && rwk) {
+                        vitalConflictCount_++;
+                        return false;
+                    }
+
+                    if (entry.applianceIndex < MAX_APPLIANCES) {
+                        if (entry.applianceIndex >= ind.switchCount) {
+                            ind.switchCount = entry.applianceIndex + 1;
+                        }
+                        SwitchIndication& s = ind.switches[entry.applianceIndex];
+                        s.inCorrespondence = (nwk || rwk);
+                        s.position = nwk ? SwitchPosition::NORMAL : (rwk ? SwitchPosition::REVERSE : SwitchPosition::UNKNOWN);
+                    }
+                    break;
+                }
+                case EncodeEntry::Type::TRACK: {
+                    if (!extractNextTokenWithSuffix(p, token, sizeof(token), asserted, 'K', rawToken)) {
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    char tkExpected[32];
+                    size_t nlen = strlen(entry.name);
+                    if (nlen > 0 && (entry.name[nlen - 1] == 'K' || entry.name[nlen - 1] == 'k')) {
+                        size_t copyLen = (nlen - 1 < sizeof(tkExpected) - 1) ? nlen - 1 : sizeof(tkExpected) - 1;
+                        memcpy(tkExpected, entry.name, copyLen);
+                        tkExpected[copyLen] = '\0';
+                    } else {
+                        strncpy(tkExpected, entry.name, sizeof(tkExpected) - 1);
+                        tkExpected[sizeof(tkExpected) - 1] = '\0';
+                    }
+                    if (!tokenEqualsIgnoreCase(token, tkExpected)) {
+                        recordUnknownSymbol(rawToken);
+                        vitalConflictCount_++;
+                        return false; // Out of version sync
+                    }
+                    if (entry.applianceIndex < MAX_APPLIANCES) {
+                        if (entry.applianceIndex >= ind.trackCircuitCount) {
+                            ind.trackCircuitCount = entry.applianceIndex + 1;
+                        }
+                        bool occ = entry.activeHigh ? asserted : !asserted;
+                        ind.trackCircuits[entry.applianceIndex].occupancy = occ ? Occupancy::OCCUPIED : Occupancy::VACANT;
+                        ind.trackCircuits[entry.applianceIndex].quality = Quality::GOOD;
+                    }
+                    break;
+                }
+                case EncodeEntry::Type::SIGNAL: {
+                    // Step A: SGK
+                    if (!extractNextTokenWithSuffix(p, token, sizeof(token), asserted, 'K', rawToken)) {
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    char sgExpected[32];
+                    snprintf(sgExpected, sizeof(sgExpected), "%sSG", entry.name);
+                    if (!tokenEqualsIgnoreCase(token, sgExpected)) {
+                        recordUnknownSymbol(rawToken);
+                        vitalConflictCount_++;
+                        return false; // Out of version sync
+                    }
+                    bool sgk = asserted;
+
+                    // Step B: NGK
+                    if (!extractNextTokenWithSuffix(p, token, sizeof(token), asserted, 'K', rawToken)) {
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    char ngExpected[32];
+                    snprintf(ngExpected, sizeof(ngExpected), "%sNG", entry.name);
+                    if (!tokenEqualsIgnoreCase(token, ngExpected)) {
+                        recordUnknownSymbol(rawToken);
+                        vitalConflictCount_++;
+                        return false; // Out of version sync
+                    }
+                    bool ngk = asserted;
+
+                    // Step C: TEK
+                    if (!extractNextTokenWithSuffix(p, token, sizeof(token), asserted, 'K', rawToken)) {
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    char teExpected[32];
+                    snprintf(teExpected, sizeof(teExpected), "%sTE", entry.name);
+                    if (!tokenEqualsIgnoreCase(token, teExpected)) {
+                        recordUnknownSymbol(rawToken);
+                        vitalConflictCount_++;
+                        return false; // Out of version sync
+                    }
+                    bool tek = asserted;
+
+                    if (sgk && ngk) {
+                        vitalConflictCount_++;
+                        return false; // Inconsistent
+                    }
+
+                    if (entry.applianceIndex < MAX_APPLIANCES) {
+                        if (entry.applianceIndex >= ind.signalCount) {
+                            ind.signalCount = entry.applianceIndex + 1;
+                        }
+                        SignalIndication& s = ind.signals[entry.applianceIndex];
+                        s.activeAuthority = sgk ? DirectionAuthority::RIGHT : (ngk ? DirectionAuthority::LEFT : DirectionAuthority::STOP);
+                        s.timeLocked = tek;
+                    }
+                    break;
+                }
+                case EncodeEntry::Type::MAST: {
+                    if (!extractNextTokenWithSuffix(p, token, sizeof(token), asserted, 'K', rawToken)) {
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    char mastExpected[32];
+                    snprintf(mastExpected, sizeof(mastExpected), "%s", entry.name);
+                    if (!tokenEqualsIgnoreCase(token, mastExpected)) {
+                        recordUnknownSymbol(rawToken);
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    if (entry.applianceIndex < MAX_APPLIANCES) {
+                        if (entry.applianceIndex >= ind.mastCount) {
+                            ind.mastCount = entry.applianceIndex + 1;
+                        }
+                        ind.masts[entry.applianceIndex].rulebookIndication = asserted ? Indication::CLEAR : Indication::STOP;
+                    }
+                    break;
+                }
+                case EncodeEntry::Type::ELECTRIC_LOCK: {
+                    if (!extractNextTokenWithSuffix(p, token, sizeof(token), asserted, 'K', rawToken)) {
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    char wlExpected[32];
+                    snprintf(wlExpected, sizeof(wlExpected), "%sWL", entry.name);
+                    if (!tokenEqualsIgnoreCase(token, wlExpected)) {
+                        recordUnknownSymbol(rawToken);
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    if (entry.applianceIndex < MAX_APPLIANCES) {
+                        ind.switches[entry.applianceIndex].electricLockUnlocked = asserted;
+                    }
+                    break;
+                }
+                case EncodeEntry::Type::MAINTAINER: {
+                    if (!extractNextTokenWithSuffix(p, token, sizeof(token), asserted, 'K', rawToken)) {
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    char mcExpected[32];
+                    size_t nlen = strlen(entry.name);
+                    if (nlen > 0 && (entry.name[nlen - 1] == 'K' || entry.name[nlen - 1] == 'k')) {
+                        size_t copyLen = (nlen - 1 < sizeof(mcExpected) - 1) ? nlen - 1 : sizeof(mcExpected) - 1;
+                        memcpy(mcExpected, entry.name, copyLen);
+                        mcExpected[copyLen] = '\0';
+                    } else {
+                        strncpy(mcExpected, entry.name, sizeof(mcExpected) - 1);
+                        mcExpected[sizeof(mcExpected) - 1] = '\0';
+                    }
+                    if (!tokenEqualsIgnoreCase(token, mcExpected)) {
+                        recordUnknownSymbol(rawToken);
+                        vitalConflictCount_++;
+                        return false;
+                    }
+                    if (entry.applianceIndex < MAX_APPLIANCES) {
+                        ind.maintainerCall[entry.applianceIndex] = asserted;
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        // Final check: if extra trailing tokens remain, the frame has unexpected data -> out of sync!
+        if (extractNextTokenWithSuffix(p, token, sizeof(token), asserted, 'K', rawToken)) {
+            recordUnknownSymbol(rawToken);
+            vitalConflictCount_++;
+            return false;
+        }
+
+        return true;
+    }
+
+private:
+    bool extractNextTokenWithSuffix(const char*& p, char* tokenOut, size_t maxLen, bool& assertedOut, char expectedSuffix, char* rawTokenOut = nullptr) {
+        if (!extractRawToken(p, tokenOut, maxLen, assertedOut, rawTokenOut)) return false;
+        size_t tlen = strlen(tokenOut);
+        char expLower = (expectedSuffix >= 'A' && expectedSuffix <= 'Z') ? (expectedSuffix + 32) : expectedSuffix;
+        char expUpper = (expectedSuffix >= 'a' && expectedSuffix <= 'z') ? (expectedSuffix - 32) : expectedSuffix;
+        if (tlen < 2 || (tokenOut[tlen - 1] != expUpper && tokenOut[tlen - 1] != expLower)) {
+            recordUnknownSymbol(rawTokenOut);
+            return false;
+        }
+        tokenOut[tlen - 1] = '\0'; // strip suffix
+        return true;
+    }
+
+    bool extractRawToken(const char*& p, char* tokenOut, size_t maxLen, bool& assertedOut, char* rawTokenOut = nullptr) {
+        while (*p && (*p == ',' || *p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')) {
+            p++;
+        }
+        if (!*p) return false;
+
+        const char* tokStart = p;
+        while (*p && *p != ',') {
+            p++;
+        }
+        const char* tokEnd = p;
+
+        while (tokEnd > tokStart && (tokEnd[-1] == ' ' || tokEnd[-1] == '\t' || tokEnd[-1] == '\r' || tokEnd[-1] == '\n')) {
+            tokEnd--;
+        }
+
+        size_t rawLen = tokEnd - tokStart;
+        if (rawLen == 0) return false;
+
+        if (rawTokenOut) {
+            size_t copyLen = (rawLen < 31) ? rawLen : 31;
+            memcpy(rawTokenOut, tokStart, copyLen);
+            rawTokenOut[copyLen] = '\0';
+        }
+
+        assertedOut = true;
+        const char* coreStart = tokStart;
+        const char* coreEnd = tokEnd;
+
+        if (*coreStart == '(') {
+            coreStart++;
+            while (coreStart < coreEnd && (*coreStart == ' ' || *coreStart == '\t')) coreStart++;
+            if (coreEnd > coreStart && coreEnd[-1] == ')') {
+                coreEnd--;
+                while (coreEnd > coreStart && (coreEnd[-1] == ' ' || coreEnd[-1] == '\t')) coreEnd--;
+                assertedOut = false;
+            }
+        }
+
+        size_t coreLen = coreEnd - coreStart;
+        if (coreLen == 0) return false;
+
+        size_t copyLen = (coreLen < maxLen - 1) ? coreLen : maxLen - 1;
+        memcpy(tokenOut, coreStart, copyLen);
+        tokenOut[copyLen] = '\0';
+        return true;
+    }
+
+public:
     // Fault Monitoring Subsystem
     uint16_t unknownSymbolCount() const { return unknownSymbolCount_; }
     const char* lastUnknownSymbol() const { return lastUnknownSymbol_; }
@@ -825,6 +1343,9 @@ private:
     uint16_t unknownSymbolCount_;
     uint16_t vitalConflictCount_;
     char     lastUnknownSymbol_[32];
+
+    char* preallocatedControls_;
+    char* preallocatedIndications_;
 };
 
 // =============================================================================

@@ -13,10 +13,34 @@
 
 using namespace FieldUnit;
 
+#if defined(ARDUINO) && defined(ESP32)
+#define USE_OTA
+#endif
+
+#ifdef USE_OTA
+#include "ota.h"
+
+#if __has_include("secrets.h")
+#include "secrets.h"
+#endif
+
+#ifndef WIFI_SSID
+#define WIFI_SSID       "your-wifi-ssid"
+#define WIFI_PASSWORD   "your-wifi-password"
+#define MQTT_SERVER     "************"
+#define MQTT_PORT       1883
+#endif
+
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+OtaManager ota;
+WiFiClient wifiClient;
+PubSubClient mqtt(wifiClient);
+#endif
+
 PanelIO hardware;
 cTcMachine machine(hardware);
-AarTextCodec codec;
-MqttCodeLine codeLine("************", 1883, "SPCoast", "ctc-office-south");
 
 void configureDesk() {
     // Column 1..2: CP_GilroyCaltrain
@@ -55,34 +79,88 @@ void configureDesk() {
         .inColumn(14).withSwitch("1").withSignal("2").withTrackLamps({ "ALT", "EAT", "SAT" });
 }
 
+#ifdef USE_OTA
+void onMqttMessage(char* topic, byte* payload, unsigned int length) {
+    // Topic: ctc/SPCoast/codeline/<stationName>/indications
+    const char* prefix = "codeline/";
+    const char* p = strstr(topic, prefix);
+    if (!p) return;
+    p += strlen(prefix);
+    const char* slash = strchr(p, '/');
+    if (!slash) return;
+
+    char stationName[32];
+    size_t stLen = slash - p;
+    if (stLen >= sizeof(stationName)) return;
+    memcpy(stationName, p, stLen);
+    stationName[stLen] = '\0';
+
+    char msgBuf[512];
+    size_t copyLen = (length < sizeof(msgBuf) - 1) ? length : sizeof(msgBuf) - 1;
+    memcpy(msgBuf, payload, copyLen);
+    msgBuf[copyLen] = '\0';
+
+    machine.applyIndications(stationName, msgBuf);
+}
+
+void reconnectMqtt(uint32_t nowMs) {
+    static uint32_t lastReconnectMs = 0;
+    if (nowMs - lastReconnectMs < 5000) return;
+    lastReconnectMs = nowMs;
+
+    if (mqtt.connect("ctc-desk-south", "ctc/SPCoast/telemetry", 1, true, "OFFLINE")) {
+        mqtt.publish("ctc/SPCoast/telemetry", "ONLINE", true);
+        mqtt.subscribe("ctc/SPCoast/codeline/+/indications");
+        Serial.println("MQTT connected. Subscribed to plant indications.");
+    }
+}
+#endif
+
 #ifdef ARDUINO
 void setup() {
+    Serial.begin(115200);
     hardware.begin();
     configureDesk();
-    codeLine.begin();
-    codeLine.subscribeIndications();
+    machine.begin(); // Preallocates Strategy B exact buffers and builds canonical AAR schemas
+
+#ifdef USE_OTA
+    ota.begin("spcoast-ctc", WIFI_SSID, WIFI_PASSWORD);
+    mqtt.setServer(MQTT_SERVER, MQTT_PORT);
+    mqtt.setCallback(onMqttMessage);
+#endif
+
+    Serial.println("SPCoast CTC Machine initialized.");
 }
 
 void loop() {
     uint32_t nowMs = millis();
-    codeLine.tick(nowMs);
 
-    // 1. Ingress: Update panel lamps from field indications
-    char cpName[32];
-    char rxPayload[256];
-    size_t rxLen = 0;
-    while (codeLine.receiveIndication(cpName, sizeof(cpName), rxPayload, sizeof(rxPayload), rxLen)) {
-        machine.applyIndications(cpName, rxPayload);
+#ifdef USE_OTA
+    ota.poll();
+    if (WiFi.status() == WL_CONNECTED) {
+        if (!mqtt.connected()) {
+            reconnectMqtt(nowMs);
+        } else {
+            mqtt.loop();
+        }
     }
+#endif
 
-    // 2. Egress: Check code buttons across all stations
     hardware.syncInputs();
 
     size_t stIdx = 0;
     char txTokens[256];
     if (machine.pollCode(stIdx, txTokens, sizeof(txTokens))) {
         const char* targetCp = machine.station(stIdx).name();
-        codeLine.transmitControls(targetCp, txTokens, strlen(txTokens));
+        Serial.printf("CODED [%s]: %s\n", targetCp, txTokens);
+
+#ifdef USE_OTA
+        if (mqtt.connected()) {
+            char topic[128];
+            snprintf(topic, sizeof(topic), "ctc/SPCoast/codeline/%s/controls", targetCp);
+            mqtt.publish(topic, txTokens);
+        }
+#endif
     }
 
     hardware.syncOutputs();

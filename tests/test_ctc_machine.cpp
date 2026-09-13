@@ -59,6 +59,8 @@ void testCtcMachineAssemblyAndCodeButton() {
         .inColumn(11).withSwitch("1").withSignal("2").withTrackLamps({ "1EA", "1T1", "3T1" })
         .inColumn(12).withSwitch("3").withTrackLamps({ "SDT", "TL", "TR" }).withCodeButton();
 
+    machine.begin(); // Preallocates buffers and builds canonical AAR schemas
+
     assert(machine.stationCount() == 2);
     assert(strcmp(machine.station(0).name(), "CP_Christopher") == 0);
     assert(strcmp(machine.station(1).name(), "CP_Corporal") == 0);
@@ -94,11 +96,11 @@ void testCtcMachineAssemblyAndCodeButton() {
     assert(stIdx == 0);
     printf("  -> Compiled Tokens: %s\n", tokens);
 
-    // Verify demands gathered across all three columns
+    // Verify demands gathered across all three columns in canonical AAR sequence
     assert(strstr(tokens, "1NWS, (1RWS)") != nullptr);
     assert(strstr(tokens, "(3NWS), 3RWS") != nullptr);
-    assert(strstr(tokens, "(2SGS), 2NGS, (2HS)") != nullptr);
     assert(strstr(tokens, "5NWS, (5RWS)") != nullptr);
+    assert(strstr(tokens, "(2SGS), 2NGS, (2HS)") != nullptr);
 
     printf("  -> PASS: All column demands harvested correctly into single token packet.\n");
 }
@@ -113,15 +115,16 @@ void testCtcMachineIndicationFanOut() {
     christopher.inColumn(9).withSwitch("3").withSignal("2").withTrackLamps({ "3T1", "3BT1", "5T1" });
     christopher.inColumn(10).withSwitch("5").withTrackLamps({ "1EA", "2EA" }).withCodeButton();
 
-    // Field publishes indication string:
-    // Switch 1: NORMAL (1NWK)
-    // Switch 3: REVERSE (3RWK)
-    // Switch 5: NORMAL (5NWK)
-    // Track 1T1: OCCUPIED (1T1K)
-    // Track 3T1: VACANT ((3T1K))
-    // Track 1EA: OCCUPIED (1EAK)
-    // Signal 2: LEFT (2NGK)
-    const char* indPayload = "1NWK, (1RWK), (3NWK), 3RWK, 5NWK, (5RWK), 1T1K, (3T1K), 1EAK, (2SGK), 2NGK, (2TEK)";
+    machine.begin();
+
+    // Canonical AAR indication payload from field matching declared schema:
+    // Switches: 1 (Normal), 3 (Reverse), 5 (Normal)
+    // Tracks: 1T1 (occ), 1WA (vac), 2WA (vac), 3T1 (vac), 3BT1 (vac), 5T1 (vac), 1EA (occ), 2EA (vac)
+    // Signal: 2 (Left / 2NGK)
+    const char* indPayload = 
+        "1NWK, (1RWK), (3NWK), 3RWK, 5NWK, (5RWK), "
+        "1T1K, (1WAK), (2WAK), (3T1K), (3BT1K), (5T1K), 1EAK, (2EAK), "
+        "(2SGK), 2NGK, (2TEK)";
 
     bool ok = machine.applyIndications("CP_Christopher", indPayload);
     assert(ok);
@@ -129,7 +132,8 @@ void testCtcMachineIndicationFanOut() {
     // Verify Column 8 lamps
     assert(hw.getOutput(8, PanelOutput::SW_NORMAL_LAMP) == true);
     assert(hw.getOutput(8, PanelOutput::SW_REVERSE_LAMP) == false);
-    assert(hw.getOutput(8, PanelOutput::TRACK_LAMP_1) == true); // 1T1 occupied
+    assert(hw.getOutput(8, PanelOutput::TRACK_LAMP_1) == true);  // 1T1 occupied
+    assert(hw.getOutput(8, PanelOutput::TRACK_LAMP_2) == false); // 1WA vacant
 
     // Verify Column 9 lamps
     assert(hw.getOutput(9, PanelOutput::SW_NORMAL_LAMP) == false);
@@ -144,6 +148,12 @@ void testCtcMachineIndicationFanOut() {
     assert(hw.getOutput(10, PanelOutput::TRACK_LAMP_1) == true); // 1EA occupied
 
     printf("  -> PASS: All panel lamps updated accurately from AAR indication tokens.\n");
+
+    // Fail-Safe Test: Verify that an out-of-sync transmission (e.g. out of order or missing steps) is rejected
+    const char* outOfSyncPayload = "1NWK, (1RWK), 1T1K, (3NWK), 3RWK"; // Tracks before switch 3!
+    bool rejected = machine.applyIndications("CP_Christopher", outOfSyncPayload);
+    assert(!rejected);
+    printf("  -> PASS: Out-of-version-sync transmission rejected immediately.\n\n");
 }
 
 int main() {
