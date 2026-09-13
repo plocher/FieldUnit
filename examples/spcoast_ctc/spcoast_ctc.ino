@@ -13,8 +13,8 @@
 
 using namespace FieldUnit;
 
-// Diagnostics: Run raw direct lever-to-lamp mirror (no 1-shot, no MQTT) to test physical hardware
-#define TEST_DIRECT_MIRROR
+// Diagnostics: Uncomment to run raw direct lever-to-lamp mirror (no 1-shot, no MQTT)
+// #define TEST_DIRECT_MIRROR
 
 #if defined(ARDUINO) && defined(ESP32)
 #define USE_OTA

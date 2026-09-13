@@ -117,21 +117,16 @@ public:
     // Single-pass bulk read: 14 fast 16-bit reads instead of 70+ individual I2C transactions
     void syncInputs() override {
         for (uint8_t i = 0; i < 14; ++i) {
-            uint16_t prev = inputs_[i];
             inputs_[i] = m_[i].get();
 
             // Bit 12 (CODE button): active-LOW (0 = down/pressed, 1 = up/released)
-            bool wasDown = (bitRead(prev, 12) == 0);
-            bool isDown  = (bitRead(inputs_[i], 12) == 0);
+            bool isDown = (bitRead(inputs_[i], 12) == 0);
 
-            // Arm on press (high-to-low / 1 -> 0)
-            if (isDown && !wasDown) {
-                codeArmed_[i] = true;
-            }
-            // Trigger on release (low-to-high / 0 -> 1)
-            else if (!isDown && wasDown && codeArmed_[i]) {
-                codeArmed_[i] = false;
-                codeTriggered_[i] = true; // Latched for this cycle
+            if (isDown) {
+                codeArmed_[i] = true; // Arm as long as button is held down
+            } else if (codeArmed_[i]) {
+                codeArmed_[i] = false;     // Disarm on release
+                codeTriggered_[i] = true; // Trigger immediately on release!
             }
         }
     }
