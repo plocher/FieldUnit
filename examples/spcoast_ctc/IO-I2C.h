@@ -94,7 +94,23 @@ public:
             if (mc)   oval &= ~0x0100; // bit 8 (MCK)
             if (code) oval &= ~(0x0008 | 0x0010 | 0x0020); // bits 3,4,5 (M1,M2,M3)
 
-            m_[col].put(oval);
+            // Only write to I2C if lamp outputs changed
+            if (oval != lastOutputs_[col]) {
+                lastOutputs_[col] = oval;
+                m_[col].put(oval);
+            }
+
+            // Report changes on Serial
+            if (ival != inputs_[col]) {
+                uint16_t diff = ival ^ inputs_[col];
+                if (diff & 0x1000) Serial.printf("[DIRECT Col %02d] CODE %s\n", col + 1, code ? "DOWN (M1-3 ON)" : "UP");
+                if (diff & 0x0080) Serial.printf("[DIRECT Col %02d] SW NORMAL %s\n", col + 1, swN ? "ON" : "OFF");
+                if (diff & 0x0040) Serial.printf("[DIRECT Col %02d] SW REVERSE %s\n", col + 1, swR ? "ON" : "OFF");
+                if (diff & 0x0200) Serial.printf("[DIRECT Col %02d] SIG LEFT %s\n", col + 1, sigE ? "ON" : "OFF");
+                if (diff & 0x0400) Serial.printf("[DIRECT Col %02d] SIG STOP %s\n", col + 1, sigS ? "ON" : "OFF");
+                if (diff & 0x0800) Serial.printf("[DIRECT Col %02d] SIG RIGHT %s\n", col + 1, sigW ? "ON" : "OFF");
+                inputs_[col] = ival;
+            }
         }
     }
 
