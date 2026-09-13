@@ -88,13 +88,18 @@ void testCtcMachineAssemblyAndCodeButton() {
     hw.setInput(10, PanelInput::SW_NORMAL, true);
     hw.setInput(10, PanelInput::SW_REVERSE, false);
 
-    // Press CODE10 on Column 10
+    // 3. Press CODE10 on Column 10 (arms, does not trigger while held down)
     hw.setInput(10, PanelInput::CODE_BUTTON, true);
+    assert(!machine.pollCode(stIdx, tokens, sizeof(tokens)));
 
-    // 3. Poll code should succeed for station 0 (CP_Christopher)
+    // 4. Release CODE10 on Column 10 (triggers one-shot on release)
+    hw.setInput(10, PanelInput::CODE_BUTTON, false);
     assert(machine.pollCode(stIdx, tokens, sizeof(tokens)));
     assert(stIdx == 0);
     printf("  -> Compiled Tokens: %s\n", tokens);
+
+    // 5. Subsequent poll while unpressed returns false
+    assert(!machine.pollCode(stIdx, tokens, sizeof(tokens)));
 
     // Verify demands gathered across all three columns in canonical AAR sequence
     assert(strstr(tokens, "1NWS, (1RWS)") != nullptr);

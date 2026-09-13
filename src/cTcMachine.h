@@ -125,8 +125,18 @@ public:
         return (idx < trackCount_) ? trackNames_[idx] : nullptr;
     }
 
-    bool isCodePressed(PanelHardware& hw) const {
-        return hasCodeButton_ && hw.read(columnNumber_, PanelInput::CODE_BUTTON);
+    // Per-button one-shot: arms while pressed down, triggers on release
+    bool isCodeTriggered(PanelHardware& hw) {
+        if (!hasCodeButton_) return false;
+        bool isDown = hw.read(columnNumber_, PanelInput::CODE_BUTTON);
+        if (isDown) {
+            codeArmed_ = true; // Armed while held down
+            return false;
+        } else if (codeArmed_) {
+            codeArmed_ = false; // Disarmed on release
+            return true;        // Triggered on release!
+        }
+        return false;
     }
 
     // Read switch and signal levers into ControlTransaction demands
@@ -209,6 +219,7 @@ private:
     uint8_t sigIdx_;
     char sigNum_[MAX_NAME_LEN];
     bool hasCodeButton_;
+    bool codeArmed_;
     bool hasMaintainerCall_;
     uint8_t mcIdx_;
     char mcNum_[MAX_NAME_LEN];
@@ -351,7 +362,7 @@ public:
     bool pollCode(PanelHardware& hw, ControlTransaction& ctl) {
         bool triggered = false;
         for (uint8_t i = 0; i < columnCount_; ++i) {
-            if (columns_[i].isCodePressed(hw)) {
+            if (columns_[i].isCodeTriggered(hw)) {
                 triggered = true;
                 break;
             }

@@ -13,8 +13,6 @@ public:
             inputs_[i] = 0xFFFF;
             outputs_[i] = 0xFFFF;
             lastOutputs_[i] = 0x0000;
-            codeArmed_[i] = false;
-            codeTriggered_[i] = false;
         }
     }
 
@@ -38,12 +36,11 @@ public:
 
         for (uint8_t i = 0; i < 14; ++i) {
             uint8_t addr = baseAddr + i;
-            m_[i].init(addr, I2Cexpander::MAX7313, 0b0001111011000100);
+            // Enable I2Cexpander's sequential read debounce: reads twice consecutively until stable
+            m_[i].init(addr, I2Cexpander::MAX7313, 0b0001111011000100, /*debounce=*/true);
             m_[i].put(0xFFFF); // All lamps OFF at startup (active-LOW)
             inputs_[i] = m_[i].get();
             lastOutputs_[i] = 0xFFFF;
-            codeArmed_[i] = false;
-            codeTriggered_[i] = false;
         }
     }
 
@@ -94,22 +91,9 @@ public:
             if (mc)   oval &= ~0x0100; // bit 8 (MCK)
             if (code) oval &= ~(0x0008 | 0x0010 | 0x0020); // bits 3,4,5 (M1,M2,M3)
 
-            // Only write to I2C if lamp outputs changed
             if (oval != lastOutputs_[col]) {
                 lastOutputs_[col] = oval;
                 m_[col].put(oval);
-            }
-
-            // Report changes on Serial
-            if (ival != inputs_[col]) {
-                uint16_t diff = ival ^ inputs_[col];
-                if (diff & 0x1000) Serial.printf("[DIRECT Col %02d] CODE %s\n", col + 1, code ? "DOWN (M1-3 ON)" : "UP");
-                if (diff & 0x0080) Serial.printf("[DIRECT Col %02d] SW NORMAL %s\n", col + 1, swN ? "ON" : "OFF");
-                if (diff & 0x0040) Serial.printf("[DIRECT Col %02d] SW REVERSE %s\n", col + 1, swR ? "ON" : "OFF");
-                if (diff & 0x0200) Serial.printf("[DIRECT Col %02d] SIG LEFT %s\n", col + 1, sigE ? "ON" : "OFF");
-                if (diff & 0x0400) Serial.printf("[DIRECT Col %02d] SIG STOP %s\n", col + 1, sigS ? "ON" : "OFF");
-                if (diff & 0x0800) Serial.printf("[DIRECT Col %02d] SIG RIGHT %s\n", col + 1, sigW ? "ON" : "OFF");
-                inputs_[col] = ival;
             }
         }
     }
@@ -118,37 +102,21 @@ public:
     void syncInputs() override {
         for (uint8_t i = 0; i < 14; ++i) {
             inputs_[i] = m_[i].get();
-
-            // Bit 12 (CODE button): active-LOW (0 = down/pressed, 1 = up/released)
-            bool isDown = (bitRead(inputs_[i], 12) == 0);
-
-            if (isDown) {
-                codeArmed_[i] = true; // Arm as long as button is held down
-            } else if (codeArmed_[i]) {
-                codeArmed_[i] = false;     // Disarm on release
-                codeTriggered_[i] = true; // Trigger immediately on release!
-            }
         }
     }
 
+    // Stateless physical pin reads: 0 = asserted/closed, 1 = unasserted/open
     bool read(uint8_t col, FieldUnit::PanelInput fn) override {
         uint8_t dev = colToDev(col);
         uint16_t ival = inputs_[dev];
         switch (fn) {
-            // Inputs are active-LOW: 0 = asserted, 1 = unasserted (pulled high)
             case FieldUnit::PanelInput::SW_NORMAL:          return bitRead(ival, 7) == 0;
             case FieldUnit::PanelInput::SW_REVERSE:         return bitRead(ival, 6) == 0;
             case FieldUnit::PanelInput::SIG_LEFT:           return bitRead(ival, 9) == 0;
             case FieldUnit::PanelInput::SIG_STOP:           return bitRead(ival, 10) == 0;
             case FieldUnit::PanelInput::SIG_RIGHT:          return bitRead(ival, 11) == 0;
             case FieldUnit::PanelInput::MAINTAINER_CALL_SW: return bitRead(ival, 2) == 0;
-            case FieldUnit::PanelInput::CODE_BUTTON: {
-                if (codeTriggered_[dev]) {
-                    codeTriggered_[dev] = false; // Consume trigger
-                    return true;
-                }
-                return false;
-            }
+            case FieldUnit::PanelInput::CODE_BUTTON:        return bitRead(ival, 12) == 0;
             default: return false;
         }
     }
@@ -186,8 +154,6 @@ private:
     uint16_t inputs_[14];
     uint16_t outputs_[14];
     uint16_t lastOutputs_[14];
-    bool codeArmed_[14];
-    bool codeTriggered_[14];
 };
 
 #endif // SPCOAST_IO_I2C_H
