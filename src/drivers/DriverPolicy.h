@@ -71,7 +71,7 @@ private:
 
 /**
  * DriverPolicy - Contract for plant-wide hardware driver execution
- * Evaluated atomically inside ControlPoint::tick()
+ * Evaluated atomically inside InterlockingPlant::tick()
  */
 class DriverPolicy {
 public:
@@ -80,7 +80,7 @@ public:
     virtual void driveAll(uint32_t nowMs) = 0;
 };
 
-inline void ControlPoint::sampleInputs(uint32_t nowMs) {
+inline void InterlockingPlant::sampleInputs(uint32_t nowMs) {
     if (defaultDriverPolicy_) {
         defaultDriverPolicy_->sampleAll(nowMs);
     }
@@ -91,7 +91,7 @@ inline void ControlPoint::sampleInputs(uint32_t nowMs) {
     }
 }
 
-inline void ControlPoint::driveOutputs(uint32_t nowMs) {
+inline void InterlockingPlant::driveOutputs(uint32_t nowMs) {
     if (defaultDriverPolicy_) {
         defaultDriverPolicy_->driveAll(nowMs);
     }
@@ -102,7 +102,7 @@ inline void ControlPoint::driveOutputs(uint32_t nowMs) {
     }
 }
 
-inline void ControlPoint::overrideDriver(const char* applianceName, ApplianceDriver* driver) {
+inline void InterlockingPlant::overrideDriver(const char* applianceName, ApplianceDriver* driver) {
     if (driverOverrideCount_ < MAX_APPLIANCES && applianceName && driver) {
         Switch* sw = findSwitch(applianceName);
         if (sw) {
@@ -122,7 +122,7 @@ inline void ControlPoint::overrideDriver(const char* applianceName, ApplianceDri
     }
 }
 
-inline void ControlPoint::mockSwitch(const char* applianceName, uint32_t travelTimeMs) {
+inline void InterlockingPlant::mockSwitch(const char* applianceName, uint32_t travelTimeMs) {
     static MockSwitchDriver s_pool[MAX_MOCK_SWITCHES];
     if (mockSwitchCount_ < MAX_MOCK_SWITCHES) {
         s_pool[mockSwitchCount_] = MockSwitchDriver(nullptr, travelTimeMs);

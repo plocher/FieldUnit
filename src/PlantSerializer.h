@@ -10,7 +10,7 @@
 #endif
 #include "types.h"
 #include "SignalAspectPolicy.h"
-#include "ControlPoint.h"
+#include "InterlockingPlant.h"
 
 namespace FieldUnit {
 
@@ -265,10 +265,10 @@ inline bool findKey(const char* objStart, const char* key, const char*& valStart
 }
 
 // -------------------------------------------------------------
-// Serialization: ControlPoint -> JSON
+// Serialization: InterlockingPlant -> JSON
 // -------------------------------------------------------------
 
-inline bool serialize(const ControlPoint& cp, char* buffer, size_t maxLen, bool pretty = true) {
+inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, bool pretty = true) {
     if (!buffer || maxLen == 0) return false;
 
     size_t offset = 0;
@@ -460,10 +460,10 @@ inline bool serialize(const ControlPoint& cp, char* buffer, size_t maxLen, bool 
 }
 
 // -------------------------------------------------------------
-// Deserialization: JSON -> ControlPoint
+// Deserialization: JSON -> InterlockingPlant
 // -------------------------------------------------------------
 
-inline bool deserialize(ControlPoint& cp, const char* json) {
+inline bool deserialize(InterlockingPlant& cp, const char* json) {
     if (!json) return false;
 
     // Reset plant to neutral empty state before loading new definition
@@ -830,12 +830,12 @@ inline bool deserialize(ControlPoint& cp, const char* json) {
 
 } // namespace PlantSerializer
 
-// ControlPoint serialization convenience methods
-inline bool ControlPoint::serialize(char* buffer, size_t maxLen, bool pretty) const {
+// InterlockingPlant serialization convenience methods
+inline bool InterlockingPlant::serialize(char* buffer, size_t maxLen, bool pretty) const {
     return PlantSerializer::serialize(*this, buffer, maxLen, pretty);
 }
 
-inline bool ControlPoint::deserialize(const char* json) {
+inline bool InterlockingPlant::deserialize(const char* json) {
     return PlantSerializer::deserialize(*this, json);
 }
 

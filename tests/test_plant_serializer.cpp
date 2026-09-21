@@ -17,7 +17,7 @@ void runPlantSerializerTests() {
     // TEST 1: C++ Plant Setup -> Serialize to JSON
     // -------------------------------------------------------------
     printf("[TEST 1] Configure Plant in C++ and Serialize to JSON\n");
-    ControlPoint cp1("CP_Corporal");
+    InterlockingPlant cp1("CP_Corporal");
     cp1.setDefaultAspectPolicy(AspectPolicies::sp1969);
 
     // Track circuits
@@ -96,10 +96,10 @@ void runPlantSerializerTests() {
     printf("  -> PASS: Serialized CP_Corporal to JSON (%zu bytes)\n\n", strlen(jsonBuf));
 
     // -------------------------------------------------------------
-    // TEST 2: Boot-Time Deserialization into Blank ControlPoint
+    // TEST 2: Boot-Time Deserialization into Blank InterlockingPlant
     // -------------------------------------------------------------
-    printf("[TEST 2] Boot-Time Deserialization from JSON into blank ControlPoint\n");
-    ControlPoint cp2("Blank");
+    printf("[TEST 2] Boot-Time Deserialization from JSON into blank InterlockingPlant\n");
+    InterlockingPlant cp2("Blank");
     bool loadOk = cp2.deserialize(jsonBuf);
     assert(loadOk == true);
 
@@ -191,7 +191,7 @@ void runPlantSerializerTests() {
     // TEST 4: Crossover and B&O CPL Policy Round-Trip
     // -------------------------------------------------------------
     printf("[TEST 4] Crossover & B&O CPL Aspect Policy Round-Trip\n");
-    ControlPoint cpXover("CP_XOVER");
+    InterlockingPlant cpXover("CP_XOVER");
     cpXover.setDefaultAspectPolicy(AspectPolicies::boCpl);
     cpXover.addTrackCircuit("1T");
     cpXover.addTrackCircuit("2T");
@@ -215,7 +215,7 @@ void runPlantSerializerTests() {
     assert(strstr(xoverJson, "\"switchA\": \"3A\"") != nullptr);
     assert(strstr(xoverJson, "\"boCpl\"") != nullptr);
 
-    ControlPoint cpXoverRestored("BlankXover");
+    InterlockingPlant cpXoverRestored("BlankXover");
     bool desXover = cpXoverRestored.deserialize(xoverJson);
     assert(desXover == true);
     assert(cpXoverRestored.crossoverCount() == 1);

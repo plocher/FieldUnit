@@ -35,24 +35,24 @@ STATIONS = {
         "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, 1T1K, EA1K, TK1K, TK2K, TK3K",
     },
     "CP_GilroyInterchange": {
-        "normal": "1NWK, (1RWK), 3NWK, (3RWK), (1T1K), (3T1K), (TK1K), (EA1K), (TLK), (TRK)",
-        "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, 1T1K, 3T1K, TK1K, EA1K, TLK, TRK",
+        "normal": "1NWK, (1RWK), 3NWK, (3RWK), (1T1K), (3T1K), (TK1K), (MC1K), (MC2K)",
+        "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, 1T1K, 3T1K, TK1K, MC1K, MC2K",
     },
     "CP_Luchessa": {
-        "normal": "1NWK, (1RWK), 3NWK, (3RWK), 5NWK, (5RWK), (1T1K), (3T1K), (2SGK), (2NGK), (2TEK)",
-        "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, (5NWK), 5RWK, 1T1K, 3T1K, (2SGK), 2NGK, (2TEK)",
+        "normal": "1NWK, (1RWK), 3NWK, (3RWK), 5NWK, (5RWK), (1T1K), (3T1K), (2SGK), (2NGK), (2TEK), (MC1K)",
+        "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, (5NWK), 5RWK, 1T1K, 3T1K, (2SGK), 2NGK, (2TEK), MC1K",
     },
     "CP_Christopher": {
-        "normal": "1NWK, (1RWK), 3NWK, (3RWK), 5NWK, (5RWK), (1T1K), (1WAK), (2WAK), (3T1K), (3BT1K), (5T1K), (1EAK), (2EAK), (2SGK), (2NGK), (2TEK)",
-        "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, (5NWK), 5RWK, 1T1K, 1WAK, 2WAK, 3T1K, 3BT1K, 5T1K, 1EAK, 2EAK, (2SGK), 2NGK, (2TEK)",
+        "normal": "1NWK, (1RWK), 3NWK, (3RWK), 5NWK, (5RWK), (1T1K), (1WAK), (2WAK), (3T1K), (3BT1K), (5T1K), (1EAK), (2EAK), (2SGK), (2NGK), (2TEK), (MC1K), (MC2K)",
+        "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, (5NWK), 5RWK, 1T1K, 1WAK, 2WAK, 3T1K, 3BT1K, 5T1K, 1EAK, 2EAK, (2SGK), 2NGK, (2TEK), MC1K, MC2K",
     },
     "CP_Corporal": {
-        "normal": "1NWK, (1RWK), 3NWK, (3RWK), (1EAK), (1T1K), (3T1K), (SDTK), (TLK), (TRK), (2SGK), (2NGK), (2TEK)",
-        "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, 1EAK, 1T1K, 3T1K, SDTK, TLK, TRK, 2SGK, (2NGK), (2TEK)",
+        "normal": "1NWK, (1RWK), 3NWK, (3RWK), (1EAK), (1T1K), (3T1K), (SDTK), (TLK), (TRK), (2SGK), (2NGK), (2TEK), (MC1K)",
+        "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, 1EAK, 1T1K, 3T1K, SDTK, TLK, TRK, 2SGK, (2NGK), (2TEK), MC1K",
     },
     "CP_Sargent": {
-        "normal": "1NWK, (1RWK), (1T1K), (HBDK)",
-        "reverse": "(1NWK), 1RWK, 1T1K, HBDK",
+        "normal": "1NWK, (1RWK), (1T1K), (HBDK), (MC1K)",
+        "reverse": "(1NWK), 1RWK, 1T1K, HBDK, MC1K",
     },
     "CP_Watsonville": {
         "normal": "1NWK, (1RWK), (ALTK), (EATK), (SATK), (2SGK), (2NGK), (2TEK)",

@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <initializer_list>
 #include "types.h"
-#include "ControlPoint.h"
+#include "InterlockingPlant.h"
 #include "WireCodec.h"
 
 namespace FieldUnit {
@@ -181,7 +181,11 @@ public:
         return hw.codeOneShot(columnNumber_).consume();
     }
 
-    // Read switch and signal levers into ControlTransaction demands
+    // Snapshot current debounced lever/switch positions into the control transaction.
+    // CODE is handled separately via OneShot (press/release). Levers report level only:
+    //   Switch: N, R, or neither (open/open → both tokens dropped on the wire)
+    //   Signal: L, C/Stop, R (center or Stop contact → STOP)
+    //   MC: on/off
     void harvestDemands(PanelHardware& hw, ControlTransaction& ctl) const {
         if (hasSwitch_ && swIdx_ < MAX_APPLIANCES) {
             bool n = hw.read(columnNumber_, PanelInput::SW_NORMAL);
@@ -191,22 +195,22 @@ public:
             } else if (r && !n) {
                 ctl.switchDemands[swIdx_] = SwitchDemand::REVERSE;
             } else {
+                // Neither (or both) contacts closed: report as no N/R assertion on the wire.
                 ctl.switchDemands[swIdx_] = SwitchDemand::NO_CHANGE;
             }
         }
 
         if (hasSignal_ && sigIdx_ < MAX_APPLIANCES) {
             bool l = hw.read(columnNumber_, PanelInput::SIG_LEFT);
-            bool s = hw.read(columnNumber_, PanelInput::SIG_STOP);
+            bool c = hw.read(columnNumber_, PanelInput::SIG_STOP);
             bool r = hw.read(columnNumber_, PanelInput::SIG_RIGHT);
-            if (r && !l) {
+            if (r && !l && !c) {
                 ctl.signalDemands[sigIdx_] = SignalDemand::RIGHT;
-            } else if (l && !r) {
+            } else if (l && !r && !c) {
                 ctl.signalDemands[sigIdx_] = SignalDemand::LEFT;
-            } else if (s || (!l && !r)) {
-                ctl.signalDemands[sigIdx_] = SignalDemand::STOP;
             } else {
-                ctl.signalDemands[sigIdx_] = SignalDemand::NO_CHANGE;
+                // Center contact, no contacts, or ambiguous multi-assert → Stop.
+                ctl.signalDemands[sigIdx_] = SignalDemand::STOP;
             }
         }
 
@@ -399,7 +403,7 @@ public:
         return idx;
     }
 
-    // Typed demand polling
+    // Typed demand polling: CODE OneShot consume + lever position snapshot
     bool pollCode(PanelHardware& hw, ControlTransaction& ctl) {
         bool triggered = false;
         for (uint8_t i = 0; i < columnCount_; ++i) {
@@ -418,23 +422,14 @@ public:
         return false;
     }
 
-    // AAR string token polling using configured codec
-    bool pollCode(PanelHardware& hw, char* outTokens, size_t maxLen) {
-        ControlTransaction ctl;
-        if (pollCode(hw, ctl)) {
-            size_t written = 0;
-            return codec_.encodeControls(ctl, outTokens, maxLen, written);
-        }
-        return false;
-    }
-
-    // Direct preallocated encoding (Strategy B)
+    // Strategy B: encode into the station's preallocated controls buffer (sized at begin()).
+    // Returns pointer valid until the next pollCode/encode on this station; nullptr if no CODE.
     const char* pollCode(PanelHardware& hw) {
         ControlTransaction ctl;
-        if (pollCode(hw, ctl)) {
-            return codec_.encodeControls(ctl);
+        if (!pollCode(hw, ctl)) {
+            return nullptr;
         }
-        return nullptr;
+        return codec_.encodeControls(ctl);
     }
 
     // Typed indication apply
@@ -492,7 +487,11 @@ inline PanelColumn& PanelColumn::withCodeButton() {
 
 inline PanelColumn& PanelColumn::withMaintainerCall(const char* mcNum) {
     if (mcNum) {
-        strncpy(mcNum_, mcNum, sizeof(mcNum_) - 1);
+        if (mcNum[0] == 'M' || mcNum[0] == 'm') {
+            strncpy(mcNum_, mcNum, sizeof(mcNum_) - 1);
+        } else {
+            snprintf(mcNum_, sizeof(mcNum_), "MC%s", mcNum);
+        }
         mcNum_[sizeof(mcNum_) - 1] = '\0';
         hasMaintainerCall_ = true;
     }
@@ -577,11 +576,14 @@ public:
         return false;
     }
 
-    // Check all stations for a CODE button push; compiles tokens for that station
-    bool pollCode(size_t& outStationIdx, char* outTokens, size_t maxLen) {
+    // Check all stations for a CODE release; returns Strategy B token pointer for that station.
+    // tokens points at station-owned preallocated storage (valid until next code on that station).
+    bool pollCode(size_t& outStationIdx, const char*& outTokens) {
         for (size_t i = 0; i < stationCount_; ++i) {
-            if (stations_[i].pollCode(hardware_, outTokens, maxLen)) {
+            const char* encoded = stations_[i].pollCode(hardware_);
+            if (encoded) {
                 outStationIdx = i;
+                outTokens = encoded;
                 return true;
             }
         }

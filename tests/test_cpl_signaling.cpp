@@ -192,10 +192,10 @@ void runCplSignalingTests() {
     printf("  -> PASS: Advance Approach flashes yellow disk at 1 Hz with steady top marker\n\n");
 
     // -------------------------------------------------------------
-    // TEST 5: ControlPoint Plant-Wide IndicationVector Export
+    // TEST 5: InterlockingPlant Plant-Wide IndicationVector Export
     // -------------------------------------------------------------
-    printf("[TEST 5] ControlPoint Plant-Wide IndicationVector Export\n");
-    ControlPoint cp("CP_HARPERS_FERRY", AspectPolicies::boCpl);
+    printf("[TEST 5] InterlockingPlant Plant-Wide IndicationVector Export\n");
+    InterlockingPlant cp("CP_HARPERS_FERRY", AspectPolicies::boCpl);
     SignalMast* homeMast = cp.addSignalMast("4LA", MastType::ONE_HEAD);
     homeMast->setIndication(Indication::SLOW_CLEAR);
 

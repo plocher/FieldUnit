@@ -1,5 +1,8 @@
 # Inside the Bungalow: An Introduction to AAR Signaling for Model Railroaders
 
+**Next layer (CTC territory, structural routes, plant drawing rules):**
+[CTC, Subdivision, and Plant Design](CTC_SUBDIVISION_AND_PLANT_DESIGN.md).
+
 ---
 
 ## Act I: The Threshold
@@ -482,6 +485,135 @@ $$\text{Commanded Intent} \stackrel{?}{=} \text{Observed Ground Truth}$$
 - If a switch is locked or obstructed, the indication lamp **remains dark** or sounds a transit alarm.
 - The dispatcher sees: *"The plant did not move."*
 
+#### 9.4 cTc machine behavior
+In prototype Centralized Traffic Control (and AAR Rule 261):
+-  Levers are Intent, Indications are Truth: Office levers represent human intent; field relays represent physical truth.
+-  The Code Button Gate is Inviolable: A CTC machine never transmits controls across the CodeLine on boot. If office power resets while trains are running, transmitting un-coded lever positions could throw switches under a train or violate active approach locks.
+-  The Cold-Start Rule: On power-up, the desk listens to retained field indications. The panel lamps illuminate to reflect field reality. If a physical switch lever disagrees with the illuminated lamp, the lever is Out of Correspondence (disagreement). The dispatcher must either move the lever to match reality, or align the lever and deliberately punch the CODE button.
+
+#### 9.5 The Three-Tier Architecture: Interlocking Plant, Controlled Point, and Panel Column
+
+In prototype signaling, the term "Control Point" is often used loosely, creating confusion between geographic junctions, electrical line stepping units, and office furniture. FieldUnit utilizes a three-tier domain separation:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Interlocking Plant (Field Reality)                       │
+│    - The physical track junction, rails, frogs, and signals.│
+│    - Evaluates AAR vital safety rules (WLR, KR, ASR, ERS).  │
+│    - Contains all switches, tracks, and signals in a plant. │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. Controlled Point / Line Station (CodeLine Capacity)      │
+│    - The addressable supervisory unit on the 2-wire line.   │
+│    - Strictly bounded by stepping capacity (15, 20, 32 step)│
+│    - A single plant may aggregate multiple controlled points│
+│      (e.g., Luchessa aggregates three 15-step points).      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. Panel Column (Office Ergonomics)                         │
+│    - The physical 2-inch wide vertical slice on the console.│
+│    - Contains switch levers, signal levers, jewels, lamps.  │
+│    - Consolidated: multiple columns share a CODE start.     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+1. **Interlocking Plant**: The operational, legal, and engineering unit defined by AAR and FRA rules. A physical junction of tracks governed by interlocking rules. Equipment shelters (bungalows, relay houses, instrument cases, or tower ground floors) are simply architectural enclosures protecting the plant's relays.
+2. **Controlled Point**: The addressable CodeLine unit on the shared wire. Its capacity is physically fixed by the line coding stepper hardware (e.g., 15 steps in US&S Form 506). Large interlockings (like Luchessa) do not invent arbitrary giant code cycles; they assign multiple 15-step controlled point addresses to a single plant.
+3. **Panel Column**: The physical modular vertical slice of the office machine (such as a US&S Model 503). In standard 15-step systems, one column maps 1:1 with one controlled point. Multiple columns are physically grouped under a shared CODE button for dispatcher convenience.
+##### 9.5.1 SPCoast Model 503 15-Step CodeLine Display
+
+The SPCoast Model 503 desk represents each `PanelColumn` as a 15-step controlled-point cycle. A shared CODE button for a multi-column Interlocking Plant sequences one cycle per column. The desk sends the complete, atomic MQTT `ControlTransaction` only after the last column's execution pulse. A returned plant indication likewise runs one cycle per column before the desk applies the complete `IndicationVector`.
+
+The two repurposed traffic lamps on Column 3 display the line direction:
+- **S lamp / Southbound traffic lamp**: Office-to-field control code.
+- **N lamp / Northbound traffic lamp**: Field-to-office indication code.
+
+Each display cycle has the following fixed step allocation:
+
+| Step | Function |
+| :--- | :--- |
+| 1 | Line clear / synchronization |
+| 2–5 | Four-bit physical panel-column address |
+| 6–7 | Switch Normal and Reverse state |
+| 8–10 | Signal Left, Stop/Time Element, and Right state |
+| 11–13 | Up to three track indication lamps on returned indication cycles |
+| 14 | Maintainer Call state |
+| 15 | Execution / completion |
+
+An asserted function produces a **long 350 ms pulse**. An unasserted function produces a **short 110 ms pulse**. A 25 ms lamp-off interval separates pulses. Thus operators can distinguish station address and function state from the cadence instead of watching an arbitrary blink pattern. The desk retains the full AAR token snapshot internally; this display rhythm makes the high-speed MQTT transport behave like the intended 15-step office procedure.
+
+#### 9.6 Machines, Eras, and Line Coding Protocols
+
+Railroad **signal towers** housed specialized mechanical, electro-mechanical, and electronic interlocking machines and communication gear used to safely direct train traffic, track switches, and signals.
+
+- **Key Equipment Found in Railroad Towers**:
+  - **Interlocking Machines**: Large frames with physical or electric locking beds that forced operators to align tracks in a safe sequence before clearing a signal.
+  - **Mechanical Levers ("Armstrong" Plants)**: Heavy tall levers connected via underground pipes, bell cranks, and rods directly to track switches and derails.
+  - **Pistol-Grip and Miniature Lever Machines**: Compact electric or electro-pneumatic switches produced by companies like General Railway Signal (GRS) and Union Switch and Signal (US&S).
+  - **Model Boards / Track Indication Panels**: Visual display maps with small light bulbs showing track occupancy and block status.
+  - **Relays and Storage Batteries**: Electrical hardware stored on the ground floor to power circuits, track signal indicators, and electric switch motors.
+
+Later-era electronic control desks allowed a single operator to manage multiple distant junctions over wire pairs.
+
+##### Union Switch & Signal (US&S) Coded Systems:
+- **15-Step (US&S Form 504 / 506)**: 1930s–1950s workhorse (Southern Pacific, PRR, NYC). Ideal for 1-switch / 1-signal modular columns (~1.8s to 2.2s line cycle).
+- **20-Step (US&S Form 506-A / 508)**: Added capacity for auxiliary controls (Call-On buttons, snow melters, multiple maintainer calls).
+- **32-Step (US&S Type L Form 510)**: 1950s+ high-capacity consolidation for dense universal crossovers and multiple switches per station address (~4.5s line cycle).
+- **Continuous Scan (Electronic / Quindar)**: Solid-state scanning without time-code stepping delays.
+
+##### General Railway Signal (GRS) Systems:
+- **Pistol-Grip Machines**: Early heavy-duty GRS Model 2 control consoles featuring distinctive pistol-grip levers for operating switches and signals.
+- **Type K and Type K2 Class M Coded Systems**: GRS two-wire line systems sending remote indications and controls using polarized line pulses.
+- **NX (Entrance-Exit) Systems**: Introduced by GRS in 1937, this revolutionary relay-based control panel design allowed a dispatcher to set up a complete route simply by pushing an entrance button and an exit button, with the machine automatically lining all intermediate switches and signals.
+
+#### 9.7 Switch Machine Physics: Lock Dog Dominance vs. Point Detection
+
+In a dual-control power switch machine (US&S M-23A/B or GRS Model 5D/E):
+$$\text{Correspondence } (\text{KR}) = \text{Points Closed (Detector Rod)} \ \mathbf{AND} \ \text{Lock Dog Seated (Lock Rod)}$$
+- For vital safety, the mechanical lock dog contacts dominate point detection: an unlocked switch **cannot** be in correspondence under any circumstances, even if the point rail is still touching the stock rail.
+- Within **~100 to 150 ms** of lock motor rotation, the escapement withdraws the lock dog from the lock rod notch.
+- The circuit controller contacts break *open* immediately, dropping `NWCR`/`RWCR` and `KR`.
+- On the panel, the correspondence lamp drops **DARK** (Out of Correspondence).
+
+##### Dispatcher-controlled derail: 5
+
+This is a switch-like controlled appliance:
+
+•  uniquely numbered like a switch;
+•  receives a dispatcher command;
+•  can occupy a route requirement;
+•  may have its own indication;
+
+##### Field-controlled dependent derail: 3D
+
+This is a dependent appliance:
+
+•  tied to its governing switch, such as 3;
+•  has no independent dispatcher control;
+•  may contribute a field-state/feedback condition;
+
+It is a switch-dependent field appliance.
+
+#### 9.8 The Natural Timeline for Fast-Clock Model Railroad Operations
+
+On model railroads where fast clocks and distance compression are standard, a full prototype 11-second cycle (4s code out + 3s motor transit + 4s code back) feels sluggish. However, instantaneous network delivery feels synthetic.
+
+The natural operational cadence for fast-clock layout operations:
+
+| Phase | Operational Duration | What Happens Physically | What You See on the Desk |
+| :--- | :--- | :--- | :--- |
+| **1. Outbound CodeLine Stepping** | **1.2s to 1.8s** | Office stepper relays transmit address and function pulses. | **Existing lamp stays lit.** Code button released. Stepper relays clatter. |
+| **2. Field Reception & Lock Dog Pull** | **~150ms** | Field execution relay fires. Motor withdraws lock dog. | Lock contacts open $\implies$ **Existing lamp drops DARK**. |
+| **3. Point Travel** | **2.0s to 2.8s** | Motor drives switch points across switch ties. | Both lamps **DARK** (Out of Correspondence / MOVING). |
+| **4. Seating & Inbound Indication Code** | **1.2s to 1.6s** | Points seat firmly; reverse lock dog seats into notch. Field transmits indication code back to office. | Points locked $\implies$ return code steps $\implies$ **New correspondence lamp illuminates**. |
+
+Total elapsed time from button punch to new jewel: **~4.5 to 5.5 seconds**.
+This timeline provides the mechanical and electrical hesitation of prototype signaling while maintaining responsiveness for layout operating sessions.
+
 ---
 
 ### 10. The CodeLine Taxonomy: Controls versus Indications
@@ -537,7 +669,7 @@ Now we return from theory to your layout.
 Let us examine how all these concepts unite in a real, compilable sketch: **CP Corporal** (Southern Pacific Coast Line MP 83).
 
 ### 11.1 The Track Diagram
-Double track from the north (`MT1` and `MT2`) converges into single track through Switch 3.
+Rule 251 double track from the north (`MT1` and `MT2`) converges into single track through Switch 3.
 Switch 3 is operated as a **Spring Switch (`[SS]`)**: Southbound trains on `MT1` make a trailing-point move through the spring points onto single track without needing motor alignment.
 Northbound trains on single track `1NAT` face signal `2nab` at Switch 3:
 - Moving straight onto `MT2` follows the current of traffic (right-hand running).
@@ -571,7 +703,7 @@ The route rules read directly in railroad terms:
 cp.route("MT-NB")
   .governedBy(sig2, DirectionAuthority::LEFT)
   .displays(mast2NAB, 0 /* Top Head */, Indication::CLEAR)
-  .aligns({ {sw1, SwitchPosition::NORMAL}, 
+  .aligns({ {sw1, SwitchPosition::NORMAL},
             {sw3, SwitchPosition::NORMAL} })
   .clears({ tc1T1, tc3T1, tc2SAT });
 

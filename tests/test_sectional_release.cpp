@@ -15,7 +15,7 @@ void runSectionalReleaseTests() {
     // -------------------------------------------------------------
     // Setup Plant: Two Switches (SW1, SW3), Three Blocks (1T, 2T, 3T)
     // -------------------------------------------------------------
-    ControlPoint cp("CP_COMPLEX");
+    InterlockingPlant cp("CP_COMPLEX");
 
     // Track circuits:
     // 1T: Detector circuit over points of Switch 1 (Entrance)

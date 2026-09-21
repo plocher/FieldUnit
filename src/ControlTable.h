@@ -10,7 +10,7 @@
 
 namespace FieldUnit {
 
-class ControlPoint;
+class InterlockingPlant;
 
 static constexpr uint8_t MAX_ROUTE_SWITCHES = 8;
 static constexpr uint8_t MAX_ROUTE_BLOCKS   = 8;
@@ -76,7 +76,7 @@ public:
         }
     }
 
-    void setParent(ControlPoint* cp) { cp_ = cp; }
+    void setParent(InterlockingPlant* cp) { cp_ = cp; }
 
     RouteState state() const { return state_; }
     bool isIdle() const { return state_ == RouteState::IDLE; }
@@ -251,7 +251,7 @@ private:
     bool               isEngineReturn_;
     TrackCircuit*      originBlock_;
     TrackCircuit*      osBlock_;
-    ControlPoint*      cp_;
+    InterlockingPlant* cp_;
     RouteState         state_;
     SectionState       sectionStates_[MAX_ROUTE_SWITCHES];
 };
@@ -264,7 +264,7 @@ public:
         routeCount_ = 0;
     }
 
-    Route& addRoute(const char* name, ControlPoint* cp = nullptr) {
+    Route& addRoute(const char* name, InterlockingPlant* cp = nullptr) {
         if (routeCount_ >= MAX_ROUTES) {
             return dummyRoute_;
         }

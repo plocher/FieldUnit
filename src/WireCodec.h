@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <initializer_list>
 #include "types.h"
-#include "ControlPoint.h"
+#include "InterlockingPlant.h"
 #include "Switch.h"
 #include "SignalControl.h"
 #include "TrackCircuit.h"
@@ -424,9 +424,55 @@ public:
         lastUnknownSymbol_[0] = '\0';
     }
 
+    // Owns malloc'd Strategy B buffers — not copyable; movable.
+    AarTextCodec(const AarTextCodec&) = delete;
+    AarTextCodec& operator=(const AarTextCodec&) = delete;
+
+    AarTextCodec(AarTextCodec&& other) noexcept
+        : decodeEntryCount_(other.decodeEntryCount_),
+          encodeEntryCount_(other.encodeEntryCount_),
+          unknownSymbolCount_(other.unknownSymbolCount_),
+          vitalConflictCount_(other.vitalConflictCount_),
+          preallocatedControls_(other.preallocatedControls_),
+          preallocatedIndications_(other.preallocatedIndications_) {
+        memcpy(decodeEntries_, other.decodeEntries_, sizeof(decodeEntries_));
+        memcpy(encodeEntries_, other.encodeEntries_, sizeof(encodeEntries_));
+        memcpy(lastUnknownSymbol_, other.lastUnknownSymbol_, sizeof(lastUnknownSymbol_));
+        other.preallocatedControls_ = nullptr;
+        other.preallocatedIndications_ = nullptr;
+        other.decodeEntryCount_ = 0;
+        other.encodeEntryCount_ = 0;
+    }
+
+    AarTextCodec& operator=(AarTextCodec&& other) noexcept {
+        if (this != &other) {
+            if (preallocatedControls_) free(preallocatedControls_);
+            if (preallocatedIndications_) free(preallocatedIndications_);
+            decodeEntryCount_ = other.decodeEntryCount_;
+            encodeEntryCount_ = other.encodeEntryCount_;
+            unknownSymbolCount_ = other.unknownSymbolCount_;
+            vitalConflictCount_ = other.vitalConflictCount_;
+            preallocatedControls_ = other.preallocatedControls_;
+            preallocatedIndications_ = other.preallocatedIndications_;
+            memcpy(decodeEntries_, other.decodeEntries_, sizeof(decodeEntries_));
+            memcpy(encodeEntries_, other.encodeEntries_, sizeof(encodeEntries_));
+            memcpy(lastUnknownSymbol_, other.lastUnknownSymbol_, sizeof(lastUnknownSymbol_));
+            other.preallocatedControls_ = nullptr;
+            other.preallocatedIndications_ = nullptr;
+            other.decodeEntryCount_ = 0;
+            other.encodeEntryCount_ = 0;
+        }
+        return *this;
+    }
+
     ~AarTextCodec() {
         if (preallocatedControls_)   { free(preallocatedControls_);   preallocatedControls_ = nullptr; }
         if (preallocatedIndications_){ free(preallocatedIndications_); preallocatedIndications_ = nullptr; }
+    }
+
+    /** True when Strategy B control/indication buffers have been allocated. */
+    bool buffersReady() const {
+        return preallocatedControls_ != nullptr && preallocatedIndications_ != nullptr;
     }
 
     void decodeControls(std::initializer_list<DecodeEntry> entries) {
@@ -1026,10 +1072,13 @@ public:
         return encodeControls(ctl, buffer, maxLength, ignored);
     }
 
-    // Direct preallocated encoding for Strategy B
+    // Direct preallocated encoding for Strategy B.
+    // Buffer size was fixed at setup() via maxControlPayloadSize(); no loop-time growth checks.
     const char* encodeControls(const ControlTransaction& ctl) {
         if (!preallocatedControls_) preallocateBuffers();
+        if (!preallocatedControls_) return nullptr;
         size_t len = 0;
+        // Capacity equals the exact worst-case size used at allocation time.
         encodeControls(ctl, preallocatedControls_, maxControlPayloadSize(), len);
         return preallocatedControls_;
     }

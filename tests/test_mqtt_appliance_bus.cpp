@@ -30,9 +30,9 @@ void runMqttApplianceBusTests() {
     uint32_t clockMs = 1000;
 
     // -------------------------------------------------------------
-    // Setup Plant: ControlPoint with Track, Switch, and Mast
+    // Setup Plant: InterlockingPlant with Track, Switch, and Mast
     // -------------------------------------------------------------
-    ControlPoint cp("CP_OAKLAND");
+    InterlockingPlant cp("CP_OAKLAND");
     TrackCircuit* tc1T1 = cp.addTrackCircuit("1T1");
     TrackCircuit* tc2T1 = cp.addTrackCircuit("2T1");
     Switch* sw1         = cp.addSwitch("1");
@@ -55,9 +55,9 @@ void runMqttApplianceBusTests() {
     cp.tick(clockMs);
 
     // -------------------------------------------------------------
-    // TEST 1: Auto-Binding from ControlPoint
+    // TEST 1: Auto-Binding from InterlockingPlant
     // -------------------------------------------------------------
-    printf("[TEST 1] Auto-binding all appliances from ControlPoint\n");
+    printf("[TEST 1] Auto-binding all appliances from InterlockingPlant\n");
     MqttApplianceBus bus("track");
     bus.onPack(testPublishHandler);
     bus.bind(cp);

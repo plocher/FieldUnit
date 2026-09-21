@@ -32,7 +32,7 @@ void runDriverPolicyTests() {
     // TEST 1: Plant-Wide MQTT Driver Policy with Encapsulated cp.tick()
     // -------------------------------------------------------------
     printf("[TEST 1] Plant-Wide MQTT Policy: Zero manual driver calls in loop()\n");
-    ControlPoint cpMqtt("CP_SAN_JOSE");
+    InterlockingPlant cpMqtt("CP_SAN_JOSE");
     TrackCircuit* tc1 = cpMqtt.addTrackCircuit("1T1");
     Switch* sw1       = cpMqtt.addSwitch("1");
     SignalMast* mast2 = cpMqtt.addSignalMast("2LA", MastType::ONE_HEAD);
@@ -56,7 +56,7 @@ void runDriverPolicyTests() {
     mqttBus.onPack(loggingPublishHandler);
     mqttBus.bind(cpMqtt);
 
-    // Set plant-wide driver policy on ControlPoint!
+    // Set plant-wide driver policy on InterlockingPlant!
     cpMqtt.setDefaultDriverPolicy(DriverPolicies::MQTT(mqttBus));
 
     // The entire loop is now a single atomic call: cp.tick(nowMs)!
@@ -81,7 +81,7 @@ void runDriverPolicyTests() {
     // TEST 2: Hybrid Plant - Physical IOBit Bus with Workbench Mock Override
     // -------------------------------------------------------------
     printf("[TEST 2] Hybrid Plant: Physical I2C Bus with Mocked Turnout Override\n");
-    ControlPoint cpHybrid("CP_WARM_SPRINGS");
+    InterlockingPlant cpHybrid("CP_WARM_SPRINGS");
     TrackCircuit* tcMain = cpHybrid.addTrackCircuit("1T1");
     Switch* swInstalled  = cpHybrid.addSwitch("1");  // Physically installed Tortoise
     Switch* swBench      = cpHybrid.addSwitch("3");  // Uninstalled turnout on workbench!

@@ -10,7 +10,7 @@ void runCPChristopherTests() {
     printf("   SP Coast Line MP 81 (Double Track + Crossover)   \n");
     printf("====================================================\n\n");
 
-    ControlPoint cp("CP_Christopher");
+    InterlockingPlant cp("CP_Christopher");
 
     // -------------------------------------------------------------
     // 1. Declare Track Circuits

@@ -3,14 +3,14 @@
 #include <string.h>
 
 #include "WireCodec.h"
-#include "ControlPoint.h"
+#include "InterlockingPlant.h"
 
 using namespace FieldUnit;
 
 void testAarTextCodecSequentialStepping() {
     printf("[TEST] AarTextCodec: Strict sequential step decoding and declaration-order encoding\n");
 
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1");
     Switch* sw3 = cp.addSwitch("3");
     SignalControl* sig2 = cp.addSignalControl("2");
@@ -93,7 +93,7 @@ void testAarTextCodecSequentialStepping() {
 void testAarTextCodecMandatorySuffixes() {
     printf("[TEST] AarTextCodec: Mandatory 'S' control suffix enforcement\n");
 
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1");
     SignalControl* sig2 = cp.addSignalControl("2");
 
@@ -119,7 +119,7 @@ void testAarTextCodecMandatorySuffixes() {
 void testAarTextCodecVitalConflictIsolation() {
     printf("[TEST] AarTextCodec: Vital conflict isolation ('don't poke a sleeping bear')\n");
 
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1");
     SignalControl* sig2 = cp.addSignalControl("2");
     TrackCircuit* tc1T = cp.addTrackCircuit("1T");
@@ -160,7 +160,7 @@ void testAarTextCodecVitalConflictIsolation() {
 void testAarTextCodecSignalConflict() {
     printf("[TEST] AarTextCodec: Conflicting signal directions\n");
 
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     SignalControl* sig2 = cp.addSignalControl("2");
 
     AarTextCodec codec;
@@ -180,7 +180,7 @@ void testAarTextCodecSignalConflict() {
 void testBitPackedCodecSequentialStream() {
     printf("[TEST] BitPackedCodec: Sequential bit streaming and byte padding\n");
 
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1");
     Switch* sw3 = cp.addSwitch("3");
     SignalControl* sig2 = cp.addSignalControl("2");
@@ -246,7 +246,7 @@ void testBitPackedCodecSequentialStream() {
 
 void testElectricLockCodec() {
     printf("[TEST] ElectricLock Codec: WLS control decode and WLK indication encode\n");
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw7 = cp.addSwitch("7");
     sw7->addLock(SwitchLock::HAND_LOCKED); // Initially locked
 
@@ -295,7 +295,7 @@ void testElectricLockCodec() {
 void testAarTextCodecSymmetricalOfficeAndSizing() {
     printf("[TEST] AarTextCodec: Symmetrical Office Operations, Worst-Case Sizing, and Preallocation (Strategy B)\n");
 
-    ControlPoint cp("CP_Christopher");
+    InterlockingPlant cp("CP_Christopher");
     Switch* sw1 = cp.addSwitch("1");
     Switch* sw3 = cp.addSwitch("3");
     SignalControl* sig2 = cp.addSignalControl("2");

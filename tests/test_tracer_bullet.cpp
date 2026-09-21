@@ -9,8 +9,8 @@ void runTracerBulletTests() {
     printf("   FIELDUNIT V2 TRACER BULLET POC TEST SUITE        \n");
     printf("====================================================\n\n");
 
-    // 1. Instantiate Control Point
-    ControlPoint cp("CP_End_Of_Siding");
+    // 1. Instantiate Interlocking Plant
+    InterlockingPlant cp("CP_End_Of_Siding");
 
     // 2. Add Appliances
     TrackCircuit* tcOS   = cp.addTrackCircuit("1T_OS");       // Over turnout points

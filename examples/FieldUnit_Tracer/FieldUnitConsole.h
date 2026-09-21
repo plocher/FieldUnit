@@ -8,7 +8,7 @@
 #include <ctype.h>
 #include <strings.h>
 #include "types.h"
-#include "ControlPoint.h"
+#include "InterlockingPlant.h"
 #include "PlantSerializer.h"
 #include "WireCodec.h"
 
@@ -34,7 +34,7 @@ class FieldUnitConsole {
 public:
     typedef void (*OutputCallback)(const char* line);
 
-    FieldUnitConsole(ControlPoint& cp, OutputCallback outCb = nullptr, IOBus* ioBus = nullptr)
+    FieldUnitConsole(InterlockingPlant& cp, OutputCallback outCb = nullptr, IOBus* ioBus = nullptr)
         : cp_(&cp), outCb_(outCb), ioBus_(ioBus), linePos_(0) {
         lineBuf_[0] = '\0';
     }
@@ -309,7 +309,7 @@ private:
         }
     }
 
-    ControlPoint* cp_;
+    InterlockingPlant* cp_;
     OutputCallback outCb_;
     IOBus* ioBus_;
     char lineBuf_[4096];

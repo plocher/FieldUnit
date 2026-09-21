@@ -32,8 +32,8 @@
 
 using namespace FieldUnit;
 
-// Control Point Instance
-ControlPoint cp("CP_Christopher");
+// Interlocking Plant Instance
+InterlockingPlant cp("CP_Christopher");
 AarTextCodec codec;
 
 void configurePlant() {

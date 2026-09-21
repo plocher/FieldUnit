@@ -23,8 +23,8 @@
 
 using namespace FieldUnit;
 
-// Control Point Instance
-ControlPoint cp("CP_Corporal");
+// Interlocking Plant Instance
+InterlockingPlant cp("CP_Corporal");
 AarTextCodec codec;
 
 void configurePlant() {

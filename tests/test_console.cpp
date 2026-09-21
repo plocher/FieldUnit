@@ -23,13 +23,13 @@ void runConsoleTests() {
     g_consoleResponses.clear();
     uint32_t clockMs = 1000;
 
-    // 1. Boot blank ControlPoint
-    ControlPoint cp("Blank_Boot");
+    // 1. Boot blank InterlockingPlant
+    InterlockingPlant cp("Blank_Boot");
     FieldUnitConsole console(cp, consoleOutputHandler);
 
     assert(cp.trackCircuitCount() == 0);
     assert(cp.switchCount() == 0);
-    printf("[TEST 1] Booted blank ControlPoint\n");
+    printf("[TEST 1] Booted blank InterlockingPlant\n");
 
     // 2. Send C&C verb: "status"
     console.processLine("status", clockMs);

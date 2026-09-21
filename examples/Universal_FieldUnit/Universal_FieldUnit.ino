@@ -16,8 +16,8 @@
 
 using namespace FieldUnit;
 
-// Create blank Control Point (configured at boot from JSON)
-ControlPoint cp("Universal_CP");
+// Create blank Interlocking Plant (configured at boot from JSON)
+InterlockingPlant cp("Universal_CP");
 AarTextCodec codec;
 
 #if defined(ESP32) || defined(ESP8266)
