@@ -70,7 +70,7 @@ void configurePlant() {
     cp.addSignalMast("2Nc",  MastType::DWARF);
 
     // 4. Declare Interlocking Control Table by name
-    // Route 1: MT2-MT2 Northbound Straight (Crossover 3 Normal) -> Top head H2NA CLEAR
+    // Route 1: MT2-MT2 Northbound Straight (Crossover 3 Normal) -> CLEAR
     cp.route("MT2-MT2-STRAIGHT")
       .governedBy("2", DirectionAuthority::LEFT)
       .displays("2Nab", Indication::CLEAR)
@@ -79,7 +79,7 @@ void configurePlant() {
       .entrance("3BT1")
       .approaching("2SA");
 
-    // Route 2: MT2-MT1 Northbound Crossover (Crossover 3 Reverse) -> Lower head H2NB DIVERGING_CLEAR
+    // Route 2: MT2-MT1 Northbound Crossover (Crossover 3 Reverse) -> DIVERGING_CLEAR
     cp.route("MT2-MT1-CROSSOVER")
       .governedBy("2", DirectionAuthority::LEFT)
       .displays("2Nab", Indication::DIVERGING_CLEAR)
@@ -89,7 +89,7 @@ void configurePlant() {
       .entrance("3BT1")
       .approaching("1SA");
 
-    // Route 3: MT1-MT1 Southbound Straight (SW1=N, Crossover 3=N, SW5=N) -> Top head H2SA CLEAR
+    // Route 3: MT1-MT1 Southbound Straight (SW1=N, Crossover 3=N, SW5=N) -> CLEAR
     cp.route("MT1-MT1-STRAIGHT")
       .governedBy("2", DirectionAuthority::RIGHT)
       .displays("2Sab", Indication::CLEAR)
@@ -100,7 +100,7 @@ void configurePlant() {
       .entrance("1T1")
       .approaching("1NA");
 
-    // Route 4: MT1-MT2 Southbound Crossover (SW1=N, Crossover 3=R) -> Lower head H2SB DIVERGING_CLEAR
+    // Route 4: MT1-MT2 Southbound Crossover (SW1=N, Crossover 3=R) -> DIVERGING_CLEAR
     cp.route("MT1-MT2-CROSSOVER")
       .governedBy("2", DirectionAuthority::RIGHT)
       .displays("2Sab", Indication::DIVERGING_CLEAR)
