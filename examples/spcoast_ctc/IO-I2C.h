@@ -6,11 +6,42 @@
 #include <I2Cexpander.h>
 #include <cTcMachine.h>
 
+// Time-based debounce for one active-LOW input bit (stable after settleMs of same raw value).
+struct DebouncedInput {
+    bool stable = false;      // debounced logical pressed/asserted (active-high sense)
+    bool lastRaw = false;
+    uint32_t lastChangeMs = 0;
+    bool initialized = false;
+
+    void update(bool rawAsserted, uint32_t nowMs, uint16_t settleMs) {
+        if (!initialized) {
+            lastRaw = rawAsserted;
+            stable = rawAsserted;
+            lastChangeMs = nowMs;
+            initialized = true;
+            return;
+        }
+        if (rawAsserted != lastRaw) {
+            lastRaw = rawAsserted;
+            lastChangeMs = nowMs;
+            return;
+        }
+        if ((uint32_t)(nowMs - lastChangeMs) >= settleMs) {
+            stable = lastRaw;
+        }
+    }
+};
+
 class PanelIO : public FieldUnit::PanelHardware {
 public:
+    static constexpr uint16_t kInputSettleMs = 15;
+    // Input direction mask: 1 = input (CODE, SIG W/S/E, SW N/R, MC)
+    static constexpr uint16_t kPanelInputMask = 0x1EC4;
+
     PanelIO() {
         for (uint8_t i = 0; i < 14; ++i) {
             inputs_[i] = 0xFFFF;
+            rawInputs_[i] = 0xFFFF;
             outputs_[i] = 0xFFFF;
             lastOutputs_[i] = 0x0000;
         }
@@ -36,74 +67,32 @@ public:
 
         for (uint8_t i = 0; i < 14; ++i) {
             uint8_t addr = baseAddr + i;
-            // Enable I2Cexpander's sequential read debounce: reads twice consecutively until stable
-            m_[i].init(addr, I2Cexpander::MAX7313, 0b0001111011000100, /*debounce=*/true);
+            // Single-shot I2C read; time debounce handled in syncInputs()
+            m_[i].init(addr, I2Cexpander::MAX7313, kPanelInputMask, /*debounce=*/false);
             m_[i].put(0xFFFF); // All lamps OFF at startup (active-LOW)
-            inputs_[i] = m_[i].get();
+            rawInputs_[i] = (uint16_t)m_[i].get();
+            inputs_[i] = rawInputs_[i];
             lastOutputs_[i] = 0xFFFF;
+            // Seed debouncers from initial raw levels (active-LOW pin → asserted when bit==0)
+            uint32_t now = millis();
+            updateDebouncers_(i, rawInputs_[i], now);
+            applyDebouncedToInputs_(i);
+            codeOneShot_[i].update(debouncedAsserted_(i, 12));
         }
+
+        // Restore 800 kHz Fast-Mode Plus clock overridden by I2Cexpander::init (which defaults to 400 kHz)
+        Wire.setClock(800000UL);
     }
 
-    // Direct hardware lamp test: all ON for 2s, all OFF, then column chase
-    void runLampTest() {
-        Serial.println("--- Starting Hardware Lamp Test ---");
-        // All ON (active-LOW: write 0x0000 to all 14 expanders)
-        for (uint8_t i = 0; i < 14; ++i) m_[i].put(0x0000);
-        delay(2000);
-
-        // All OFF
-        for (uint8_t i = 0; i < 14; ++i) m_[i].put(0xFFFF);
-        delay(500);
-
-        // Column chase across 14 columns
-        uint16_t testBits[] = { 0x0001, 0x0002, 0x0008, 0x0010, 0x0020, 0x0100, 0x2000, 0x8000, 0x4000 };
-        for (uint8_t col = 0; col < 14; ++col) {
-            for (uint16_t bit : testBits) {
-                m_[col].put((uint16_t)~bit); // Light single lamp
-                delay(40);
-            }
-            m_[col].put(0xFFFF); // Off
-        }
-        Serial.println("--- Lamp Test Complete ---\n");
-    }
-
-    // Raw direct loopback mirror: connects inputs directly to outputs without 1-shot
-    void directMirrorLoop() {
-        for (uint8_t col = 0; col < 14; ++col) {
-            uint16_t ival = m_[col].get();
-            uint16_t oval = 0xFFFF; // All lamps OFF by default
-
-            // Inputs (active-LOW: 0 = asserted)
-            bool swN  = (ival & 0x0080) == 0; // bit 7
-            bool swR  = (ival & 0x0040) == 0; // bit 6
-            bool sigE = (ival & 0x0200) == 0; // bit 9
-            bool sigS = (ival & 0x0400) == 0; // bit 10
-            bool sigW = (ival & 0x0800) == 0; // bit 11
-            bool mc   = (ival & 0x0004) == 0; // bit 2
-            bool code = (ival & 0x1000) == 0; // bit 12
-
-            // Mirror directly to outputs (active-LOW: 0 = ON)
-            if (swN)  oval &= ~0x0001; // bit 0 (NK)
-            if (swR)  oval &= ~0x0002; // bit 1 (RK)
-            if (sigE) oval &= ~0x2000; // bit 13 (LK/EK)
-            if (sigS) oval &= ~0x8000; // bit 15 (SK)
-            if (sigW) oval &= ~0x4000; // bit 14 (WK)
-            if (mc)   oval &= ~0x0100; // bit 8 (MCK)
-            if (code) oval &= ~(0x0008 | 0x0010 | 0x0020); // bits 3,4,5 (M1,M2,M3)
-
-            if (oval != lastOutputs_[col]) {
-                lastOutputs_[col] = oval;
-                m_[col].put(oval);
-            }
-        }
-    }
-
-    // Single-pass bulk read: 14 fast 16-bit reads; feeds each column's OneShot
+    // Single-pass bulk read + time debounce; CODE OneShot sees debounced press/release only.
     void syncInputs() override {
+        uint32_t now = millis();
         for (uint8_t i = 0; i < 14; ++i) {
-            inputs_[i] = m_[i].get();
-            // Bit 12 is active-LOW (0 = pressed, 1 = released)
-            codeOneShot_[i].update(bitRead(inputs_[i], 12) == 0);
+            rawInputs_[i] = (uint16_t)m_[i].get();
+            updateDebouncers_(i, rawInputs_[i], now);
+            applyDebouncedToInputs_(i);
+            // OneShot: debounced PUSHED / RELEASED on bit 12
+            codeOneShot_[i].update(debouncedAsserted_(i, 12));
         }
     }
 
@@ -111,18 +100,17 @@ public:
         return codeOneShot_[colToDev(col)];
     }
 
-    // Stateless physical pin reads: 0 = asserted/closed, 1 = unasserted/open
+    // Debounced physical pin reads: true = asserted/closed
     bool read(uint8_t col, FieldUnit::PanelInput fn) override {
         uint8_t dev = colToDev(col);
-        uint16_t ival = inputs_[dev];
         switch (fn) {
-            case FieldUnit::PanelInput::SW_NORMAL:          return bitRead(ival, 7) == 0;
-            case FieldUnit::PanelInput::SW_REVERSE:         return bitRead(ival, 6) == 0;
-            case FieldUnit::PanelInput::SIG_LEFT:           return bitRead(ival, 9) == 0;
-            case FieldUnit::PanelInput::SIG_STOP:           return bitRead(ival, 10) == 0;
-            case FieldUnit::PanelInput::SIG_RIGHT:          return bitRead(ival, 11) == 0;
-            case FieldUnit::PanelInput::MAINTAINER_CALL_SW: return bitRead(ival, 2) == 0;
-            case FieldUnit::PanelInput::CODE_BUTTON:        return bitRead(ival, 12) == 0;
+            case FieldUnit::PanelInput::SW_NORMAL:          return debouncedAsserted_(dev, 7);
+            case FieldUnit::PanelInput::SW_REVERSE:         return debouncedAsserted_(dev, 6);
+            case FieldUnit::PanelInput::SIG_LEFT:           return debouncedAsserted_(dev, 9);
+            case FieldUnit::PanelInput::SIG_STOP:           return debouncedAsserted_(dev, 10);
+            case FieldUnit::PanelInput::SIG_RIGHT:          return debouncedAsserted_(dev, 11);
+            case FieldUnit::PanelInput::MAINTAINER_CALL_SW: return debouncedAsserted_(dev, 2);
+            case FieldUnit::PanelInput::CODE_BUTTON:        return debouncedAsserted_(dev, 12);
             default: return false;
         }
     }
@@ -156,10 +144,45 @@ public:
     }
 
 private:
+    // Input bit indices that are debounced (matches kPanelInputMask)
+    static constexpr uint8_t kDebounceBits[] = {2, 6, 7, 9, 10, 11, 12};
+    static constexpr uint8_t kDebounceBitCount = sizeof(kDebounceBits) / sizeof(kDebounceBits[0]);
+
+    static uint8_t debounceSlot_(uint8_t bit) {
+        for (uint8_t s = 0; s < kDebounceBitCount; ++s) {
+            if (kDebounceBits[s] == bit) return s;
+        }
+        return 0;
+    }
+
+    bool debouncedAsserted_(uint8_t dev, uint8_t bit) const {
+        return debounce_[dev][debounceSlot_(bit)].stable;
+    }
+
+    void updateDebouncers_(uint8_t dev, uint16_t raw, uint32_t nowMs) {
+        for (uint8_t s = 0; s < kDebounceBitCount; ++s) {
+            uint8_t bit = kDebounceBits[s];
+            bool asserted = (bitRead(raw, bit) == 0); // active-LOW
+            debounce_[dev][s].update(asserted, nowMs, kInputSettleMs);
+        }
+    }
+
+    // Rebuild inputs_ word from debounced levels (1 = released/high, 0 = pressed/low)
+    void applyDebouncedToInputs_(uint8_t dev) {
+        uint16_t v = rawInputs_[dev];
+        for (uint8_t s = 0; s < kDebounceBitCount; ++s) {
+            uint8_t bit = kDebounceBits[s];
+            bitWrite(v, bit, debounce_[dev][s].stable ? 0 : 1);
+        }
+        inputs_[dev] = v;
+    }
+
     I2Cexpander m_[14];
+    uint16_t rawInputs_[14];
     uint16_t inputs_[14];
     uint16_t outputs_[14];
     uint16_t lastOutputs_[14];
+    DebouncedInput debounce_[14][kDebounceBitCount];
     FieldUnit::OneShot codeOneShot_[14];
 };
 
