@@ -167,7 +167,7 @@ Each row in the table specifies:
 ```cpp
 plant.route("MT2-MT1")
   .governedBy(sig2, DirectionAuthority::LEFT)
-  .displays(mast2N, 1 /* Lower Head */, Indication::DIVERGING_CLEAR)
+  .displays(mast2N, Indication::DIVERGING_CLEAR)
   .aligns({ {sw3, SwitchPosition::REVERSE}, {sw3B, SwitchPosition::REVERSE}, {sw1, SwitchPosition::NORMAL} })
   .clears({ tc3BT1, tc3T1, tc1T1 })
   .entrance(tc3BT1)

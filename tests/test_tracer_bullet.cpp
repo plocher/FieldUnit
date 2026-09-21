@@ -36,7 +36,7 @@ void runTracerBulletTests() {
     // Route 1: Rightward into Main Track (Normal switch)
     cp.route("MAIN_NORMAL")
       .governedBy(auth2, DirectionAuthority::RIGHT)
-      .displays(mast2R, 0, Indication::CLEAR)
+      .displays(mast2R, Indication::CLEAR)
       .aligns({ {sw1, SwitchPosition::NORMAL} })
       .clears({ tcOS })
       .approaching(tcAppr);
@@ -44,14 +44,14 @@ void runTracerBulletTests() {
     // Route 2: Rightward into Siding (Reverse switch)
     cp.route("SIDING_REVERSE")
       .governedBy(auth2, DirectionAuthority::RIGHT)
-      .displays(mast2R, 1, Indication::DIVERGING_APPROACH)
+      .displays(mast2R, Indication::DIVERGING_APPROACH)
       .aligns({ {sw1, SwitchPosition::REVERSE} })
       .clears({ tcOS });
 
     // Route 3: Engine Return from dark track onto cars standing on 1A
     cp.route("ENGINE_RETURN")
       .engineReturn(tcAppr, tcOS)
-      .displays(mast2L, 0, Indication::RESTRICTING)
+      .displays(mast2L, Indication::RESTRICTING)
       .aligns({ {sw1, SwitchPosition::REVERSE} });
 
     uint32_t clockMs = 1000;

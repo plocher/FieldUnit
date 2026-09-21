@@ -32,7 +32,7 @@ void runCentralizedChubbPatternTest() {
     // Control Table
     cp.route("MT2-MT2-STRAIGHT")
       .governedBy(sig2, DirectionAuthority::LEFT)
-      .displays(mast2N, 0, Indication::CLEAR)
+      .displays(mast2N, Indication::CLEAR)
       .aligns({ {sw3B, SwitchPosition::NORMAL} })
       .clears({ tc3BT1 })
       .approaching(tc2SA);

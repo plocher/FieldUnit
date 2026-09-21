@@ -50,21 +50,21 @@ void runPlantSerializerTests() {
     // Routes
     cp1.route("MT-NB")
       .governedBy("2", DirectionAuthority::LEFT)
-      .displays("2NAB", 0, Indication::CLEAR)
+      .displays("2NAB", Indication::CLEAR)
       .aligns({ {"1", SwitchPosition::NORMAL}, {"3", SwitchPosition::NORMAL} })
       .clears({ "3T1", "1T1", "2SAT" })
       .entrance("3T1");
 
     cp1.route("MT-NB-REV")
       .governedBy("2", DirectionAuthority::LEFT)
-      .displays("2NAB", 1, Indication::DIVERGING_RESTRICTING)
+      .displays("2NAB", Indication::DIVERGING_RESTRICTING)
       .aligns({ {"3", SwitchPosition::REVERSE} })
       .clears({ "3T1", "1SAT" })
       .entrance("3T1");
 
     cp1.route("SB-MT")
       .governedBy("2", DirectionAuthority::RIGHT)
-      .displays("2SA", 0, Indication::CLEAR)
+      .displays("2SA", Indication::CLEAR)
       .aligns({ {"3", SwitchPosition::REVERSE} })
       .clears({ "3T1", "1NAT" })
       .entrance("1SAT")
@@ -72,14 +72,14 @@ void runPlantSerializerTests() {
 
     cp1.route("IND-NB")
       .governedBy("4", DirectionAuthority::LEFT)
-      .displays("4NA", 0, Indication::RESTRICTING)
+      .displays("4NA", Indication::RESTRICTING)
       .aligns({ {"1", SwitchPosition::REVERSE}, {"5", SwitchPosition::REVERSE} })
       .clears({ "1T1", "5T1", "2SAT" })
       .entrance("5T1");
 
     cp1.route("SB-IND")
       .governedBy("4", DirectionAuthority::RIGHT)
-      .displays("4SA", 0, Indication::RESTRICTING)
+      .displays("4SA", Indication::RESTRICTING)
       .aligns({ {"1", SwitchPosition::REVERSE}, {"5", SwitchPosition::REVERSE} })
       .clears({ "1T1", "5T1" })
       .entrance("1T1");
@@ -93,6 +93,7 @@ void runPlantSerializerTests() {
     assert(strstr(jsonBuf, "\"defaultAspectPolicy\": \"sp1969\"") != nullptr);
     assert(strstr(jsonBuf, "\"routes\": [") != nullptr);
     assert(strstr(jsonBuf, "\"MT-NB\"") != nullptr);
+    assert(strstr(jsonBuf, "\"head\"") == nullptr);
     printf("  -> PASS: Serialized CP_Corporal to JSON (%zu bytes)\n\n", strlen(jsonBuf));
 
     // -------------------------------------------------------------
@@ -143,7 +144,6 @@ void runPlantSerializerTests() {
     assert(r1.authority() == cp2.findSignalControl("2"));
     assert(r1.direction() == DirectionAuthority::LEFT);
     assert(r1.mast() == m2NAB);
-    assert(r1.targetHeadIndex() == 0);
     assert(r1.aspectCeiling() == Indication::CLEAR);
     assert(r1.switchCount() == 2);
     assert(r1.blockCount() == 3);
@@ -203,7 +203,7 @@ void runPlantSerializerTests() {
 
     cpXover.route("XOVER_REV")
       .governedBy("2", DirectionAuthority::LEFT)
-      .displays("2LA", 0, Indication::MEDIUM_CLEAR)
+      .displays("2LA", Indication::MEDIUM_CLEAR)
       .aligns({ {"3", SwitchPosition::REVERSE} })
       .clears({ "1T", "2T" })
       .entrance("1T");

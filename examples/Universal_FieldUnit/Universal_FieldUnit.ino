@@ -48,7 +48,7 @@ const char* FALLBACK_PLANT_JSON = R"json({
     {
       "name": "MAIN",
       "governedBy": {"signal": "2", "direction": "RIGHT"},
-      "displays": {"mast": "2LA", "head": 0, "maxIndication": "CLEAR"},
+      "displays": {"mast": "2LA", "maxIndication": "CLEAR"},
       "aligns": [
         {"switch": "1", "position": "NORMAL"}
       ],

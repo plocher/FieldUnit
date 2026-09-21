@@ -63,7 +63,7 @@ void configurePlant() {
     // Route 1: Northbound Single Track to MT2 right-hand running (SW1=N, SW3=N)
     cp.route("MT-NB")
       .governedBy("2", DirectionAuthority::LEFT)
-      .displays("2NAB", 0 /* Top Head */, Indication::CLEAR)
+      .displays("2NAB", Indication::CLEAR)
       .aligns({ {"1", SwitchPosition::NORMAL}, 
                 {"3", SwitchPosition::NORMAL} })
       .clears({ "3T1", "1T1", "2SAT" })
@@ -72,7 +72,7 @@ void configurePlant() {
     // Route 2: Northbound Single Track to MT1 reverse running (SW3=R)
     cp.route("MT-NB-REV")
       .governedBy("2", DirectionAuthority::LEFT)
-      .displays("2NAB", 1 /* Lower Head */, Indication::DIVERGING_RESTRICTING)
+      .displays("2NAB", Indication::DIVERGING_RESTRICTING)
       .aligns({ {"3", SwitchPosition::REVERSE} })
       .clears({ "3T1", "1SAT" })
       .entrance("3T1");
@@ -80,7 +80,7 @@ void configurePlant() {
     // Route 3: Southbound MT1 through switch 3 onto single track (SW3=R)
     cp.route("SB-MT")
       .governedBy("2", DirectionAuthority::RIGHT)
-      .displays("2SA", 0, Indication::CLEAR)
+      .displays("2SA", Indication::CLEAR)
       .aligns({ {"3", SwitchPosition::REVERSE} })
       .clears({ "3T1", "1NAT" })
       .entrance("1SAT")
@@ -89,7 +89,7 @@ void configurePlant() {
     // Route 4: Northbound Industry track onto MT2 (SW1=R, Derail SW5=R)
     cp.route("IND-NB")
       .governedBy("4", DirectionAuthority::LEFT)
-      .displays("4NA", 0, Indication::RESTRICTING)
+      .displays("4NA", Indication::RESTRICTING)
       .aligns({ {"1", SwitchPosition::REVERSE},
                 {"5", SwitchPosition::REVERSE} })
       .clears({ "1T1", "5T1", "2SAT" })
@@ -98,7 +98,7 @@ void configurePlant() {
     // Route 5: Southbound on MT2 diverging into Industry lead (SW1=R, Derail SW5=R)
     cp.route("SB-IND")
       .governedBy("4", DirectionAuthority::RIGHT)
-      .displays("4SA", 0, Indication::RESTRICTING)
+      .displays("4SA", Indication::RESTRICTING)
       .aligns({ {"1", SwitchPosition::REVERSE},
                 {"5", SwitchPosition::REVERSE} })
       .clears({ "1T1", "5T1" })

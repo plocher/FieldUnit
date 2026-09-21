@@ -702,7 +702,7 @@ The route rules read directly in railroad terms:
 // Route 1: Northbound from Single Track to MT2 right-hand running
 cp.route("MT-NB")
   .governedBy(sig2, DirectionAuthority::LEFT)
-  .displays(mast2NAB, 0 /* Top Head */, Indication::CLEAR)
+  .displays(mast2NAB, Indication::CLEAR)
   .aligns({ {sw1, SwitchPosition::NORMAL},
             {sw3, SwitchPosition::NORMAL} })
   .clears({ tc1T1, tc3T1, tc2SAT });
@@ -710,14 +710,14 @@ cp.route("MT-NB")
 // Route 2: Northbound from Single Track to MT1 diverging reverse running
 cp.route("MT-SB")
   .governedBy(sig2, DirectionAuthority::LEFT)
-  .displays(mast2NAB, 1 /* Lower Head */, Indication::DIVERGING_RESTRICTING)
+  .displays(mast2NAB, Indication::DIVERGING_RESTRICTING)
   .aligns({ {sw3, SwitchPosition::REVERSE} })
   .clears({ tc3T1, tc1SAT });
 
 // Route 3: Southbound MT1 through Switch 3 onto Single Track
 cp.route("SB-MT")
   .governedBy(sig2, DirectionAuthority::RIGHT)
-  .displays(mast2SA, 0, Indication::CLEAR)
+  .displays(mast2SA, Indication::CLEAR)
   .aligns({ {sw3, SwitchPosition::REVERSE} })
   .clears({ tc3T1, tc1NAT })
   .approaching(tc2NAT);

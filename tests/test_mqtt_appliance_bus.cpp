@@ -43,7 +43,7 @@ void runMqttApplianceBusTests() {
 
     cp.route("MAIN_EB")
       .governedBy("2", DirectionAuthority::RIGHT)
-      .displays("2NAB", 0, Indication::CLEAR)
+      .displays("2NAB", Indication::CLEAR)
       .aligns({ {"1", SwitchPosition::NORMAL} })
       .clears({ "1T1", "2T1" })
       .entrance("1T1");

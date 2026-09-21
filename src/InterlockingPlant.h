@@ -563,15 +563,10 @@ inline Route& Route::governedBy(const char* signalName, DirectionAuthority dir) 
     return *this;
 }
 
-inline Route& Route::displays(const char* mastName, uint8_t headIndex, Indication maxIndication) {
+inline Route& Route::displays(const char* mastName, Indication maxIndication) {
     mast_ = cp_ ? cp_->findSignalMast(mastName) : nullptr;
-    targetHeadIndex_ = headIndex;
     aspectCeiling_ = maxIndication;
     return *this;
-}
-
-inline Route& Route::displays(const char* mastName, Indication maxIndication) {
-    return displays(mastName, 0, maxIndication);
 }
 
 inline Route& Route::aligns(std::initializer_list<NamedSwitchRequirement> swList) {

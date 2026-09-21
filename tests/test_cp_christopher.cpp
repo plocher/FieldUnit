@@ -75,7 +75,7 @@ void runCPChristopherTests() {
     // Route 1: Northbound Straight on MT2 (SW3B Normal) -> Top Head H2NA CLEAR
     cp.route("MT2-MT2-STRAIGHT")
       .governedBy(sig2, DirectionAuthority::LEFT)
-      .displays(mast2N, 0, Indication::CLEAR)
+      .displays(mast2N, Indication::CLEAR)
       .aligns({ {sw3B, SwitchPosition::NORMAL} })
       .clears({ tc3BT1 })
       .approaching(tc2SA);
@@ -83,7 +83,7 @@ void runCPChristopherTests() {
     // Route 2: Northbound Crossover MT2 -> MT1 (SW3/3B Reverse) -> Lower Head H2NB DIVERGING_CLEAR
     cp.route("MT2-MT1-CROSSOVER")
       .governedBy(sig2, DirectionAuthority::LEFT)
-      .displays(mast2N, 1, Indication::DIVERGING_CLEAR)
+      .displays(mast2N, Indication::DIVERGING_CLEAR)
       .aligns({ {sw3, SwitchPosition::REVERSE},
                 {sw3B, SwitchPosition::REVERSE},
                 {sw1, SwitchPosition::NORMAL} })
@@ -93,7 +93,7 @@ void runCPChristopherTests() {
     // Route 3: Southbound Straight on MT1 (SW1=N, SW3=N, SW5=N) -> Top Head H2SA CLEAR
     cp.route("MT1-MT1-STRAIGHT")
       .governedBy(sig2, DirectionAuthority::RIGHT)
-      .displays(mast2S, 0, Indication::CLEAR)
+      .displays(mast2S, Indication::CLEAR)
       .aligns({ {sw1, SwitchPosition::NORMAL},
                 {sw3, SwitchPosition::NORMAL},
                 {sw5, SwitchPosition::NORMAL} })
@@ -103,7 +103,7 @@ void runCPChristopherTests() {
     // Route 4: Southbound Crossover MT1 -> MT2 (SW1=N, SW3/3B=R) -> Lower Head H2SB DIVERGING_CLEAR
     cp.route("MT1-MT2-CROSSOVER")
       .governedBy(sig2, DirectionAuthority::RIGHT)
-      .displays(mast2S, 1, Indication::DIVERGING_CLEAR)
+      .displays(mast2S, Indication::DIVERGING_CLEAR)
       .aligns({ {sw1, SwitchPosition::NORMAL},
                 {sw3, SwitchPosition::REVERSE},
                 {sw3B, SwitchPosition::REVERSE} })
@@ -182,9 +182,48 @@ void runCPChristopherTests() {
     printf("  -> PASS: SW3, SW3B, and SW1 are all Route-Locked\n\n");
 
     // -------------------------------------------------------------
-    // TEST 4: Opposing Move Prevention (Interlocking Mutex)
+    // TEST 4: Approach Occupancy Reduces the Whole-Mast Indication
     // -------------------------------------------------------------
-    printf("[TEST 4] Dispatcher attempts to clear opposing Southbound SIG2 RIGHT\n");
+    printf("[TEST 4] Occupy the downstream approach block for the crossover route\n");
+    tc1SA->update(Occupancy::OCCUPIED);
+    cp.tick(clockMs);
+
+    assert(mast2N->currentIndication() == Indication::DIVERGING_APPROACH);
+    assert(mast2N->head1() == Aspect::RED);
+    assert(mast2N->head2() == Aspect::YELLOW);
+    printf("  -> PASS: Mast 2Nab reduces from Red over Green to Red over Yellow\n\n");
+
+    tc1SA->update(Occupancy::VACANT);
+    cp.tick(clockMs);
+
+    // -------------------------------------------------------------
+    // TEST 5: A Mast Selects the Most Permissive Valid Route
+    // -------------------------------------------------------------
+    printf("[TEST 5] Two valid routes contribute to one mast\n");
+    InterlockingPlant aggregationPlant("CP_AGGREGATION");
+    SignalControl* aggregationSignal = aggregationPlant.addSignalControl("2");
+    SignalMast* aggregationMast = aggregationPlant.addSignalMast("2N", MastType::TWO_HEAD);
+    aggregationPlant.route("MAIN")
+      .governedBy(aggregationSignal, DirectionAuthority::RIGHT)
+      .displays(aggregationMast, Indication::CLEAR);
+    aggregationPlant.route("DIVERGING")
+      .governedBy(aggregationSignal, DirectionAuthority::RIGHT)
+      .displays(aggregationMast, Indication::DIVERGING_CLEAR);
+
+    ControlTransaction aggregationControl;
+    aggregationControl.signalDemands[aggregationSignal->index()] = SignalDemand::RIGHT;
+    aggregationPlant.applyControlTransaction(aggregationControl, clockMs);
+    aggregationPlant.tick(clockMs);
+
+    assert(aggregationMast->currentIndication() == Indication::CLEAR);
+    assert(aggregationMast->head1() == Aspect::GREEN);
+    assert(aggregationMast->head2() == Aspect::RED);
+    printf("  -> PASS: Mast 2N selects CLEAR over the lower DIVERGING_CLEAR result\n\n");
+
+    // -------------------------------------------------------------
+    // TEST 6: Opposing Move Prevention (Interlocking Mutex)
+    // -------------------------------------------------------------
+    printf("[TEST 6] Dispatcher attempts to clear opposing Southbound SIG2 RIGHT\n");
     ControlTransaction ctlOpposing;
     ctlOpposing.signalDemands[0] = SignalDemand::RIGHT; // 2SG (Opposing!)
     cp.applyControlTransaction(ctlOpposing, clockMs);
@@ -198,9 +237,9 @@ void runCPChristopherTests() {
     printf("  -> PASS: Opposing Southbound mast 2Sab held strictly at STOP (Red over Red)\n\n");
 
     // -------------------------------------------------------------
-    // TEST 5: Dual-Track Fouling Protection
+    // TEST 7: Dual-Track Fouling Protection
     // -------------------------------------------------------------
-    printf("[TEST 5] Train occupies crossover track 3BT1 on MT2\n");
+    printf("[TEST 7] Train occupies crossover track 3BT1 on MT2\n");
     tc3BT1->update(Occupancy::OCCUPIED);
     cp.tick(clockMs);
 
@@ -223,9 +262,9 @@ void runCPChristopherTests() {
     printf("  -> PASS: Indication confirms crossover did not move; points remain locked in Reverse\n\n");
 
     // -------------------------------------------------------------
-    // TEST 6: CodeLine Wire Codec Bit-Level Pack/Unpack (AAR Wire Mapping)
+    // TEST 8: CodeLine Wire Codec Bit-Level Pack/Unpack (AAR Wire Mapping)
     // -------------------------------------------------------------
-    printf("[TEST 6] CodeLine Wire Codec: Unpack raw bytes and pack indications\n");
+    printf("[TEST 8] CodeLine Wire Codec: Unpack raw bytes and pack indications\n");
     // Christopher wire layout from CP_Christopher.xml:
     // Controls: 2 bytes
     // Byte 0: 1NW(b0), 1RW(b1), 3NW(b2), 3RW(b3), 3BNW(b4), 3BRW(b5), 5NW(b6), 5RW(b7)

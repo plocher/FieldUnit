@@ -397,9 +397,8 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
         }
 
         if (r.mast()) {
-            snprintf(line, sizeof(line), "%s\"displays\": {\"mast\": \"%s\", \"head\": %u, \"maxIndication\": \"%s\"},%s",
-                     sp3, r.mast()->name(), static_cast<unsigned>(r.targetHeadIndex()),
-                     indicationToName(r.aspectCeiling()), nl);
+            snprintf(line, sizeof(line), "%s\"displays\": {\"mast\": \"%s\", \"maxIndication\": \"%s\"},%s",
+                     sp3, r.mast()->name(), indicationToName(r.aspectCeiling()), nl);
             if (!append(line)) return false;
         }
 
@@ -723,20 +722,16 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
                             const char* dObj = rVal;
                             const char* dVal = nullptr;
                             char mastName[32] = "";
-                            int32_t headIdx = 0;
                             char indStr[32] = "STOP";
 
                             if (findKey(dObj, "mast", dVal)) {
                                 parseString(dVal, mastName, sizeof(mastName));
                             }
-                            if (findKey(dObj, "head", dVal)) {
-                                parseInt(dVal, headIdx);
-                            }
                             if (findKey(dObj, "maxIndication", dVal)) {
                                 parseString(dVal, indStr, sizeof(indStr));
                             }
                             if (mastName[0] != '\0') {
-                                r.displays(mastName, static_cast<uint8_t>(headIdx), nameToIndication(indStr));
+                                r.displays(mastName, nameToIndication(indStr));
                             }
                         }
 

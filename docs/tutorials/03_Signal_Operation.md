@@ -25,7 +25,7 @@ FieldUnit separates dispatcher authority, route safety logic, physical structure
 
 ### B. Route (Vital Interlocking Table Row)
 - Represents one safe path through the plant.
-- Links an entrance authority (`SignalControl*` and `DirectionAuthority`) to a destination display target (`SignalMast*`, `targetHeadIndex`, and `aspectCeiling`).
+- Links an entrance authority (`SignalControl*` and `DirectionAuthority`) to a destination mast and its maximum permitted `Indication`.
 - Enforces prerequisite safety conditions:
   - Required switch point alignment and locked correspondence (`aligns(...)`).
   - Required vacant track circuits (`clears(...)`).
@@ -40,11 +40,8 @@ FieldUnit separates dispatcher authority, route safety logic, physical structure
 
 ### D. Signal Head (Lamps and Appearance)
 - Represents an individual searchlight target or color-light lamp cluster on the mast.
-- Multi-head masts use 0-indexed positions:
-  - `Head 0`: Top Head (Main / normal speed route).
-  - `Head 1`: Lower Head (Diverging route or medium/slow speed).
-  - `Head 2`: Bottom Head (Third route, yard entrance, or restricting marker).
-- When a route drives an indication to a specific head, non-targeted heads display their fail-safe stop marker (`RED` or `DARK`).
+- Multi-head masts retain physical top, middle, and bottom positions.
+- Routes never address those positions. The mast aspect policy maps the selected whole-mast `Indication` to every head and marker. For example, the default two-head policy maps `CLEAR` to Green over Red and `DIVERGING_RESTRICTING` to Red over Lunar.
 
 ---
 
@@ -76,7 +73,7 @@ Two routes originate at mast `2NAB`. Both routes require dispatcher authority `s
 // Route 1: Northbound Single Track to MT2 (Right-hand running)
 cp.route("MT-NB")
   .governedBy(sig2, DirectionAuthority::LEFT)
-  .displays(mast2NAB, 0 /* Top Head */, Indication::CLEAR)
+  .displays(mast2NAB, Indication::CLEAR)
   .aligns({ {sw1, SwitchPosition::NORMAL}, 
             {sw3, SwitchPosition::NORMAL} })
   .clears({ tc3T1, tc1T1, tc2SAT });
@@ -84,7 +81,7 @@ cp.route("MT-NB")
 // Route 2: Northbound Single Track to MT1 (Reverse running)
 cp.route("MT-SB")
   .governedBy(sig2, DirectionAuthority::LEFT)
-  .displays(mast2NAB, 1 /* Lower Head */, Indication::DIVERGING_RESTRICTING)
+  .displays(mast2NAB, Indication::DIVERGING_RESTRICTING)
   .aligns({ {sw3, SwitchPosition::REVERSE} })
   .clears({ tc3T1, tc1SAT });
 ```
@@ -95,6 +92,11 @@ cp.route("MT-SB")
 
 During each vital tick (`cp.tick()`), the interlocking engine executes a strict evaluation cycle:
 
+Each route reduces its own component results with `leastPermissive(...)`.
+An unsafe component contributes `STOP`; an approach constraint can contribute a lower permissive indication.
+After all routes evaluate, each mast selects `mostPermissive(...)` from its valid route results.
+The mast then maps that single rulebook indication to all of its physical heads.
+
 ```
 [1. Force All Masts to STOP]
                │
@@ -104,7 +106,7 @@ During each vital tick (`cp.tick()`), the interlocking engine executes a strict 
   ├── Check Switches: sw1 == NORMAL and sw3 == NORMAL?
   └── Check Blocks: tc3T1, tc1T1, tc2SAT clear?
                │
-     Passed? ──┴──> YES: Target Top Head (0) with CLEAR (Green over Red). Apply Locks.
+     Passed? ──┴──> YES: Contribute CLEAR for mast 2NAB. Apply Locks.
                │
               NO
                │
@@ -114,12 +116,13 @@ During each vital tick (`cp.tick()`), the interlocking engine executes a strict 
   ├── Check Switches: sw3 == REVERSE?
   └── Check Blocks: tc3T1, tc1SAT clear?
                │
-     Passed? ──┴──> YES: Target Lower Head (1) with DIVERGING_RESTRICTING (Red over Lunar). Apply Locks.
+     Passed? ──┴──> YES: Contribute DIVERGING_RESTRICTING for mast 2NAB. Apply Locks.
                │
               NO
                │
                ▼
-[4. Mast remains at STOP (Red over Red)]
+[4. Select the most permissive valid route result for mast 2NAB]
+[5. Mast policy maps the selected indication to all heads]
 ```
 
 ### Scenario A: Dispatcher Lines Straight to MT2 (`sw1=N`, `sw3=N`)
@@ -129,8 +132,8 @@ During each vital tick (`cp.tick()`), the interlocking engine executes a strict 
    - `sw1` and `sw3` report full correspondence (`KR`) in `NORMAL`.
    - Track circuits `tc3T1`, `tc1T1`, and `tc2SAT` are `VACANT`.
 3. **Display Aspect**:
-   - The route assigns `Indication::CLEAR` to **Head 0** (top head).
-   - `mast2NAB->setHeadIndication(0, Indication::CLEAR)` sets Head 0 to `GREEN` and leaves Head 1 at `RED`.
+   - The route contributes `Indication::CLEAR` for the complete mast.
+   - `mast2NAB->setIndication(Indication::CLEAR)` resolves Head 0 to `GREEN` and Head 1 to `RED`.
    - The physical aspect is **Green over Red** (Clear).
 4. **Locking**: `sw1` and `sw3` acquire `SwitchLock::ROUTE_LOCKED`.
 
@@ -144,8 +147,8 @@ During each vital tick (`cp.tick()`), the interlocking engine executes a strict 
    - `sw3` reports full correspondence (`KR`) in `REVERSE`.
    - Track circuits `tc3T1` and `tc1SAT` are `VACANT`.
 4. **Display Aspect**:
-   - The route assigns `Indication::DIVERGING_RESTRICTING` to **Head 1** (lower head).
-   - `mast2NAB->setHeadIndication(1, Indication::DIVERGING_RESTRICTING)` sets Head 0 to marker `RED` and Head 1 to `LUNAR`.
+   - The route contributes `Indication::DIVERGING_RESTRICTING` for the complete mast.
+   - `mast2NAB->setIndication(Indication::DIVERGING_RESTRICTING)` resolves Head 0 to `RED` and Head 1 to `LUNAR`.
    - The physical aspect is **Red over Lunar** (Diverging Restricting).
 5. **Locking**: `sw3` acquires `SwitchLock::ROUTE_LOCKED`.
 
