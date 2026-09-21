@@ -195,11 +195,10 @@ void runCPChristopherTests() {
 
     tc1SA->update(Occupancy::VACANT);
     cp.tick(clockMs);
-
     // -------------------------------------------------------------
-    // TEST 5: A Mast Selects the Most Permissive Valid Route
+    // TEST 5: Mast Indication Reduces Route Results
     // -------------------------------------------------------------
-    printf("[TEST 5] Two valid routes contribute to one mast\n");
+    printf("[TEST 5] Two route results reduce to one mast indication\n");
     InterlockingPlant aggregationPlant("CP_AGGREGATION");
     SignalControl* aggregationSignal = aggregationPlant.addSignalControl("2");
     SignalMast* aggregationMast = aggregationPlant.addSignalMast("2N", MastType::TWO_HEAD);
@@ -218,7 +217,8 @@ void runCPChristopherTests() {
     assert(aggregationMast->currentIndication() == Indication::CLEAR);
     assert(aggregationMast->head1() == Aspect::GREEN);
     assert(aggregationMast->head2() == Aspect::RED);
-    printf("  -> PASS: Mast 2N selects CLEAR over the lower DIVERGING_CLEAR result\n\n");
+    printf("  -> PASS: Mast 2N selects CLEAR as the most permissive route result\n\n");
+
 
     // -------------------------------------------------------------
     // TEST 6: Opposing Move Prevention (Interlocking Mutex)

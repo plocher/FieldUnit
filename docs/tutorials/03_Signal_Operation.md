@@ -94,8 +94,8 @@ During each vital tick (`cp.tick()`), the interlocking engine executes a strict 
 
 Each route reduces its own component results with `leastPermissive(...)`.
 An unsafe component contributes `STOP`; an approach constraint can contribute a lower permissive indication.
-After all routes evaluate, each mast selects `mostPermissive(...)` from its valid route results.
-The mast then maps that single rulebook indication to all of its physical heads.
+The mast reduces all route results with `mostPermissive(...)` before mapping that indication to its physical heads.
+`FieldUnit-Subdivision` generates the route logic and guarantees that the route expressions for a plant are correct, including mutually exclusive switch-alignment contributions for routes sharing a mast.
 
 ```
 [1. Force All Masts to STOP]
@@ -121,8 +121,8 @@ The mast then maps that single rulebook indication to all of its physical heads.
               NO
                │
                ▼
-[4. Select the most permissive valid route result for mast 2NAB]
-[5. Mast policy maps the selected indication to all heads]
+[4. Reduce route results with mostPermissive for mast 2NAB]
+[5. Mast policy maps the resulting indication to all heads]
 ```
 
 ### Scenario A: Dispatcher Lines Straight to MT2 (`sw1=N`, `sw3=N`)
