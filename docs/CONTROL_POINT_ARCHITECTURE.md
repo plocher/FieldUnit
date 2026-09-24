@@ -105,6 +105,15 @@ It issues movement commands to both switches in unison.
 It reports `NORMAL` only when both switches report `NORMAL`.
 It reports `REVERSE` only when both switches report `REVERSE`.
 If either switch moves or fails, the Crossover reports `MOVING` or `OUT_OF_CORRESPONDENCE`.
+Crossover ends are named with `A`/`B`/`C` suffixes (for example `1`, `1A`, `1B`, `1C`).
+
+##### C2. Derail Appliance (`addDerail`)
+A Derail is a switch-shaped appliance (points + machine, often without a frog).
+`NORMAL` = off-rail / clear; `REVERSE` = on-rail / active (fail-safe rest).
+`addDerail("5", "5T1")` creates a dispatcher-controlled derail on the CodeLine.
+`addDerail("1D", "1DT1")` creates a dependent derail inverse-paired to switch `"1"` with no separate lever or `NWK`/`RWK` step.
+A `*D` name with a missing base switch is a configuration error.
+`addSwitch("3", "3T1")` binds the OS island for detector locking without a separate `bindDetectorLock` call.
 
 ##### D. Signal Mast Appliance (`SignalMast`)
 A Signal Mast models a physical wayside signal structure.

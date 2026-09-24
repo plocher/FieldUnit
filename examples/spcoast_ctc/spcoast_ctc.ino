@@ -55,9 +55,9 @@ void configureDesk() {
 
     // Column 5..7: CP_Luchessa
     machine.addStation("CP_Luchessa")
-        .inColumn(5).withSwitch("1").withTrackLamps({ "1T1" })
-        .inColumn(6).withSwitch("3").withSignal("2").withTrackLamps({ "3T1" })
-        .inColumn(7).withSwitch("5").withCodeButton();
+        .inColumn(5).withSwitch("783").withTrackLamps({ "783T1" })
+        .inColumn(6).withSwitch("795").withSignal("2").withTrackLamps({ "795T1" })
+        .inColumn(7).withSwitch("799").withCodeButton();
 
     // Column 8..10: CP_Christopher
     machine.addStation("CP_Christopher")

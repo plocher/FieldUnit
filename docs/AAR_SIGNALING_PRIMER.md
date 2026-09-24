@@ -158,9 +158,12 @@ Both points must lock in correspondence before any route clears.
 #### 2. Derails (`Derail`)
 A derail sits on a siding or industrial spur.
 It physically derails a rolling car before it can foul the mainline.
-Power-operated derails are slaved inversely to the main switch:
-- When the main switch is Normal $\implies$ Derail is ON RAIL (derailing position).
-- When the main switch is Reverse $\implies$ Derail is OFF RAIL (clear position).
+In FieldUnit, derail **NORMAL** means off-rail / clear (train may pass) and **REVERSE** means on-rail / active.
+Independent derails use their own odd number on the CodeLine.
+Dependent derails are named `<switchId>D` (for example `1D`) and are slaved inversely to the main switch:
+- When the main switch is Normal $\implies$ Derail is REVERSE (ON RAIL).
+- When the main switch is Reverse $\implies$ Derail is NORMAL (OFF RAIL / clear).
+Crossover machine ends use `A`/`B`/`C` suffixes; **`D` is reserved for derails**.
 
 #### 3. Electric Switch Locks (`ESL` / `WL`)
 In CTC territory, hand-throw switches feature an electric padlock housing.
