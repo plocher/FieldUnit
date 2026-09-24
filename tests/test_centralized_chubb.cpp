@@ -11,8 +11,8 @@ void runCentralizedChubbPatternTest() {
     printf("   Local Dispatcher + Central CP + Remote Image I/O \n");
     printf("====================================================\n\n");
 
-    // 1. Centralized Control Point Instance (lives on Host computer/MCU)
-    ControlPoint cp("CP_Christopher_Central");
+    // 1. Centralized Interlocking Plant Instance (lives on Host computer/MCU)
+    InterlockingPlant cp("CP_Christopher_Central");
 
     TrackCircuit* tc3T1  = cp.addTrackCircuit("3T1");  // SW3 OS (MT1)
     TrackCircuit* tc3BT1 = cp.addTrackCircuit("3BT1"); // SW3B OS (MT2)
@@ -32,7 +32,7 @@ void runCentralizedChubbPatternTest() {
     // Control Table
     cp.route("MT2-MT2-STRAIGHT")
       .governedBy(sig2, DirectionAuthority::LEFT)
-      .displays(mast2N, 0, Indication::CLEAR)
+      .displays(mast2N, Indication::CLEAR)
       .aligns({ {sw3B, SwitchPosition::NORMAL} })
       .clears({ tc3BT1 })
       .approaching(tc2SA);

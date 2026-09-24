@@ -1,5 +1,5 @@
-#ifndef FIELDUNIT_CONTROL_POINT_H
-#define FIELDUNIT_CONTROL_POINT_H
+#ifndef FIELDUNIT_INTERLOCKING_PLANT_H
+#define FIELDUNIT_INTERLOCKING_PLANT_H
 
 #include <string.h>
 #include "types.h"
@@ -96,14 +96,14 @@ struct IndicationVector {
     bool maintainerCall[MAX_APPLIANCES];
 };
 
-class ControlPoint;
+class InterlockingPlant;
 class DriverPolicy;
 class ApplianceDriver;
 class MockSwitchDriver;
 
-class ControlPoint {
+class InterlockingPlant {
 public:
-    ControlPoint(const char* name, AspectResolver defaultPolicy = AspectPolicies::defaultRoute)
+    InterlockingPlant(const char* name, AspectResolver defaultPolicy = AspectPolicies::defaultRoute)
         : defaultAspectPolicy_(defaultPolicy ? defaultPolicy : AspectPolicies::defaultRoute),
           defaultDriverPolicy_(nullptr),
           driverOverrideCount_(0),
@@ -113,9 +113,11 @@ public:
           authorityCount_(0),
           mastCount_(0),
           crossoverCount_(0),
-          maintainerCallActive_(false),
           detectorLockCouplingCount_(0) {
         setName(name);
+        for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
+            maintainerCalls_[i] = false;
+        }
     }
 
     void setName(const char* name) {
@@ -132,7 +134,9 @@ public:
         crossoverCount_ = 0;
         authorityCount_ = 0;
         mastCount_ = 0;
-        maintainerCallActive_ = false;
+        for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
+            maintainerCalls_[i] = false;
+        }
         detectorLockCouplingCount_ = 0;
         driverOverrideCount_ = 0;
         mockSwitchCount_ = 0;
@@ -485,7 +489,9 @@ public:
         }
 
         // 4. Update Maintainer Calls (non-vital, safe to process regardless of vital safety gate)
-        maintainerCallActive_ = ctl.maintainerCall[0];
+        for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
+            maintainerCalls_[i] = ctl.maintainerCall[i];
+        }
     }
 
     void sampleInputs(uint32_t nowMs);
@@ -599,9 +605,14 @@ public:
         }
 
         for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
-            ind.maintainerCall[i] = (i == 0) ? maintainerCallActive_ : false;
+            ind.maintainerCall[i] = maintainerCalls_[i];
         }
     }
+
+    bool maintainerCall(uint8_t idx = 0) const { return (idx < MAX_APPLIANCES) ? maintainerCalls_[idx] : false; }
+    void setMaintainerCall(uint8_t idx, bool val) { if (idx < MAX_APPLIANCES) maintainerCalls_[idx] = val; }
+    bool maintainerCallActive() const { return maintainerCall(0); }
+    void setMaintainerCall(bool val) { setMaintainerCall(0, val); }
 
 private:
     struct DetectorBinding {
@@ -636,7 +647,7 @@ private:
     SignalMast masts_[MAX_APPLIANCES];
     uint8_t mastCount_;
 
-    bool maintainerCallActive_;
+    bool maintainerCalls_[MAX_APPLIANCES];
 
     DetectorBinding detectorLocks_[MAX_APPLIANCES];
     uint8_t detectorLockCouplingCount_;
@@ -655,15 +666,10 @@ inline Route& Route::governedBy(const char* signalName, DirectionAuthority dir) 
     return *this;
 }
 
-inline Route& Route::displays(const char* mastName, uint8_t headIndex, Indication maxIndication) {
+inline Route& Route::displays(const char* mastName, Indication maxIndication) {
     mast_ = cp_ ? cp_->findSignalMast(mastName) : nullptr;
-    targetHeadIndex_ = headIndex;
     aspectCeiling_ = maxIndication;
     return *this;
-}
-
-inline Route& Route::displays(const char* mastName, Indication maxIndication) {
-    return displays(mastName, 0, maxIndication);
 }
 
 inline Route& Route::aligns(std::initializer_list<NamedSwitchRequirement> swList) {
@@ -746,4 +752,4 @@ inline Route& Route::engineReturn(const char* standingCarsName, const char* isla
 
 } // namespace FieldUnit
 
-#endif // FIELDUNIT_CONTROL_POINT_H
+#endif // FIELDUNIT_INTERLOCKING_PLANT_H

@@ -10,7 +10,7 @@
 #endif
 #include "types.h"
 #include "SignalAspectPolicy.h"
-#include "ControlPoint.h"
+#include "InterlockingPlant.h"
 
 namespace FieldUnit {
 
@@ -265,10 +265,10 @@ inline bool findKey(const char* objStart, const char* key, const char*& valStart
 }
 
 // -------------------------------------------------------------
-// Serialization: ControlPoint -> JSON
+// Serialization: InterlockingPlant -> JSON
 // -------------------------------------------------------------
 
-inline bool serialize(const ControlPoint& cp, char* buffer, size_t maxLen, bool pretty = true) {
+inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, bool pretty = true) {
     if (!buffer || maxLen == 0) return false;
 
     size_t offset = 0;
@@ -438,9 +438,8 @@ inline bool serialize(const ControlPoint& cp, char* buffer, size_t maxLen, bool 
         }
 
         if (r.mast()) {
-            snprintf(line, sizeof(line), "%s\"displays\": {\"mast\": \"%s\", \"head\": %u, \"maxIndication\": \"%s\"},%s",
-                     sp3, r.mast()->name(), static_cast<unsigned>(r.targetHeadIndex()),
-                     indicationToName(r.aspectCeiling()), nl);
+            snprintf(line, sizeof(line), "%s\"displays\": {\"mast\": \"%s\", \"maxIndication\": \"%s\"},%s",
+                     sp3, r.mast()->name(), indicationToName(r.aspectCeiling()), nl);
             if (!append(line)) return false;
         }
 
@@ -501,10 +500,10 @@ inline bool serialize(const ControlPoint& cp, char* buffer, size_t maxLen, bool 
 }
 
 // -------------------------------------------------------------
-// Deserialization: JSON -> ControlPoint
+// Deserialization: JSON -> InterlockingPlant
 // -------------------------------------------------------------
 
-inline bool deserialize(ControlPoint& cp, const char* json) {
+inline bool deserialize(InterlockingPlant& cp, const char* json) {
     if (!json) return false;
 
     // Reset plant to neutral empty state before loading new definition
@@ -808,20 +807,16 @@ inline bool deserialize(ControlPoint& cp, const char* json) {
                             const char* dObj = rVal;
                             const char* dVal = nullptr;
                             char mastName[32] = "";
-                            int32_t headIdx = 0;
                             char indStr[32] = "STOP";
 
                             if (findKey(dObj, "mast", dVal)) {
                                 parseString(dVal, mastName, sizeof(mastName));
                             }
-                            if (findKey(dObj, "head", dVal)) {
-                                parseInt(dVal, headIdx);
-                            }
                             if (findKey(dObj, "maxIndication", dVal)) {
                                 parseString(dVal, indStr, sizeof(indStr));
                             }
                             if (mastName[0] != '\0') {
-                                r.displays(mastName, static_cast<uint8_t>(headIdx), nameToIndication(indStr));
+                                r.displays(mastName, nameToIndication(indStr));
                             }
                         }
 
@@ -915,12 +910,12 @@ inline bool deserialize(ControlPoint& cp, const char* json) {
 
 } // namespace PlantSerializer
 
-// ControlPoint serialization convenience methods
-inline bool ControlPoint::serialize(char* buffer, size_t maxLen, bool pretty) const {
+// InterlockingPlant serialization convenience methods
+inline bool InterlockingPlant::serialize(char* buffer, size_t maxLen, bool pretty) const {
     return PlantSerializer::serialize(*this, buffer, maxLen, pretty);
 }
 
-inline bool ControlPoint::deserialize(const char* json) {
+inline bool InterlockingPlant::deserialize(const char* json) {
     return PlantSerializer::deserialize(*this, json);
 }
 

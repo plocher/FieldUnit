@@ -7,7 +7,7 @@ using namespace FieldUnit;
 
 static void testIndependentDerailWithOs() {
     printf("[TEST] Independent derail addDerail(\"5\", \"5T1\")\n");
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* d5 = cp.addDerail("5", "5T1");
     assert(d5 != nullptr);
     assert(d5->isDerail());
@@ -24,7 +24,7 @@ static void testIndependentDerailWithOs() {
 
 static void testDependentDerailBindsToBase() {
     printf("[TEST] Dependent derail addDerail(\"1D\", \"1DT1\") binds inverse to switch 1\n");
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1", "1T1");
     Switch* d1 = cp.addDerail("1D", "1DT1");
     assert(sw1 != nullptr);
@@ -48,7 +48,7 @@ static void testDependentDerailBindsToBase() {
 
 static void testDependentMissingBaseFails() {
     printf("[TEST] addDerail(\"1D\") without base switch fails\n");
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* d1 = cp.addDerail("1D");
     assert(d1 == nullptr);
     assert(cp.findSwitch("1D") == nullptr);
@@ -58,7 +58,7 @@ static void testDependentMissingBaseFails() {
 
 static void testInverseThrowAndCombinedKr() {
     printf("[TEST] Master throw REVERSE clears derail; KR waits for both ends\n");
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1", "1T1");
     Switch* d1 = cp.addDerail("1D", "1DT1");
     uint32_t t = 1000;
@@ -93,7 +93,7 @@ static void testInverseThrowAndCombinedKr() {
 
 static void testDetectorLockFansAcrossPair() {
     printf("[TEST] Detector lock on main OS freezes derail pair\n");
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1", "1T1");
     Switch* d1 = cp.addDerail("1D", "1DT1");
     TrackCircuit* tc = cp.findTrackCircuit("1T1");
@@ -107,7 +107,7 @@ static void testDetectorLockFansAcrossPair() {
 
 static void testSwitchOsOptional() {
     printf("[TEST] addSwitch without OS has no detector lock\n");
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw7 = cp.addSwitch("7");
     assert(sw7 != nullptr);
     assert(cp.findDetectorCircuitForSwitch(sw7) == nullptr);
@@ -117,7 +117,7 @@ static void testSwitchOsOptional() {
 
 static void testDependentDerailNotDirectlyCommandable() {
     printf("[TEST] Dependent derail rejects direct CodeLine demands; master drives pair\n");
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1", "1T1");
     Switch* d1 = cp.addDerail("1D", "1DT1");
     sw1->updateFeedback(SwitchPosition::NORMAL);
@@ -136,7 +136,7 @@ static void testDependentDerailNotDirectlyCommandable() {
 
 static void testApplyTransactionDrivesDependentDerail() {
     printf("[TEST] ControlTransaction on switch 1 drives dependent derail inverse\n");
-    ControlPoint cp("CP_Test");
+    InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1", "1T1");
     Switch* d1 = cp.addDerail("1D", "1DT1");
     sw1->updateFeedback(SwitchPosition::NORMAL);
@@ -152,7 +152,7 @@ static void testApplyTransactionDrivesDependentDerail() {
 
 static void testSerializerRoundTripDerails() {
     printf("[TEST] PlantSerializer round-trip preserves derails and OS\n");
-    ControlPoint cp1("CP_D");
+    InterlockingPlant cp1("CP_D");
     cp1.addSwitch("1", "1T1");
     cp1.addDerail("1D", "1DT1");
     cp1.addDerail("5", "5T1");
@@ -164,7 +164,7 @@ static void testSerializerRoundTripDerails() {
     assert(strstr(buf, "\"5\"") != nullptr);
     assert(strstr(buf, "\"os\"") != nullptr);
 
-    ControlPoint cp2("Blank");
+    InterlockingPlant cp2("Blank");
     assert(cp2.deserialize(buf));
     Switch* sw1 = cp2.findSwitch("1");
     Switch* d1 = cp2.findSwitch("1D");

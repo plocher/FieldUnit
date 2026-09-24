@@ -19,6 +19,10 @@ public:
         return false;
     }
 
+    OneShot& codeOneShot(uint8_t column) override {
+        return codeOneShot_[column < 16 ? column : 0];
+    }
+
     void write(uint8_t column, PanelOutput fn, bool state) override {
         if (column < 16 && static_cast<uint8_t>(fn) < 16) {
             outputs_[column][static_cast<uint8_t>(fn)] = state;
@@ -28,6 +32,9 @@ public:
     void setInput(uint8_t column, PanelInput fn, bool val) {
         if (column < 16 && static_cast<uint8_t>(fn) < 8) {
             inputs_[column][static_cast<uint8_t>(fn)] = val;
+            if (fn == PanelInput::CODE_BUTTON) {
+                codeOneShot_[column].update(val);
+            }
         }
     }
 
@@ -41,6 +48,7 @@ public:
 private:
     bool inputs_[16][8];
     bool outputs_[16][16];
+    OneShot codeOneShot_[16];
 };
 
 void testCtcMachineAssemblyAndCodeButton() {
@@ -67,8 +75,8 @@ void testCtcMachineAssemblyAndCodeButton() {
 
     // 1. When no code button is pressed, pollCode returns false
     size_t stIdx = 999;
-    char tokens[256];
-    assert(!machine.pollCode(stIdx, tokens, sizeof(tokens)));
+    const char* tokens = nullptr;
+    assert(!machine.pollCode(stIdx, tokens));
 
     // 2. Set levers on Christopher:
     // Switch 1: NORMAL
@@ -88,13 +96,19 @@ void testCtcMachineAssemblyAndCodeButton() {
     hw.setInput(10, PanelInput::SW_NORMAL, true);
     hw.setInput(10, PanelInput::SW_REVERSE, false);
 
-    // Press CODE10 on Column 10
+    // 3. Press CODE10 on Column 10 (arms, does not trigger while held down)
     hw.setInput(10, PanelInput::CODE_BUTTON, true);
+    assert(!machine.pollCode(stIdx, tokens));
 
-    // 3. Poll code should succeed for station 0 (CP_Christopher)
-    assert(machine.pollCode(stIdx, tokens, sizeof(tokens)));
+    // 4. Release CODE10 on Column 10 (triggers one-shot on release)
+    hw.setInput(10, PanelInput::CODE_BUTTON, false);
+    assert(machine.pollCode(stIdx, tokens));
     assert(stIdx == 0);
+    assert(tokens != nullptr);
     printf("  -> Compiled Tokens: %s\n", tokens);
+
+    // 5. Subsequent poll while unpressed returns false
+    assert(!machine.pollCode(stIdx, tokens));
 
     // Verify demands gathered across all three columns in canonical AAR sequence
     assert(strstr(tokens, "1NWS, (1RWS)") != nullptr);
@@ -103,6 +117,79 @@ void testCtcMachineAssemblyAndCodeButton() {
     assert(strstr(tokens, "(2SGS), 2NGS, (2HS)") != nullptr);
 
     printf("  -> PASS: All column demands harvested correctly into single token packet.\n");
+}
+
+void testPollCodeUsesPreallocatedBuffer() {
+    printf("--- Running testPollCodeUsesPreallocatedBuffer ---\n");
+    MockPanelHardware hw;
+    cTcMachine machine(hw);
+
+    machine.addStation("CP_Sargent")
+        .inColumn(13).withSwitch("1").withTrackLamps({ "1T1", "HBD" }).withCodeButton();
+    machine.begin();
+
+    hw.setInput(13, PanelInput::SW_NORMAL, true);
+    hw.setInput(13, PanelInput::SW_REVERSE, false);
+
+    hw.setInput(13, PanelInput::CODE_BUTTON, true);
+    hw.setInput(13, PanelInput::CODE_BUTTON, false);
+
+    size_t stIdx = 999;
+    const char* tokens = nullptr;
+    assert(machine.pollCode(stIdx, tokens));
+    assert(stIdx == 0);
+    assert(tokens != nullptr);
+    assert(strstr(tokens, "1NWS, (1RWS)") != nullptr);
+
+    // Trigger is consumed exactly once
+    const char* again = nullptr;
+    assert(!machine.pollCode(stIdx, again));
+
+    // Second press/release still works (prealloc buffer reused)
+    hw.setInput(13, PanelInput::CODE_BUTTON, true);
+    hw.setInput(13, PanelInput::CODE_BUTTON, false);
+    assert(machine.pollCode(stIdx, tokens));
+    assert(strstr(tokens, "1NWS, (1RWS)") != nullptr);
+    assert(!machine.pollCode(stIdx, again));
+
+    printf("  -> PASS: pollCode uses Strategy B preallocated controls buffer.\n");
+}
+
+void testHarvestReportsCurrentLeverPositions() {
+    printf("--- Running testHarvestReportsCurrentLeverPositions ---\n");
+    MockPanelHardware hw;
+    cTcMachine machine(hw);
+
+    machine.addStation("CP_Luchessa")
+        .inColumn(5).withSwitch("1")
+        .inColumn(6).withSwitch("3").withSignal("2")
+        .inColumn(7).withSwitch("5").withCodeButton();
+    machine.begin();
+
+    // Switch 1 Normal, Switch 3 Reverse, Switch 5 neither (open/open),
+    // Signal 2 Center/Stop, then code.
+    hw.setInput(5, PanelInput::SW_NORMAL, true);
+    hw.setInput(5, PanelInput::SW_REVERSE, false);
+    hw.setInput(6, PanelInput::SW_NORMAL, false);
+    hw.setInput(6, PanelInput::SW_REVERSE, true);
+    hw.setInput(6, PanelInput::SIG_LEFT, false);
+    hw.setInput(6, PanelInput::SIG_STOP, true);
+    hw.setInput(6, PanelInput::SIG_RIGHT, false);
+    hw.setInput(7, PanelInput::SW_NORMAL, false);
+    hw.setInput(7, PanelInput::SW_REVERSE, false);
+
+    hw.setInput(7, PanelInput::CODE_BUTTON, true);
+    hw.setInput(7, PanelInput::CODE_BUTTON, false);
+
+    size_t stIdx = 0;
+    const char* tokens = nullptr;
+    assert(machine.pollCode(stIdx, tokens));
+    assert(strstr(tokens, "1NWS, (1RWS)") != nullptr);
+    assert(strstr(tokens, "(3NWS), 3RWS") != nullptr);
+    assert(strstr(tokens, "(5NWS), (5RWS)") != nullptr); // open/open reported as both dropped
+    assert(strstr(tokens, "(2SGS), (2NGS), 2HS") != nullptr); // center = Stop
+
+    printf("  -> PASS: harvest reports current N/R and L/C/R positions.\n");
 }
 
 void testCtcMachineIndicationFanOut() {
@@ -162,6 +249,8 @@ int main() {
     printf("====================================================\n");
 
     testCtcMachineAssemblyAndCodeButton();
+    testPollCodeUsesPreallocatedBuffer();
+    testHarvestReportsCurrentLeverPositions();
     testCtcMachineIndicationFanOut();
 
     printf("\nALL CTC MACHINE TESTS PASSED!\n");

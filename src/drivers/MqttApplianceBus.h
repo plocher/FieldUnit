@@ -10,7 +10,7 @@
 #include "../TrackCircuit.h"
 #include "../Switch.h"
 #include "../SignalMast.h"
-#include "../ControlPoint.h"
+#include "../InterlockingPlant.h"
 
 namespace FieldUnit {
 
@@ -117,8 +117,8 @@ public:
         return true;
     }
 
-    // Auto-bind all appliances declared in a ControlPoint
-    void bind(ControlPoint& cp) {
+    // Auto-bind all appliances declared in an InterlockingPlant
+    void bind(InterlockingPlant& cp) {
         for (uint8_t i = 0; i < cp.trackCircuitCount(); ++i) {
             bindTrackCircuit(cp.trackCircuit(i));
         }

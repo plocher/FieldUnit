@@ -25,8 +25,8 @@ FieldUnit::I2CexpanderIOBus hardwareBus(&expander, 1);
 
 using namespace FieldUnit;
 
-// Create unconfigured Control Point
-ControlPoint cp("Tracer_CP");
+// Create unconfigured Interlocking Plant
+InterlockingPlant cp("Tracer_CP");
 
 void serialOutput(const char* line) {
     Serial.println(line);

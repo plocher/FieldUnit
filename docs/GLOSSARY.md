@@ -6,21 +6,23 @@ FieldUnit uses prototype relay abbreviations to maintain direct alignment with h
 
 For a complete conceptual walkthrough of how these relays interact inside a trackside bungalow, see **[Inside the Bungalow: An Introduction to AAR Signaling for Model Railroaders](AAR_SIGNALING_PRIMER.md)**.
 
-### 1.1 The Railroad Architecture Taxonomy
-In prototype signaling, terms like "Control Point," "Interlocking," "Plant," and "Bungalow" describe different scopes of the system.
-FieldUnit uses each term with one precise meaning:
+### 1.1 The Three-Tier Architecture Taxonomy
+In prototype signaling, terms like "Control Point," "Interlocking Plant," and "Bungalow" describe different scopes of the system.
+FieldUnit uses each term with precise prototype meaning:
 
-- **Control Point (CP)**:
-  The **logical unit of authority**.
-  A named geographic location on the railroad (for example, *CP Christopher, MP 81*) where trains receive movement authority from the dispatcher via wayside signals.
-- **Interlocking**:
-  The **vital safety arrangement**.
-  An arrangement of switches, track circuits, and signals interconnected such that their movements must succeed each other in a strictly safe sequence.
-  Every Control Point with switches contains an interlocking.
-- **Plant**:
-  The **physical collection of trackside hardware**.
-  The physical steel rails, switch machines, frog points, and signal masts that make up a junction (for example, *"throwing points in the plant"*).
-- **Bungalow**:
+- **Interlocking Plant (`InterlockingPlant`)**:
+  The **vital safety engine and trackside physical reality**.
+  An arrangement of switch points, track circuits, and signals within interlocking limits interconnected such that their movements must succeed each other in proper sequence under vital safety rules (`WLR`, `KR`, `ASR`, `ERS`).
+  Equipment shelters (bungalows, relay houses, instrument cases, or tower ground floors) are physical enclosures protecting the plant's electrical relays.
+- **Controlled Point (Line Station)**:
+  The **addressable supervisory unit on the CodeLine**.
+  Bounded by the stepping capacity (15, 20, or 32 steps) of the physical line coding hardware (US&S Form 506/508/510, GRS Type K).
+  A single Interlocking Plant may aggregate multiple controlled points (for example, Luchessa aggregates three 15-step controlled points).
+- **Panel Column (`PanelColumn`)**:
+  The **physical modular console slice**.
+  A standard 2-inch vertical column on an office machine (such as a US&S Model 503) containing switch levers, signal levers, indicator jewels, and track diagram lamps.
+  In 15-step systems, one panel column maps 1:1 with one controlled point. Multiple columns are consolidated under a single CODE button for dispatcher convenience.
+- **Bungalow / Instrument Case**:
   The **physical trackside housing / enclosure**.
   The weather-proof steel shed or instrument case at the junction that houses the relays, batteries, chargers, and field computers.
 - **Field Unit**:
@@ -45,6 +47,30 @@ FieldUnit uses each term with one precise meaning:
 - **Island Block (OS Section / On-Sheet)**: The dedicated track circuit covering a switch or crossover. Must be insulated from adjacent track circuits.
 - **Fouling Point**: The physical clearance boundary where cars on converging tracks can collide. Insulated rail joints must clear the fouling point, supported by optical sensors where unpowered rolling stock is present.
 - **Bungalow / Instrument Case**: The physical trackside enclosure housing relays, batteries, and the Field Unit controller.
+
+- Rule 251 (Track Signaled in One Direction):
+Governs movements on tracks where signals are only configured for
+one direction.  Under this rule, signal indications supersede the
+superiority of trains for movements operating with the current of
+traffic.  Moving against this traffic direction requires explicit
+authority (such as a train order or track warrant).
+
+- Rule 261 (Track Signaled in Both Directions):
+Governs bi-directional signal territory (often controlled by
+Centralized Traffic Control, or CTC).  Under Rule 261, block signal
+indications supersede train superiority for both opposing and
+following movements on the same track, allowing the dispatcher to
+dynamically change the direction of traffic by clearing signals.
+
+- Rule 262 (Reversing Direction):
+Mandates that once a direction of traffic has been established for
+a train in bi-directional territory, the train must not move in the opposite direction without proper interlocking signal indications or direct permission from the train dispatcher.
+
+- Track and Movement Definitions Rule D-151 & D-152 (Current of Traffic):
+The "D" prefix denotes rules specifically for two or more tracks.
+These rules establish that on double tracks, trains must run with
+the current of traffic (the designated normal direction for that
+track, such as keeping to the right) unless otherwise authorized.
 
 ### 1.3 Operational and Signaling Terms
 - **CodeLine Interface (Supervisory CodeLine)**: The communications interface between the dispatcher office or tower desk and the field station. Uses strict *Controls-as-Demands* and *Indications-as-Truth*.

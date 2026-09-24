@@ -10,7 +10,7 @@
 
 namespace FieldUnit {
 
-class ControlPoint;
+class InterlockingPlant;
 
 static constexpr uint8_t MAX_ROUTE_SWITCHES = 8;
 static constexpr uint8_t MAX_ROUTE_BLOCKS   = 8;
@@ -59,7 +59,6 @@ public:
         : authority_(nullptr),
           direction_(DirectionAuthority::STOP),
           mast_(nullptr),
-          targetHeadIndex_(0),
           aspectCeiling_(Indication::STOP),
           switchCount_(0),
           blockCount_(0),
@@ -76,7 +75,48 @@ public:
         }
     }
 
-    void setParent(ControlPoint* cp) { cp_ = cp; }
+
+    static Indication leastPermissive(Indication lhs, Indication rhs) {
+        return permissivenessRank(lhs) <= permissivenessRank(rhs) ? lhs : rhs;
+    }
+    static Indication mostPermissive(Indication lhs, Indication rhs) {
+        return permissivenessRank(lhs) >= permissivenessRank(rhs) ? lhs : rhs;
+    }
+
+    static uint8_t permissivenessRank(Indication indication) {
+        switch (indication) {
+            case Indication::STOP:
+                return 0;
+            case Indication::RESTRICTING:
+            case Indication::DIVERGING_RESTRICTING:
+            case Indication::APPROACH_RESTRICTING:
+                return 1;
+            case Indication::SLOW_APPROACH:
+            case Indication::APPROACH_SLOW:
+                return 2;
+            case Indication::SLOW_CLEAR:
+                return 3;
+            case Indication::APPROACH:
+            case Indication::DIVERGING_APPROACH:
+            case Indication::MEDIUM_APPROACH:
+            case Indication::APPROACH_MEDIUM:
+            case Indication::APPROACH_DIVERGING:
+                return 4;
+            case Indication::ADVANCE_APPROACH:
+                return 5;
+            case Indication::DIVERGING_CLEAR:
+            case Indication::MEDIUM_CLEAR:
+                return 6;
+            case Indication::CAB_SPEED:
+                return 7;
+            case Indication::CLEAR:
+                return 8;
+            default:
+                return 0;
+        }
+    }
+
+    void setParent(InterlockingPlant* cp) { cp_ = cp; }
 
     RouteState state() const { return state_; }
     bool isIdle() const { return state_ == RouteState::IDLE; }
@@ -128,18 +168,13 @@ public:
 
     Route& governedBy(const char* signalName, DirectionAuthority dir);
 
-    Route& displays(SignalMast* mast, uint8_t headIndex, Indication maxIndication) {
+
+    Route& displays(SignalMast* mast, Indication maxIndication) {
         mast_ = mast;
-        targetHeadIndex_ = headIndex;
         aspectCeiling_ = maxIndication;
         return *this;
     }
 
-    Route& displays(SignalMast* mast, Indication maxIndication) {
-        return displays(mast, 0, maxIndication);
-    }
-
-    Route& displays(const char* mastName, uint8_t headIndex, Indication maxIndication);
     Route& displays(const char* mastName, Indication maxIndication);
 
     Route& aligns(std::initializer_list<SwitchRequirement> swList) {
@@ -213,7 +248,6 @@ public:
     SignalControl* authority() const { return authority_; }
     DirectionAuthority direction() const { return direction_; }
     SignalMast* mast() const { return mast_; }
-    uint8_t targetHeadIndex() const { return targetHeadIndex_; }
     Indication aspectCeiling() const { return aspectCeiling_; }
 
     uint8_t switchCount() const { return switchCount_; }
@@ -236,7 +270,6 @@ private:
     SignalControl*     authority_;
     DirectionAuthority direction_;
     SignalMast*        mast_;
-    uint8_t            targetHeadIndex_;
     Indication         aspectCeiling_;
 
     uint8_t            switchCount_;
@@ -251,7 +284,7 @@ private:
     bool               isEngineReturn_;
     TrackCircuit*      originBlock_;
     TrackCircuit*      osBlock_;
-    ControlPoint*      cp_;
+    InterlockingPlant* cp_;
     RouteState         state_;
     SectionState       sectionStates_[MAX_ROUTE_SWITCHES];
 };
@@ -264,7 +297,7 @@ public:
         routeCount_ = 0;
     }
 
-    Route& addRoute(const char* name, ControlPoint* cp = nullptr) {
+    Route& addRoute(const char* name, InterlockingPlant* cp = nullptr) {
         if (routeCount_ >= MAX_ROUTES) {
             return dummyRoute_;
         }
@@ -277,6 +310,8 @@ public:
 
     // Main vital evaluation cycle
     void evaluate() {
+        MastEvaluation mastEvaluations[MAX_ROUTES];
+        uint8_t mastEvaluationCount = 0;
         // Reset all signal masts to STOP initially
         for (uint8_t i = 0; i < routeCount_; ++i) {
             if (routes_[i].mast() != nullptr) {
@@ -324,34 +359,18 @@ public:
             // A. Check if Engine Return applies
             if (r.isEngineReturn()) {
                 if (evaluateEngineReturn(r)) {
-                    r.mast()->setHeadIndication(r.targetHeadIndex(), Indication::RESTRICTING);
+                    accumulateMastIndication(mastEvaluations, mastEvaluationCount, r.mast(),
+                                            Indication::RESTRICTING);
                     applyRouteLocks(r);
                     continue;
                 }
             }
 
             // B. Standard Dispatcher-Governed Route
-            if (r.authority() == nullptr) {
+            if (r.authority() == nullptr || r.authority()->activeDirection() != r.direction()) {
                 r.resetTraversal();
                 continue;
             }
-
-            // Check if dispatcher granted authority in this direction
-            if (r.authority()->activeDirection() != r.direction()) {
-                r.resetTraversal();
-                continue;
-            }
-
-            // Check switch alignment and correspondence
-            if (!checkSwitchesAligned(r)) {
-                r.resetTraversal();
-                continue;
-            }
-
-            // Check route track circuits
-            bool pathClear = checkBlocksClear(r);
-
-            // Check if train has entered the plant (knockdown)
             TrackCircuit* ent = r.entranceBlock();
             if (ent != nullptr && !ent->isClear()) {
                 r.authority()->knockdown();
@@ -376,28 +395,17 @@ public:
                 continue; // Train entered, signal must stay at STOP
             }
 
-            if (!pathClear) {
+            Indication aspect = evaluateIndication(r);
+            if (aspect == Indication::STOP) {
                 r.resetTraversal();
-                continue; // Route blocked by train ahead
+                continue;
             }
-
-            // Route is aligned, locked, and clear. Derive aspect.
-            Indication aspect = r.aspectCeiling();
-
-            // ABS / Intermediate block check:
-            // If approach circuit ahead is occupied, drop Clear to Approach
-            if (r.approachBlock() != nullptr && !r.approachBlock()->isClear()) {
-                if (aspect == Indication::CLEAR) {
-                    aspect = Indication::APPROACH;
-                } else if (aspect == Indication::DIVERGING_CLEAR) {
-                    aspect = Indication::DIVERGING_APPROACH;
-                }
-            }
-
-            // Display aspect and lock switches
-            r.mast()->setHeadIndication(r.targetHeadIndex(), aspect);
+            accumulateMastIndication(mastEvaluations, mastEvaluationCount, r.mast(), aspect);
             r.setCleared();
             applyRouteLocks(r);
+        }
+        for (uint8_t i = 0; i < mastEvaluationCount; ++i) {
+            mastEvaluations[i].mast->setIndication(mastEvaluations[i].indication);
         }
 
         // Apply time locking to switches on cancelled routes
@@ -425,6 +433,24 @@ public:
     }
 
 private:
+    struct MastEvaluation {
+        SignalMast* mast;
+        Indication indication;
+    };
+
+    void accumulateMastIndication(MastEvaluation* evaluations, uint8_t& count,
+                                  SignalMast* mast, Indication indication) const {
+        for (uint8_t i = 0; i < count; ++i) {
+            if (evaluations[i].mast == mast) {
+                evaluations[i].indication =
+                    Route::mostPermissive(evaluations[i].indication, indication);
+                return;
+            }
+        }
+        if (count < MAX_ROUTES) {
+            evaluations[count++] = { mast, indication };
+        }
+    }
     bool checkSwitchesAligned(const Route& r) const {
         for (uint8_t i = 0; i < r.switchCount(); ++i) {
             const SwitchRequirement& req = r.switchReq(i);
@@ -443,6 +469,51 @@ private:
             }
         }
         return true;
+    }
+
+    Indication evaluateIndication(const Route& r) const {
+        Indication indication = r.aspectCeiling();
+        indication = Route::leastPermissive(indication, authorityContribution(r));
+        indication = Route::leastPermissive(indication, alignmentContribution(r));
+        indication = Route::leastPermissive(indication, clearanceContribution(r));
+        indication = Route::leastPermissive(indication, approachContribution(r));
+        return indication;
+    }
+
+    Indication authorityContribution(const Route& r) const {
+        return r.authority() != nullptr && r.authority()->activeDirection() == r.direction()
+            ? r.aspectCeiling()
+            : Indication::STOP;
+    }
+
+    Indication alignmentContribution(const Route& r) const {
+        return checkSwitchesAligned(r) ? r.aspectCeiling() : Indication::STOP;
+    }
+
+    Indication clearanceContribution(const Route& r) const {
+        return checkBlocksClear(r) ? r.aspectCeiling() : Indication::STOP;
+    }
+
+    Indication approachContribution(const Route& r) const {
+        if (r.approachBlock() == nullptr || r.approachBlock()->isClear()) {
+            return r.aspectCeiling();
+        }
+        return reduceForOccupiedApproach(r.aspectCeiling());
+    }
+
+    Indication reduceForOccupiedApproach(Indication indication) const {
+        switch (indication) {
+            case Indication::CLEAR:
+                return Indication::APPROACH;
+            case Indication::DIVERGING_CLEAR:
+                return Indication::DIVERGING_APPROACH;
+            case Indication::MEDIUM_CLEAR:
+                return Indication::MEDIUM_APPROACH;
+            case Indication::SLOW_CLEAR:
+                return Indication::SLOW_APPROACH;
+            default:
+                return indication;
+        }
     }
 
     void applyRouteLocks(const Route& r) {

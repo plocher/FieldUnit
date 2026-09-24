@@ -108,23 +108,6 @@ public:
         markers_ = a.markers;
     }
 
-    // Vital action: update the displayed aspect on a specific head
-    // Integrates with AspectPolicy for diverging vs main route indications
-    void setHeadIndication(uint8_t headIndex, Indication ind) {
-        currentIndication_ = ind;
-        if (headIndex == 0) {
-            setIndication(ind);
-            return;
-        }
-
-        Indication effInd = ind;
-        if (headIndex == 1) {
-            if (ind == Indication::CLEAR) effInd = Indication::DIVERGING_CLEAR;
-            else if (ind == Indication::APPROACH) effInd = Indication::DIVERGING_APPROACH;
-            else if (ind == Indication::RESTRICTING) effInd = Indication::DIVERGING_RESTRICTING;
-        }
-        setIndication(effInd);
-    }
 
     void forceStop() {
         setIndication(Indication::STOP);

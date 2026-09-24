@@ -9,7 +9,7 @@
 #include "SignalControl.h"
 #include "SignalMast.h"
 #include "ControlTable.h"
-#include "ControlPoint.h"
+#include "InterlockingPlant.h"
 #include "PlantSerializer.h"
 #include "WireCodec.h"
 #include "CodeLine.h"

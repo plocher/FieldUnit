@@ -4,7 +4,25 @@ All notable changes to the FieldUnit library will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **SPCoast cTc Desk Configuration & CodeLine Timing (`examples/spcoast_ctc/`)**:
+  - Repurposed Column 3 model board blue traffic lamps as physical CodeLine activity lamps: Indication (N-lamp, position 1) and Control (S-lamp, position 2).
+  - Replaced generic blink timing with data-bearing, long/short 15-step cycles per physical panel column. Each cycle displays synchronization, column address, wired controls or indications, and an execution pulse; multi-column plants sequence their cycles under one CODE press.
+  - Decoupled `USE_OTA` from baseline WiFi and MQTT networking in `spcoast_ctc.ino`; WiFi and MQTT are now unconditional core requirements.
+  - Corrected CP Luchessa signal lever placement in `configureDesk()`: moved Signal 2 from Column 6 to Column 5 (lever 784), restoring lever reading and jewel lamp illumination.
+  - Wired physical maintainer calls (`.withMaintainerCall()`) on the 5 stations with physical MC hardware (Interchange, Luchessa, Christopher, Corporal, Sargent).
+  - Added serial logging in `onMqttMessage` for `INDICATION:` and `INDICATION REJECTED`.
+- **Office CODE path / Strategy B wiring (`src/cTcMachine.h`, `src/WireCodec.h`, `examples/spcoast_ctc/`)**:
+  - `pollCode` encodes only into the station's preallocated Strategy B controls buffer (sized at `begin()`). API is `pollCode(stIdx, const char*& tokens)` — no caller stack buffer, no size-check drop path.
+  - `AarTextCodec` is move-only (not copyable) so Strategy B `malloc` buffers cannot be double-freed via shallow copies of `CtcStation`.
+  - Lever harvest documents and implements absolute debounced positions: switch N/R (or neither), signal L/C/R (center → Stop), MC on/off. CODE remains press/release via `OneShot`.
+  - `IO-I2C` applies 20 ms time debounce on panel inputs before OneShot and lever reads (replacing I2Cexpander spin-until-stable full-word debounce).
+  - Production `spcoast_ctc` sketch is desk-only again (no `TEST_DIRECT_MIRROR`, no in-sketch lamp chase / mirror harness).
+  - Hardware panel bench lives in `examples/spcoast_ctc_bench/` (I2C scan, lamp test, opportunistic lever/CODE mirror, quiet stats). Supersedes `spcoast_ctc_test`.
+
 ### Added
+- **CodeLine Cadence & Fast-Clock Timeline (`docs/AAR_SIGNALING_PRIMER.md`)**:
+  - Added Section 9.5 documenting the office/field line transmission boundary, lock dog dominance over point detection, and the compressed 4.5–5.5s timeline for model railroad fast clocks.
 - **Derails and OS binding**:
   - `ControlPoint::addDerail(name)` / `addDerail(name, osTrackCircuit)` for derail appliances.
   - Name rule: `*D` (e.g. `1D`) is a **dependent** derail inverse-paired to base switch `1` when the base already exists; missing base is a hard configuration error (never an independent fall-through).

@@ -83,7 +83,7 @@ FieldUnit replaces complex procedural code with readable, declarative routes:
 // Siding Route: Diverging move over Crossover 3 into Siding
 cp.route("MAIN_TO_SIDING")
   .governedBy("2", DirectionAuthority::RIGHT)
-  .displays("2S", 1 /* Lower Head */, Indication::DIVERGING_CLEAR)
+  .displays("2S", Indication::DIVERGING_CLEAR)
   .aligns({ {"1", SwitchPosition::NORMAL}, 
             {"3", SwitchPosition::REVERSE} }) // Crossover 3 aligns both machines
   .clears({ "1T1", "3T1" })

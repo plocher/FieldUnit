@@ -32,8 +32,8 @@
 
 using namespace FieldUnit;
 
-// Control Point Instance
-ControlPoint cp("CP_Christopher");
+// Interlocking Plant Instance
+InterlockingPlant cp("CP_Christopher");
 AarTextCodec codec;
 
 void configurePlant() {
@@ -70,29 +70,29 @@ void configurePlant() {
     cp.addSignalMast("2Nc",  MastType::DWARF);
 
     // 4. Declare Interlocking Control Table by name
-    // Route 1: MT2-MT2 Northbound Straight (Crossover 3 Normal) -> Top head H2NA CLEAR
+    // Route 1: MT2-MT2 Northbound Straight (Crossover 3 Normal) -> CLEAR
     cp.route("MT2-MT2-STRAIGHT")
       .governedBy("2", DirectionAuthority::LEFT)
-      .displays("2Nab", 0, Indication::CLEAR)
+      .displays("2Nab", Indication::CLEAR)
       .aligns({ {"3", SwitchPosition::NORMAL} })
       .clears({ "3BT1" })
       .entrance("3BT1")
       .approaching("2SA");
 
-    // Route 2: MT2-MT1 Northbound Crossover (Crossover 3 Reverse) -> Lower head H2NB DIVERGING_CLEAR
+    // Route 2: MT2-MT1 Northbound Crossover (Crossover 3 Reverse) -> DIVERGING_CLEAR
     cp.route("MT2-MT1-CROSSOVER")
       .governedBy("2", DirectionAuthority::LEFT)
-      .displays("2Nab", 1, Indication::DIVERGING_CLEAR)
+      .displays("2Nab", Indication::DIVERGING_CLEAR)
       .aligns({ {"3", SwitchPosition::REVERSE},
                 {"1", SwitchPosition::NORMAL} })
       .clears({ "3BT1", "3T1", "1T1" })
       .entrance("3BT1")
       .approaching("1SA");
 
-    // Route 3: MT1-MT1 Southbound Straight (SW1=N, Crossover 3=N, SW5=N) -> Top head H2SA CLEAR
+    // Route 3: MT1-MT1 Southbound Straight (SW1=N, Crossover 3=N, SW5=N) -> CLEAR
     cp.route("MT1-MT1-STRAIGHT")
       .governedBy("2", DirectionAuthority::RIGHT)
-      .displays("2Sab", 0, Indication::CLEAR)
+      .displays("2Sab", Indication::CLEAR)
       .aligns({ {"1", SwitchPosition::NORMAL},
                 {"3", SwitchPosition::NORMAL},
                 {"5", SwitchPosition::NORMAL} })
@@ -100,10 +100,10 @@ void configurePlant() {
       .entrance("1T1")
       .approaching("1NA");
 
-    // Route 4: MT1-MT2 Southbound Crossover (SW1=N, Crossover 3=R) -> Lower head H2SB DIVERGING_CLEAR
+    // Route 4: MT1-MT2 Southbound Crossover (SW1=N, Crossover 3=R) -> DIVERGING_CLEAR
     cp.route("MT1-MT2-CROSSOVER")
       .governedBy("2", DirectionAuthority::RIGHT)
-      .displays("2Sab", 1, Indication::DIVERGING_CLEAR)
+      .displays("2Sab", Indication::DIVERGING_CLEAR)
       .aligns({ {"1", SwitchPosition::NORMAL},
                 {"3", SwitchPosition::REVERSE} })
       .clears({ "1T1", "3T1" })

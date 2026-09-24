@@ -1,0 +1,253 @@
+<!--
+  Reconstructed 2026-09-15 from:
+  - Archives/sketch.ARCHIVE/CP_Luchessa/CP_Luchessa.wiki
+  - Archives/sketch.ARCHIVE/CP_Luchessa/CP_Luchessa_field/CP_Luchessa_field.ino
+  This is recovered legacy source, not the original archival file.
+-->
+<controlpoint name="CP_Luchessa" layout="SPCoast" node="0x79" board="wemos">
+    <depends name="GInterchange" xmlfile="GInterchange.xml" />
+    <doc>
+Carnadero, Luchessa, and Gilroy Industrial.
+
+&lt; Railroad West/North                             Railroad East/South &gt;
+                                                oo--| 2NEF
+                    2SCD |--oo              +====== ================= Hollister Branch
+                        = ====\            /
+                           3T1 \   [MC]   / 5T1 oo--| 2NCD
+                   /======= ====+==== ===+========= ==========2NA===&lt;  MT2
+              1T1 /                             oo--| 2AB
+    MT   =1SA= ==+================================= ==========1NA===&gt;  MT1
+              |--oo 2SAB
+
+Single track continues north of Luchessa. Double track south is operated
+using current-of-traffic, Rule 251 territory. Turnout 1 divides single
+track into double track. Turnout 3 leads to Gilroy Industrial. Turnout 5
+leads to the Hollister Branch, which is dark except for its approach.
+
+Eastbound approach: Gilroy Interchange 1SA.
+Westbound approaches: Hollister 1NA and Christopher 2NA.
+    </doc>
+    <switches>
+        <switch name="1" trackcircuit="1T1" />
+        <switch name="3" trackcircuit="3T1" />
+        <switch name="5" trackcircuit="5T1" />
+    </switches>
+    <trackcircuits>
+        <trackcircuit name="1NA" />
+        <trackcircuit name="1SA" />
+        <trackcircuit name="1T1" />
+        <trackcircuit name="2NA" />
+        <trackcircuit name="3T1" />
+        <trackcircuit name="5T1" />
+    </trackcircuits>
+    <maintainers>
+        <call name="MC1" />
+    </maintainers>
+    <signals>
+        <signal name="2" ER="True" FLEET="True">
+            <knockdown>
+                <trackcircuit name="1T1" />
+                <trackcircuit name="3T1" />
+                <trackcircuit name="5T1" />
+            </knockdown>
+            <head name="H2NA" direction="N">
+                <route name="NR1">
+                    <switch name="1" position="N" aspect="CLEAR" />
+                    <trackcircuit name="1SA" />
+                    <trackcircuit name="1T1" />
+                    <signal name="2" direction="LEFT" />
+                </route>
+            </head>
+            <head name="H2NB" direction="N">
+                <route name="GI">
+                    <trackcircuit name="GInterchange:1RWK" />
+                    <trackcircuit name="1SA" />
+                    <trackcircuit name="1T1" />
+                    <switch name="1" position="N" aspect="APPROACH" />
+                    <trackcircuit name="GInterchange:3T1K" />
+                    <signal name="2" direction="LEFT" />
+                </route>
+            </head>
+            <head name="H2NC" direction="N">
+                <route name="NR2">
+                    <trackcircuit name="1SA" />
+                    <trackcircuit name="1T1" />
+                    <switch name="1" position="R" aspect="APPROACH" />
+                    <switch name="3" position="N" />
+                    <trackcircuit name="5T1" />
+                    <switch name="5" position="N" />
+                    <trackcircuit name="3T1" />
+                    <signal name="2" direction="LEFT" />
+                </route>
+            </head>
+            <head name="H2ND" direction="N">
+                <route name="NR3">
+                    <switch name="3" position="R" aspect="RESTRICTING" />
+                    <trackcircuit name="5T1" />
+                    <switch name="5" position="N" />
+                    <trackcircuit name="3T1" />
+                    <signal name="2" direction="LEFT" />
+                </route>
+            </head>
+            <head name="H2NE" direction="N">
+                <route name="R2">
+                    <switch name="3" position="R" aspect="RESTRICTING" />
+                    <trackcircuit name="5T1" />
+                    <switch name="5" position="R" />
+                    <trackcircuit name="3T1" />
+                </route>
+                <route name="NR4">
+                    <trackcircuit name="1SA" />
+                    <trackcircuit name="1T1" />
+                    <switch name="1" position="N" aspect="APPROACH" />
+                    <switch name="3" position="N" />
+                    <trackcircuit name="5T1" />
+                    <switch name="5" position="R" />
+                    <trackcircuit name="3T1" />
+                    <signal name="2" direction="LEFT" />
+                </route>
+            </head>
+            <head name="H2SA" direction="S">
+                <route name="SR1">
+                    <switch name="1" position="N" aspect="CLEAR" />
+                    <trackcircuit name="1NA" />
+                    <trackcircuit name="1T1" />
+                    <signal name="2" direction="RIGHT" />
+                </route>
+            </head>
+            <head name="H2SB" direction="S">
+                <route name="SR3">
+                    <trackcircuit name="1T1" />
+                    <switch name="1" position="R" />
+                    <switch name="3" position="N" />
+                    <trackcircuit name="5T1" />
+                    <switch name="5" position="R" aspect="RESTRICTING" />
+                    <trackcircuit name="3T1" />
+                    <signal name="2" direction="RIGHT" />
+                </route>
+                <route name="SR2">
+                    <trackcircuit name="1T1" />
+                    <trackcircuit name="2NA" />
+                    <switch name="1" position="R" aspect="RESTRICTING" />
+                    <switch name="3" position="N" />
+                    <trackcircuit name="5T1" />
+                    <switch name="5" position="N" />
+                    <trackcircuit name="3T1" />
+                    <signal name="2" direction="RIGHT" />
+                </route>
+            </head>
+            <head name="H2SC" direction="S">
+                <route name="R1">
+                    <switch name="3" position="R" aspect="RESTRICTING" />
+                    <trackcircuit name="5T1" />
+                    <switch name="5" position="R" />
+                    <trackcircuit name="3T1" />
+                </route>
+                <route name="SR4">
+                    <trackcircuit name="2NA" />
+                    <switch name="3" position="R" aspect="APPROACH" />
+                    <switch name="5" position="N" />
+                    <trackcircuit name="3T1" />
+                    <trackcircuit name="5T1" />
+                    <signal name="2" direction="RIGHT" />
+                </route>
+            </head>
+        </signal>
+    </signals>
+    <indications>
+        <indication name="1NW" word="0" bit="0" />
+        <indication name="1RW" word="0" bit="1" />
+        <indication name="3NW" word="0" bit="2" />
+        <indication name="3RW" word="0" bit="3" />
+        <indication name="5NW" word="0" bit="4" />
+        <indication name="5RW" word="0" bit="5" />
+        <indication name="1T1" word="1" bit="0" />
+        <indication name="3T1" word="1" bit="1" />
+        <indication name="5T1" word="1" bit="2" />
+        <indication name="2SG" word="1" bit="3" />
+        <indication name="2NG" word="1" bit="4" />
+        <indication name="2TE" word="1" bit="5" />
+        <indication name="1NA" word="2" bit="0" />
+        <indication name="2NA" word="2" bit="1" />
+        <indication name="1SA" word="2" bit="2" />
+        <indication name="MC1" word="2" bit="7" />
+    </indications>
+    <controls>
+        <control name="1NW" word="0" bit="0" />
+        <control name="1RW" word="0" bit="1" />
+        <control name="3NW" word="0" bit="2" />
+        <control name="3RW" word="0" bit="3" />
+        <control name="5NW" word="0" bit="4" />
+        <control name="5RW" word="0" bit="5" />
+        <control name="2SG" word="1" bit="0" />
+        <control name="2NG" word="1" bit="1" />
+        <control name="2H" word="1" bit="2" />
+        <control name="MC1" word="1" bit="7" />
+    </controls>
+    <field name="fieldunit">
+        <input name="1RW" device="0" bit="0" />
+        <input name="1NW" device="0" bit="1" />
+        <input name="1T1" device="0" bit="2" />
+        <output name="T1" device="0" bit="3" />
+        <input name="3RW" device="0" bit="4" />
+        <input name="3NW" device="0" bit="5" />
+        <input name="3T1" device="0" bit="6" />
+        <output name="T3" device="0" bit="7" />
+        <input name="5RW" device="1" bit="0" />
+        <input name="5NW" device="1" bit="1" />
+        <input name="5T1" device="1" bit="2" />
+        <output name="T5" device="1" bit="3" />
+        <input name="1SA" device="1" bit="4" />
+        <input name="1NA" device="1" bit="5" />
+        <input name="2NA" device="1" bit="6" />
+        <signal name="2">
+            <head name="H2NA">
+                <output name="H2NA1" device="2" bit="0" />
+                <output name="H2NA2" device="2" bit="1" />
+            </head>
+            <head name="H2NB">
+                <output name="H2NB1" device="2" bit="2" />
+                <output name="H2NB2" device="2" bit="3" />
+            </head>
+            <head name="H2NC">
+                <output name="H2NC1" device="2" bit="4" />
+                <output name="H2NC2" device="2" bit="5" />
+            </head>
+            <head name="H2ND">
+                <output name="H2ND1" device="2" bit="6" />
+                <output name="H2ND2" device="2" bit="7" />
+            </head>
+            <head name="H2SA">
+                <output name="H2SA1" device="3" bit="0" />
+                <output name="H2SA2" device="3" bit="1" />
+            </head>
+            <head name="H2SB">
+                <output name="H2SB1" device="3" bit="2" />
+                <output name="H2SB2" device="3" bit="3" />
+            </head>
+            <head name="H2SC">
+                <output name="H2SC1" device="3" bit="4" />
+                <output name="H2SC2" device="3" bit="5" />
+            </head>
+            <head name="H2NE">
+                <output name="H2NE1" device="3" bit="6" />
+                <output name="H2NE2" device="3" bit="7" />
+            </head>
+        </signal>
+        <output name="MC1" device="4" bit="0" />
+        <output name="CL_DT" type="DATA" device="4" bit="1" />
+        <output name="CL_CE" type="CE" device="4" bit="2" />
+        <output name="CL_CL" type="CLOCK" device="4" bit="3" />
+        <matrix name="CODE" type="codeline">
+            <display name="controls" order="0" />
+            <display name="indications" order="1" />
+        </matrix>
+        <expander type="PCF8574" address="0" device="0" />
+        <expander type="PCF8574A" address="0" device="1" />
+        <expander type="PCF8574" address="1" device="2" />
+        <expander type="PCF8574A" address="1" device="3" />
+        <expander type="WEMOS_MATRIX" address="-1" device="4" />
+        <expander type="WEMOS" address="-1" device="5" />
+        <expander type="I2CLCD" address="7" device="6" />
+    </field>
+</controlpoint>

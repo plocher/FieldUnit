@@ -105,14 +105,14 @@ void runHardwareDriverTests() {
     printf("  -> Mast at STOP: Pin drivers assert Red over Red (h0R=1, h1R=1)\n");
 
     // 2. Mainline Route Cleared: CLEAR (Green over Red)
-    mast2N.setHeadIndication(0, Indication::CLEAR);
+    mast2N.setIndication(Indication::CLEAR);
     mastDriver.drive(io, clockMs);
     assert(io.readOutputRaw(h0G) == true && io.readOutputRaw(h0R) == false); // Top head GREEN
     assert(io.readOutputRaw(h1R) == true && io.readOutputRaw(h1G) == false); // Lower head RED
     printf("  -> Mast at CLEAR: Top head GREEN (h0G=1), Lower head RED (h1R=1)\n");
 
     // 3. Diverging Route Cleared: DIVERGING_CLEAR (Red over Green)
-    mast2N.setHeadIndication(1, Indication::DIVERGING_CLEAR);
+    mast2N.setIndication(Indication::DIVERGING_CLEAR);
     mastDriver.drive(io, clockMs);
     assert(io.readOutputRaw(h0R) == true && io.readOutputRaw(h0G) == false); // Top head RED
     assert(io.readOutputRaw(h1G) == true && io.readOutputRaw(h1R) == false); // Lower head GREEN
