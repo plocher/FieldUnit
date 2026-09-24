@@ -313,13 +313,54 @@ inline bool serialize(const ControlPoint& cp, char* buffer, size_t maxLen, bool 
     snprintf(line, sizeof(line), "%s],%s", sp, nl);
     if (!append(line)) return false;
 
-    // 2. Switches
+    // 2. Switches (non-derail appliances only)
+    uint8_t plainSwitchCount = 0;
+    uint8_t derailCount = 0;
+    for (uint8_t i = 0; i < cp.switchCount(); ++i) {
+        if (cp.getSwitch(i)->isDerail()) derailCount++;
+        else plainSwitchCount++;
+    }
+
     snprintf(line, sizeof(line), "%s\"switches\": [%s", sp, nl);
     if (!append(line)) return false;
+    uint8_t plainEmitted = 0;
     for (uint8_t i = 0; i < cp.switchCount(); ++i) {
         const Switch* sw = cp.getSwitch(i);
-        snprintf(line, sizeof(line), "%s{\"name\": \"%s\"}%s%s",
-                 sp2, sw->name(), (i + 1 < cp.switchCount()) ? "," : "", nl);
+        if (sw->isDerail()) continue;
+        plainEmitted++;
+        const TrackCircuit* os = cp.findDetectorCircuitForSwitch(sw);
+        if (os) {
+            snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"os\": \"%s\"}%s%s",
+                     sp2, sw->name(), os->name(),
+                     (plainEmitted < plainSwitchCount) ? "," : "", nl);
+        } else {
+            snprintf(line, sizeof(line), "%s{\"name\": \"%s\"}%s%s",
+                     sp2, sw->name(),
+                     (plainEmitted < plainSwitchCount) ? "," : "", nl);
+        }
+        if (!append(line)) return false;
+    }
+    snprintf(line, sizeof(line), "%s],%s", sp, nl);
+    if (!append(line)) return false;
+
+    // 2b. Derails (independent or dependent *D)
+    snprintf(line, sizeof(line), "%s\"derails\": [%s", sp, nl);
+    if (!append(line)) return false;
+    uint8_t derailEmitted = 0;
+    for (uint8_t i = 0; i < cp.switchCount(); ++i) {
+        const Switch* sw = cp.getSwitch(i);
+        if (!sw->isDerail()) continue;
+        derailEmitted++;
+        const TrackCircuit* os = cp.findDetectorCircuitForSwitch(sw);
+        if (os) {
+            snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"os\": \"%s\"}%s%s",
+                     sp2, sw->name(), os->name(),
+                     (derailEmitted < derailCount) ? "," : "", nl);
+        } else {
+            snprintf(line, sizeof(line), "%s{\"name\": \"%s\"}%s%s",
+                     sp2, sw->name(),
+                     (derailEmitted < derailCount) ? "," : "", nl);
+        }
         if (!append(line)) return false;
     }
     snprintf(line, sizeof(line), "%s],%s", sp, nl);
@@ -519,7 +560,7 @@ inline bool deserialize(ControlPoint& cp, const char* json) {
         }
     }
 
-    // 3. Switches
+    // 3. Switches (optional "os" binds detector lock)
     if (findKey(json, "switches", val)) {
         skipWhitespace(val);
         if (*val == '[') {
@@ -530,12 +571,56 @@ inline bool deserialize(ControlPoint& cp, const char* json) {
                     const char* itemStart = val;
                     const char* swVal = nullptr;
                     char name[32] = "";
+                    char osName[32] = "";
 
                     if (findKey(itemStart, "name", swVal)) {
                         parseString(swVal, name, sizeof(name));
                     }
+                    if (findKey(itemStart, "os", swVal)) {
+                        parseString(swVal, osName, sizeof(osName));
+                    }
                     if (name[0] != '\0') {
-                        cp.addSwitch(name);
+                        if (osName[0] != '\0') {
+                            cp.addSwitch(name, osName);
+                        } else {
+                            cp.addSwitch(name);
+                        }
+                    }
+                    skipValue(val);
+                } else {
+                    val++;
+                }
+                skipWhitespace(val);
+                if (*val == ',') val++;
+            }
+        }
+    }
+
+    // 3b. Derails (after switches so dependent *D base exists)
+    if (findKey(json, "derails", val)) {
+        skipWhitespace(val);
+        if (*val == '[') {
+            val++;
+            while (*val && *val != ']') {
+                skipWhitespace(val);
+                if (*val == '{') {
+                    const char* itemStart = val;
+                    const char* dVal = nullptr;
+                    char name[32] = "";
+                    char osName[32] = "";
+
+                    if (findKey(itemStart, "name", dVal)) {
+                        parseString(dVal, name, sizeof(name));
+                    }
+                    if (findKey(itemStart, "os", dVal)) {
+                        parseString(dVal, osName, sizeof(osName));
+                    }
+                    if (name[0] != '\0') {
+                        if (osName[0] != '\0') {
+                            cp.addDerail(name, osName);
+                        } else {
+                            cp.addDerail(name);
+                        }
                     }
                     skipValue(val);
                 } else {
