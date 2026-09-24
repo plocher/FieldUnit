@@ -206,6 +206,85 @@ public:
         return &switches_[switchCount_++];
     }
 
+    /**
+     * Declare a switch and bind its OS island track circuit for detector locking.
+     * Creates the track circuit if it does not already exist.
+     */
+    Switch* addSwitch(const char* name, const char* osTrackCircuitName) {
+        Switch* sw = addSwitch(name);
+        if (!sw || !osTrackCircuitName || osTrackCircuitName[0] == '\0') {
+            return sw;
+        }
+        TrackCircuit* tc = findTrackCircuit(osTrackCircuitName);
+        if (!tc) {
+            tc = addTrackCircuit(osTrackCircuitName);
+        }
+        if (tc) {
+            bindDetectorLock(sw, tc);
+        }
+        return sw;
+    }
+
+    /**
+     * Declare a derail appliance.
+     *
+     * Naming rules:
+     * - "5" (unique id) => dispatcher-controlled derail (CodeLine citizen).
+     * - "1D" when switch "1" already exists => dependent derail inverse-paired to "1",
+     *   hidden from CodeLine as its own lever/indication step.
+     * - "1D" when switch "1" does not exist => configuration error (nullptr).
+     *   A *D name never falls through to an independent derail.
+     *
+     * Optional osTrackCircuitName creates/binds the derail island for detector lock.
+     *
+     * Position vocabulary: NORMAL = clear/off-rail, REVERSE = on-rail/active.
+     * Independent and dependent derails rest fail-safe in REVERSE (on-rail).
+     */
+    Switch* addDerail(const char* name, const char* osTrackCircuitName = nullptr) {
+        if (!name || name[0] == '\0') return nullptr;
+
+        // Detect <baseId>D dependent form (e.g. "1D", "3D", "777D")
+        const size_t len = strlen(name);
+        Switch* base = nullptr;
+        bool dependentForm = false;
+        if (len >= 2 && (name[len - 1] == 'D' || name[len - 1] == 'd')) {
+            char baseName[MAX_APPLIANCE_NAME_LEN];
+            if (len < sizeof(baseName)) {
+                memcpy(baseName, name, len - 1);
+                baseName[len - 1] = '\0';
+                // Require a non-empty base id that is not itself only punctuation
+                if (baseName[0] != '\0') {
+                    dependentForm = true;
+                    base = findSwitchExact(baseName);
+                    if (!base) {
+                        return nullptr; // missing base: hard error, never independent
+                    }
+                }
+            }
+        }
+
+        if (switchCount_ >= MAX_APPLIANCES) return nullptr;
+        switches_[switchCount_] = Switch(name);
+        switches_[switchCount_].setIndex(switchCount_);
+        Switch* derail = &switches_[switchCount_++];
+        derail->configureAsDerail();
+
+        if (dependentForm && base) {
+            base->pairDependentDerail(derail);
+        }
+
+        if (osTrackCircuitName && osTrackCircuitName[0] != '\0') {
+            TrackCircuit* tc = findTrackCircuit(osTrackCircuitName);
+            if (!tc) {
+                tc = addTrackCircuit(osTrackCircuitName);
+            }
+            if (tc) {
+                bindDetectorLock(derail, tc);
+            }
+        }
+        return derail;
+    }
+
     Crossover* addCrossover(const char* name, Switch* swA, Switch* swB) {
         if (crossoverCount_ >= MAX_APPLIANCES) return nullptr;
         crossovers_[crossoverCount_] = Crossover(name, swA, swB);
@@ -229,6 +308,12 @@ public:
 
     // Couple an OS track circuit to detector-lock a switch
     void bindDetectorLock(Switch* sw, TrackCircuit* tc) {
+        if (!sw || !tc) return;
+        for (uint8_t i = 0; i < detectorLockCouplingCount_; ++i) {
+            if (detectorLocks_[i].sw == sw && detectorLocks_[i].tc == tc) {
+                return; // already bound
+            }
+        }
         if (detectorLockCouplingCount_ < MAX_APPLIANCES) {
             detectorLocks_[detectorLockCouplingCount_++] = {sw, tc};
         }
@@ -260,11 +345,19 @@ public:
         return nullptr;
     }
 
-    Switch* findSwitch(const char* name) {
+    /** Resolve a physical switch or derail by exact name (not logical crossovers). */
+    Switch* findSwitchExact(const char* name) {
         if (!name) return nullptr;
         for (uint8_t i = 0; i < switchCount_; ++i) {
             if (strcmp(switches_[i].name(), name) == 0) return &switches_[i];
         }
+        return nullptr;
+    }
+
+    Switch* findSwitch(const char* name) {
+        if (!name) return nullptr;
+        Switch* exact = findSwitchExact(name);
+        if (exact) return exact;
         for (uint8_t i = 0; i < crossoverCount_; ++i) {
             if (strcmp(crossovers_[i].name(), name) == 0) return &crossovers_[i];
         }
@@ -289,12 +382,18 @@ public:
 
     TrackCircuit* findDetectorCircuitForSwitch(const Switch* sw) const {
         if (!sw) return nullptr;
+        // Prefer a direct binding for this appliance
         for (uint8_t i = 0; i < detectorLockCouplingCount_; ++i) {
             if (detectorLocks_[i].sw == sw) {
                 return detectorLocks_[i].tc;
             }
-            if (sw->pairedSwitch() != nullptr && detectorLocks_[i].sw == sw->pairedSwitch()) {
-                return detectorLocks_[i].tc;
+        }
+        // Fall back to a paired machine only when this appliance has no OS of its own
+        if (sw->pairedSwitch() != nullptr) {
+            for (uint8_t i = 0; i < detectorLockCouplingCount_; ++i) {
+                if (detectorLocks_[i].sw == sw->pairedSwitch()) {
+                    return detectorLocks_[i].tc;
+                }
             }
         }
         for (uint8_t i = 0; i < crossoverCount_; ++i) {
@@ -328,6 +427,10 @@ public:
             // If any switch movement in the transaction violates an active lock,
             // that specific movement cannot be executed.
             for (uint8_t i = 0; i < switchCount_; ++i) {
+                // Dependent derails are driven only via their base switch pair
+                if (switches_[i].isDependentDerail()) {
+                    continue;
+                }
                 SwitchDemand demand = ctl.switchDemands[i];
                 if (demand == SwitchDemand::NORMAL || demand == SwitchDemand::REVERSE) {
                     // If switch is locked (train on points or active route), skip actuation

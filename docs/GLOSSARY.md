@@ -82,6 +82,11 @@ track, such as keeping to the right) unless otherwise authorized.
 - **Aspect Ceiling**: The most favorable indication permitted over a specific route based on turnout geometry and speed restrictions.
 - **Correspondence**: Verification that a physical appliance has reached its commanded position and locked (e.g. `NWCR` energized for Normal switch points).
 - **Out of Correspondence (OOC)**: A mismatch between commanded lever intent and verified field status, or a switch currently in transit.
+- **Derail**: A switch-shaped appliance (often points and a machine without a frog) that dumps open cars before they foul a main track. **NORMAL** = off-rail / clear (train may pass). **REVERSE** = on-rail / active. Fail-safe rest is REVERSE.
+- **Dependent Derail**: Named `<switchId>D` (for example `1D`). Inverse-slaved to the base switch in the field unit. No separate dispatcher lever and no separate `NWK`/`RWK` step. Base switch indications require both ends to prove the inverse pair.
+- **Independent Derail**: Derail with its own odd appliance number (for example `5`). Full CodeLine citizen with its own controls and indications.
+- **OS / Island Block**: The track circuit covering switch or derail points, used for detector locking (`WLR`). Declared with `addSwitch(id, osName)` or `addDerail(id, osName)`.
+- **Crossover End Names**: Multi-machine crossover ends use `1`, `1A`, `1B`, `1C`. The suffix **`D` is reserved for derails** and must not name a crossover end.
 - **Approach Time Locking (`2TEK`)**: A vital safety timer (e.g. 180 seconds) initiated when a cleared signal is restored to Stop in the face of an approaching train. Prevents switch movement until the train has stopped.
 - **Fleeting (`FS`)**: A dispatcher authority mode allowing a signal to re-clear automatically after a train departs.
 - **Call-On (`CO`)**: A dispatcher authority mode permitting low-speed entry into an occupied block under restricting rules.

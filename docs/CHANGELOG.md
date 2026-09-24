@@ -23,6 +23,16 @@ All notable changes to the FieldUnit library will be documented in this file.
 ### Added
 - **CodeLine Cadence & Fast-Clock Timeline (`docs/AAR_SIGNALING_PRIMER.md`)**:
   - Added Section 9.5 documenting the office/field line transmission boundary, lock dog dominance over point detection, and the compressed 4.5–5.5s timeline for model railroad fast clocks.
+- **Derails and OS binding**:
+  - `ControlPoint::addDerail(name)` / `addDerail(name, osTrackCircuit)` for derail appliances.
+  - Name rule: `*D` (e.g. `1D`) is a **dependent** derail inverse-paired to base switch `1` when the base already exists; missing base is a hard configuration error (never an independent fall-through).
+  - Non-`D` derail ids (e.g. `5`) are **dispatcher-controlled** CodeLine citizens.
+  - Derail polarity: NORMAL = clear/off-rail, REVERSE = on-rail/active; fail-safe rest is REVERSE.
+  - Dependent pair: master NORMAL⇔derail REVERSE, master REVERSE⇔derail NORMAL; master `KR`/`NWK`/`RWK` require both ends.
+  - `ControlPoint::addSwitch(name, osTrackCircuit)` creates/finds the island TC and binds detector lock in one call.
+  - Plant JSON: `derails[]` array and optional `"os"` on switches/derails; switches deserialize before derails.
+  - Unit tests: `tests/test_derail.cpp`.
+  - Migration guide for Studio/Subdivision: `docs/how-to/05_derails_and_os_binding.md`.
 - **AarTextCodec Symmetry & Strategy B Worst-Case Buffer Sizing (`src/WireCodec.h`)**:
   - Implemented symmetrical Office operations on `AarTextCodec`: `encodeControls(ctl)` and `decodeIndications(text, ind)`.
   - Added "The Physics of AAR Message Size" specification documenting exact worst-case wire payload calculations.

@@ -392,9 +392,9 @@ void configureDesk() {
 
     // Column 5..7: CP_Luchessa (Signal 2 on Col 5, MC1 on Col 6)
     machine.addStation("CP_Luchessa")
-        .inColumn(5).withSwitch("1").withSignal("2").withTrackLamps({ "1T1" })
-        .inColumn(6).withSwitch("3").withTrackLamps({ "3T1" }).withMaintainerCall("1")
-        .inColumn(7).withSwitch("5").withCodeButton();
+        .inColumn(5).withSwitch("783").withSignal("2").withTrackLamps({ "783T1" })
+        .inColumn(6).withSwitch("795").withTrackLamps({ "795T1" }).withMaintainerCall("1")
+        .inColumn(7).withSwitch("799").withCodeButton();
 
     // Column 8..10: CP_Christopher (MC1 on Col 8, MC2 on Col 10)
     machine.addStation("CP_Christopher")
