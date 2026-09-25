@@ -4,6 +4,10 @@ All notable changes to the FieldUnit library will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **CP_Luchessa desk bindings cut over to KiCad-derived truth (`examples/spcoast_ctc/`)**:
+  - `configureDesk()` Column 5-7 station now uses the appliance names compiled from the KiCad schematic (`profiles/spcoast_south/cps/generated/CP_Luchessa.json` in FieldUnit-Subdivision) instead of the placeholder legacy names: switches `1`/`3`/`5` -> `783`/`795`/`799`, signal `2` -> `784`, track lamps `1T1`/`3T1` -> `783T1`/`795T1`. Dependent derail `795D` has no independent lever (combined with switch `795`'s `KR`).
+
 ### Fixed
 - **ESP32-C6 (RISC-V) Build & Runtime Stability (`examples/spcoast_ctc/`)**:
   - Added explicit forward declarations for every sketch-defined function ahead of any `#if`/`#ifdef` block. Arduino's ctags-based automatic prototype generator cannot reliably insert prototypes when the first function definition in a sketch is guarded by a preprocessor conditional; newer arduino-cli/esp32-core toolchains silently corrupt the generated translation unit in that case, producing a cascade of "expected primary-expression" / "was not declared in this scope" errors far from the real cause.
