@@ -13,9 +13,47 @@
 
 using namespace FieldUnit;
 
+// Explicit forward declarations.
+// Arduino's ctags-based automatic prototype generator cannot reliably insert
+// prototypes when the first function definition in the sketch sits inside a
+// preprocessor conditional (documented limitation: "functions defined
+// conditionally using #if/#ifdef" require hand-written prototypes). Newer
+// arduino-cli/esp32-core toolchains mis-insert the generated block straight
+// into that first function's body, corrupting the translation unit and
+// producing a cascade of "expected primary-expression" errors far below.
+// Every function below is defined inside some #ifdef; keep new ones'
+// prototypes listed here too, ahead of any #if/#ifdef block.
+size_t getArduinoLoopTaskStackSize(void);
+void updateOled();
+bool tokenIsAsserted(const char* tokenText, const char* expectedToken);
+void setCodeLineLamp(bool inbound, bool on);
+void setCodeLineFunctionBit(uint8_t step, const char* appliance, const char* suffix, const char* tokens);
+void buildCodeLineCycle(bool inbound, const PanelColumn& column, const char* tokens, uint32_t nowMs);
+bool enqueueControl(size_t stationIndex, const char* tokens);
+bool enqueueIndication(const char* stationName, const char* tokens);
+void startNextControlCycle(uint32_t nowMs);
+void startNextIndicationCycle(uint32_t nowMs);
+void completeCodeLineCycle(uint32_t nowMs);
+void updateCodeLine(uint32_t nowMs);
+void startQuickFlash(bool inbound, uint32_t nowMs);
+void configureDesk();
+void onMqttMessage(char* topic, byte* payload, unsigned int length);
+void reconnectMqtt(uint32_t nowMs);
+
 #if defined(ARDUINO) && defined(ESP32)
 #define USE_OTA
 #define USE_OLED
+
+// ESP32-C6 (RISC-V) + arduino-esp32 3.x's new ESP-IDF 5.x I2C master driver
+// has a much deeper internal call chain (transaction/command/queue layers)
+// than the legacy I2C driver classic Xtensa ESP32 sketches were tuned for.
+// Adafruit_SSD1306::begin()'s first I2C write was overflowing the default
+// 8 KB loopTask stack (confirmed via crash-dump symbolication). Override
+// arduino-esp32's weak getArduinoLoopTaskStackSize() to give setup()/loop()
+// more headroom.
+size_t getArduinoLoopTaskStackSize(void) {
+    return 16 * 1024;
+}
 #endif
 
 #ifdef USE_OLED
@@ -92,6 +130,35 @@ cTcMachine machine(hardware);
 // =============================================================================
 
 static constexpr uint8_t CODELINE_COL = 3;
+
+void setCodeLineLamp(bool inbound, bool on) {
+    hardware.write(
+        CODELINE_COL,
+        inbound ? FieldUnit::PanelOutput::TRACK_LAMP_1 : FieldUnit::PanelOutput::TRACK_LAMP_2,
+        on
+    );
+}
+
+// Cold-start alignment window (set by reconnectMqtt(), read by onMqttMessage())
+// applies retained indications instantly on connect regardless of stepping mode.
+uint32_t coldStartAlignUntilMs = 0;
+
+// Realistic US&S Form 506 code-line lamp-pulse visualization: every function
+// bit of every column of a station is displayed as a timed long/short pulse,
+// stepped one column at a time, on each incoming control or indication
+// message. Historically authentic, but slow (15 steps x ~200-460ms, PER
+// column of the station, PER message) -- and the virtual plant naturally
+// emits one /indications message per appliance as it settles (e.g. three
+// switches on CP_Christopher completing their throws in turn emits 3-4
+// separate messages), so a single dispatcher action can trigger several full
+// multi-column replays back to back, taking the better part of a minute.
+// Comment this out for fast bench/dev iteration: controls publish and
+// indications apply immediately, with a single quick lamp flash standing in
+// for the full step sequence.
+// #define CODELINE_VISUAL_STEPPING
+
+#ifdef CODELINE_VISUAL_STEPPING
+
 static constexpr uint8_t CODELINE_STEPS = 15;
 static constexpr uint8_t CODELINE_ADDRESS_STEPS = 4;
 static constexpr uint8_t CODELINE_TX_QUEUE_SIZE = 4;
@@ -139,8 +206,6 @@ uint8_t rxQueueCount = 0;
 PendingIndication activeRx;
 uint8_t activeRxColumn = 0;
 
-uint32_t coldStartAlignUntilMs = 0;
-
 bool tokenIsAsserted(const char* tokenText, const char* expectedToken) {
     if (!tokenText || !expectedToken) return false;
     const char* p = tokenText;
@@ -168,14 +233,6 @@ bool tokenIsAsserted(const char* tokenText, const char* expectedToken) {
         while (*p && *p != ',') p++;
     }
     return false;
-}
-
-void setCodeLineLamp(bool inbound, bool on) {
-    hardware.write(
-        CODELINE_COL,
-        inbound ? FieldUnit::PanelOutput::TRACK_LAMP_1 : FieldUnit::PanelOutput::TRACK_LAMP_2,
-        on
-    );
 }
 
 void setCodeLineFunctionBit(
@@ -378,6 +435,68 @@ void updateCodeLine(uint32_t nowMs) {
     setCodeLineLamp(codelineCycle.inbound, true);
 }
 
+#else // !CODELINE_VISUAL_STEPPING -- fast path
+
+// Non-blocking single-pulse acknowledgement lamps shown in place of the full
+// step-by-step CodeLine dance. Checked once per loop() via updateCodeLine().
+// Control (outbound, S-lamp) and indication (inbound, N-lamp) are two
+// independent physical lamps that routinely overlap in time -- the virtual
+// plant typically replies with an indication within milliseconds of a
+// control -- so each needs its own timer. A single shared timer would have
+// the second flash clobber the first's pending turn-off, permanently
+// stranding that lamp lit.
+struct QuickFlash {
+    bool active = false;
+    uint32_t offAtMs = 0;
+};
+QuickFlash quickFlashIndication; // inbound: N-lamp / TRACK_LAMP_1
+QuickFlash quickFlashControl;    // outbound: S-lamp / TRACK_LAMP_2
+static constexpr uint32_t QUICK_FLASH_MS = 120;
+
+void startQuickFlash(bool inbound, uint32_t nowMs) {
+    setCodeLineLamp(inbound, true);
+    QuickFlash& flash = inbound ? quickFlashIndication : quickFlashControl;
+    flash.active = true;
+    flash.offAtMs = nowMs + QUICK_FLASH_MS;
+}
+
+bool enqueueControl(size_t stationIndex, const char* tokens) {
+    if (!tokens) return false;
+    const CtcStation& station = machine.station(stationIndex);
+    char topic[128];
+    snprintf(topic, sizeof(topic), "ctc/SPCoast/codeline/%s/controls", station.name());
+    if (mqtt.connected()) {
+        mqtt.publish(topic, tokens);
+        Serial.printf("CONTROL TX COMPLETE [%s]: %s\n", station.name(), tokens);
+    } else {
+        Serial.printf("CONTROL TX FAILED [%s]: MQTT disconnected\n", station.name());
+    }
+    startQuickFlash(/*inbound=*/false, millis());
+    return true;
+}
+
+bool enqueueIndication(const char* stationName, const char* tokens) {
+    if (!stationName || !tokens) return false;
+    bool ok = machine.applyIndications(stationName, tokens);
+    Serial.printf(ok ? "INDICATION: %s: %s\n" : "INDICATION REJECTED %s: %s\n",
+                  stationName, tokens);
+    startQuickFlash(/*inbound=*/true, millis());
+    return true;
+}
+
+void updateCodeLine(uint32_t nowMs) {
+    if (quickFlashIndication.active && (int32_t)(nowMs - quickFlashIndication.offAtMs) >= 0) {
+        setCodeLineLamp(/*inbound=*/true, false);
+        quickFlashIndication.active = false;
+    }
+    if (quickFlashControl.active && (int32_t)(nowMs - quickFlashControl.offAtMs) >= 0) {
+        setCodeLineLamp(/*inbound=*/false, false);
+        quickFlashControl.active = false;
+    }
+}
+
+#endif // CODELINE_VISUAL_STEPPING
+
 void configureDesk() {
     // Column 1..2: CP_GilroyCaltrain (Yard terminal: No MC)
     machine.addStation("CP_GilroyCaltrain")
@@ -392,9 +511,9 @@ void configureDesk() {
 
     // Column 5..7: CP_Luchessa (Signal 2 on Col 5, MC1 on Col 6)
     machine.addStation("CP_Luchessa")
-        .inColumn(5).withSwitch("783").withSignal("2").withTrackLamps({ "783T1" })
-        .inColumn(6).withSwitch("795").withTrackLamps({ "795T1" }).withMaintainerCall("1")
-        .inColumn(7).withSwitch("799").withCodeButton();
+        .inColumn(5).withSwitch("1").withSignal("2").withTrackLamps({ "1T1" })
+        .inColumn(6).withSwitch("3").withTrackLamps({ "3T1" }).withMaintainerCall("1")
+        .inColumn(7).withSwitch("5").withCodeButton();
 
     // Column 8..10: CP_Christopher (MC1 on Col 8, MC2 on Col 10)
     machine.addStation("CP_Christopher")

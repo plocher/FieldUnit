@@ -5,6 +5,9 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **ESP32-C6 (RISC-V) Build & Runtime Stability (`examples/spcoast_ctc/`)**:
+  - Added explicit forward declarations for every sketch-defined function ahead of any `#if`/`#ifdef` block. Arduino's ctags-based automatic prototype generator cannot reliably insert prototypes when the first function definition in a sketch is guarded by a preprocessor conditional; newer arduino-cli/esp32-core toolchains silently corrupt the generated translation unit in that case, producing a cascade of "expected primary-expression" / "was not declared in this scope" errors far from the real cause.
+  - Overrode arduino-esp32's weak `getArduinoLoopTaskStackSize()` to grow `loopTask`'s stack from the 8 KB default to 16 KB. ESP32-C6's RISC-V toolchain plus arduino-esp32 3.x's new ESP-IDF 5.x I2C master driver has a deeper call chain than classic Xtensa ESP32 sketches were tuned for; `Adafruit_SSD1306::begin()`'s first I2C write was overflowing the default stack (confirmed via crash-dump symbolication against the built `.elf`).
 - **SPCoast cTc Desk Configuration & CodeLine Timing (`examples/spcoast_ctc/`)**:
   - Repurposed Column 3 model board blue traffic lamps as physical CodeLine activity lamps: Indication (N-lamp, position 1) and Control (S-lamp, position 2).
   - Replaced generic blink timing with data-bearing, long/short 15-step cycles per physical panel column. Each cycle displays synchronization, column address, wired controls or indications, and an execution pulse; multi-column plants sequence their cycles under one CODE press.
@@ -21,6 +24,8 @@ All notable changes to the FieldUnit library will be documented in this file.
   - Hardware panel bench lives in `examples/spcoast_ctc_bench/` (I2C scan, lamp test, opportunistic lever/CODE mirror, quiet stats). Supersedes `spcoast_ctc_test`.
 
 ### Added
+- **`CODELINE_VISUAL_STEPPING` fast-path toggle (`examples/spcoast_ctc/`)**:
+  - Comment out `#define CODELINE_VISUAL_STEPPING` in `spcoast_ctc.ino` for fast bench/dev iteration: controls publish and indications apply immediately, with a single quick lamp flash instead of the full 15-step, per-column US&S Form 506 pulse dance. Left on by default to preserve the existing authentic behavior. Note the visual-stepping path always replays every column of a station on any single incoming message (it cannot tell that only one function bit changed), so a station that receives several indications in quick succession (e.g. multiple switches settling independently) will queue several full replays back to back; the fast path avoids this by design.
 - **CodeLine Cadence & Fast-Clock Timeline (`docs/AAR_SIGNALING_PRIMER.md`)**:
   - Added Section 9.5 documenting the office/field line transmission boundary, lock dog dominance over point detection, and the compressed 4.5–5.5s timeline for model railroad fast clocks.
 - **Derails and OS binding**:
