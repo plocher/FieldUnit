@@ -17,7 +17,7 @@ void runChristopherSketchIntegrationTest() {
     MockCodeLine mockLine;
     uint32_t clockMs = 1000;
 
-    // Resolve appliances by name from ControlPoint
+    // Resolve appliances by name from InterlockingPlant
     Switch* sw1  = cp.findSwitch("1");
     Switch* sw3  = cp.findSwitch("3");
     Switch* sw3B = cp.findSwitch("3B");

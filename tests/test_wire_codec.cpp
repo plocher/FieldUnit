@@ -147,7 +147,7 @@ void testAarTextCodecVitalConflictIsolation() {
     assert(ctl.switchDemands[0] == SwitchDemand::NO_CHANGE);
     printf("  -> PASS: Conflicting vital demand flagged (vitalValid = false, vitalConflictCount = 1)\n");
 
-    // 2. Apply to ControlPoint: vital appliances must NOT be invoked!
+    // 2. Apply to InterlockingPlant: vital appliances must NOT be invoked!
     uint32_t nowMs = 1000;
     cp.applyControlTransaction(ctl, nowMs);
 
@@ -271,7 +271,7 @@ void testElectricLockCodec() {
     codec.decodeControls("7WLS", ctl);
     assert(ctl.lockDemands[0] == ElectricLockDemand::UNLOCK);
 
-    // Apply to ControlPoint: releases lock
+    // Apply to InterlockingPlant: releases lock
     cp.applyControlTransaction(ctl, 1000);
     assert((sw7->activeLocks() & SwitchLock::HAND_LOCKED) == SwitchLock::UNLOCKED);
 
