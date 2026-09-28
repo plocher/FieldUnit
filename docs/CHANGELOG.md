@@ -5,6 +5,9 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- **Interlocking naming and case-insensitive station lookup**:
+  - `spcoast_ctc` desk station `CP_Luchessa` is now `Luchessa` (the interlocking; `CP Luchessa`, `CP Gilroy` and `CP Carnadero` are its controlled points, one per column 5–7). MQTT topics become `ctc/SPCoast/codeline/Luchessa/...`. `tools/test_ctc_desk.py` follows.
+  - `cTcMachine::addStation` / `findStation` compare names case-insensitively (`strcasecmp`). Only case is folded, so an interlocking and a CP with the same base name stay distinct. New test `testStationLookupFoldsCaseOnly`.
 - **CP_Luchessa desk bindings cut over to KiCad-derived truth (`examples/spcoast_ctc/`)**:
   - `configureDesk()` Column 5-7 station now uses the appliance names compiled from the KiCad schematic (`profiles/spcoast_south/cps/generated/CP_Luchessa.json` in FieldUnit-Subdivision) instead of the placeholder legacy names: switches `1`/`3`/`5` -> `783`/`795`/`799`, signal `2` -> `784`, track lamps `1T1`/`3T1` -> `783T1`/`795T1`. Dependent derail `795D` has no independent lever (combined with switch `795`'s `KR`).
 

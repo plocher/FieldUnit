@@ -215,6 +215,7 @@ The system is organized into a four-tier decoupled architecture:
 
 When authoring or modifying code in this codebase:
 - Use **Switch**, never "Turnout" (following AAR standard terminology).
+- **Interlocking vs controlled point:** an interlocking (`Luchessa`) contains one or more controlled points (`CP Luchessa`, `CP Gilroy`, `CP Carnadero`), and one desk column is one CP. A `CtcStation` and its MQTT topic key are the interlocking; its control and indication messages carry the tokens of all of its CPs. Never prefix an interlocking with `CP`. Names are case-preserved when produced; `cTcMachine` station lookups compare case-insensitively and fold only case. Legacy stations still named `CP_<X>` are renamed as each is cut over.
 - Switches use **odd** numbers (`"1"`, `"783"`); Signals use **even** numbers (`"2"`, `"784"`). KiCad-derived plants use prototype numbers (switch 783, signal 784, masts like `784EAB`, OS circuit `783T1`).
 - Dependent derails are named `<switch>D` (e.g. `795D`), paired inversely with their switch and hidden from the CodeLine. NORMAL means clear and REVERSE means on-rail. See `docs/how-to/05_derails_and_os_binding.md`. `addSwitch(name, os)` and the JSON `"os"` key bind a switch to its OS track circuit, which provides the detector lock.
 - Suffix **`S`** denotes inbound control demands (`1NWS`, `1RWS`, `2SGS`, `2NGS`, `2HS`, `MC1S`).

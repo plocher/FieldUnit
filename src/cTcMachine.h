@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <initializer_list>
 #include "types.h"
@@ -529,9 +530,12 @@ public:
     explicit cTcMachine(PanelHardware& hardware)
         : hardware_(hardware), stationCount_(0) {}
 
+    // Station names are produced case-preserved (e.g. "Luchessa") and matched
+    // case-insensitively. Only case is folded: an interlocking "Luchessa" and
+    // its controlled point "CP Luchessa" remain distinct names.
     CtcStation& addStation(const char* name) {
         for (uint8_t i = 0; i < stationCount_; ++i) {
-            if (strcmp(stations_[i].name(), name) == 0) {
+            if (strcasecmp(stations_[i].name(), name) == 0) {
                 return stations_[i];
             }
         }
@@ -549,7 +553,7 @@ public:
     CtcStation* findStation(const char* name) {
         if (!name) return nullptr;
         for (uint8_t i = 0; i < stationCount_; ++i) {
-            if (strcmp(stations_[i].name(), name) == 0) {
+            if (strcasecmp(stations_[i].name(), name) == 0) {
                 return &stations_[i];
             }
         }

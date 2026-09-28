@@ -509,10 +509,11 @@ void configureDesk() {
         .inColumn(3).withSwitch("1").withMaintainerCall("1")
         .inColumn(4).withSwitch("3").withTrackLamps({ "1T1", "3T1", "TK1" }).withMaintainerCall("2").withCodeButton();
 
-    // Column 5..7: CP_Luchessa (Signal 784 on Col 5, MC1 on Col 6)
+    // Column 5..7: interlocking Luchessa = CP Luchessa, CP Gilroy, CP Carnadero
+    // (one column per CP; Signal 784 on Col 5, MC1 on Col 6; one CODE button).
     // KiCad -> FieldUnit JSON truth: switches 783/795/799, signal 784.
     // Dependent derail 795D has no separate lever; master 795 KR is combined.
-    machine.addStation("CP_Luchessa")
+    machine.addStation("Luchessa")
         .inColumn(5).withSwitch("783").withSignal("784").withTrackLamps({ "783T1" })
         .inColumn(6).withSwitch("795").withTrackLamps({ "795T1" }).withMaintainerCall("1")
         .inColumn(7).withSwitch("799").withCodeButton();

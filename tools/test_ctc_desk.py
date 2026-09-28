@@ -38,7 +38,7 @@ STATIONS = {
         "normal": "1NWK, (1RWK), 3NWK, (3RWK), (1T1K), (3T1K), (TK1K), (MC1K), (MC2K)",
         "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, 1T1K, 3T1K, TK1K, MC1K, MC2K",
     },
-    "CP_Luchessa": {
+    "Luchessa": {
         "normal": "783NWK, (783RWK), 795NWK, (795RWK), 799NWK, (799RWK), (783T1K), (795T1K), (784SGK), (784NGK), (784TEK), (MC1K)",
         "reverse": "(783NWK), 783RWK, (795NWK), 795RWK, (799NWK), 799RWK, 783T1K, 795T1K, (784SGK), 784NGK, (784TEK), MC1K",
     },
