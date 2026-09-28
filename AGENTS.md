@@ -14,9 +14,23 @@ The codebase is engineered to support two distinct deployment environments from 
 - **Standalone Native Applications & CI**: Centralized host processes, command-line utilities, simulation loops, and automated desktop test benches running natively on macOS/Linux without Arduino framework dependencies.
 
 Related repos:
-- FieldUnit-Studio - GUI Plant creation, simulation and validation
-- FieldUnit-Subdivision - Dispatcher and cTc machine conglomeration of multiple interlockings into a terratory or subdivision
+- FieldUnit-Studio (`~/Dropbox/workspace/FieldUnit-Studio`) - GUI Plant creation, simulation and validation
+- FieldUnit-Subdivision (`~/Dropbox/workspace/FieldUnit-Subdivision`) - Dispatcher and cTc machine conglomeration of multiple interlockings into a territory or subdivision. Owns the KiCad → plant JSON tooling and the virtual plant host.
+- Railroad (`~/Dropbox/KiCad/Railroad`) - KiCad plant (`SPCoast/CP_<Station>`) and desk (`SPCoast/South-cTc`) schematics that are the design source of truth. Symbol libraries live in `~/Dropbox/KiCad/InterlockingPlant/symbols/` (not in git; expected to move into FieldUnit-Subdivision).
 - CMRInet - low level bit/byte oriented distributed I/O system
+
+### Cross-repo derivation chain
+
+```
+Railroad/SPCoast/CP_<X>.kicad_sch ──FieldUnit-Subdivision/tools/parse_kicad_plant.py──▶
+  FieldUnit-Subdivision/profiles/spcoast_south/cps/generated/CP_<X>.json  (PlantSerializer format)
+      ├─▶ virtual plant host (FieldUnit-Subdivision/runtime/plant_host)
+      └─▶ station/appliance names, today hand-copied into examples/spcoast_ctc configureDesk()
+Railroad/SPCoast/South-cTc.kicad_sch  (desk columns, levers, lamps, MAX7313 bits)
+      └─▶ today hand-mirrored in examples/spcoast_ctc/IO-I2C.h; generator planned
+```
+
+Today names are hand-copied across `examples/spcoast_ctc`, the Subdivision JSON, the virtual plant and `tools/test_ctc_desk.py`. That duplication is debt; do not extend it. The goal is to generate the desk sketch from the schematics. Treat `spcoast_ctc` as a working template, not a fixed design. Its shortcuts (column-derived expander addresses, fixed per-column bit constants, one layout per backend) are not conventions to follow.
 
 ## Key Documentation and Domain Glossary
 
@@ -38,10 +52,12 @@ Not required when only changing documentation
 
 Compile and execute with `clang++` (or `g++`) using C++17 and the `src/` include directory:
 
-- **Run all unit & integration tests:**
+- **Run all unit & integration tests** (set `OUT` to a writable scratch dir if `/tmp` is not allowed):
   ```bash
-  for t in tests/*.cpp; do clang++ -std=c++17 -I src "$t" -o "/tmp/$(basename "$t" .cpp)" && "/tmp/$(basename "$t" .cpp)" || exit 1; done
+  OUT=${OUT:-/tmp}; for t in tests/*.cpp; do clang++ -std=c++17 -I src "$t" -o "$OUT/$(basename "$t" .cpp)" && "$OUT/$(basename "$t" .cpp)" || exit 1; done
   ```
+
+- Several tests `#include` example sketches directly (`test_corporal_sketch.cpp`, `test_christopher_sketch.cpp`, `test_universal_sketch.cpp`, `test_console.cpp`). Sketches must therefore compile natively, with Arduino-only code behind `#ifdef ARDUINO`. No test covers `spcoast_ctc`.
 
 - **Run a single test suite:**
   ```bash
@@ -62,7 +78,33 @@ Example sketches in `examples/` target microcontrollers and rely on sibling libr
 
 ```bash
 arduino-cli compile --fqbn esp32:esp32:esp32 --library . --libraries .. examples/CP_Corporal/CP_Corporal.ino
+# SPCoast desk (ESP32-C6, esp32 core 3.3.12)
+arduino-cli compile --fqbn esp32:esp32:XIAO_ESP32C6 --library . --libraries .. examples/spcoast_ctc/spcoast_ctc.ino
 ```
+
+### `examples/spcoast_ctc`: SPCoast South Dispatcher cTc Machine
+
+This section describes the current state, including known debt.
+
+- **Hardware:**
+  - XIAO ESP32-C6.
+  - 14 × MAX7313, one per desk column. The current code computes addresses as `base + (col-1)` (debt; the address belongs in the desk schematic). The base is probed: 0x20, falling back to 0x10.
+  - SSD1306 OLED at 0x3C.
+  - I2C at 800 kHz, re-set after `I2Cexpander::init`, which drops it to 400 kHz.
+- **Backend:** choose it by editing the include at the top of the sketch, `IO-I2C.h` (real) or `IO-CMRI.h` (stub, no transport). Both define `PanelIO : PanelHardware`.
+  - Per-column bit roles are fixed constants in `IO-I2C.h`: input mask `0x1EC4`, all I/O active-LOW. They duplicate what the desk schematic already records (debt).
+  - **`IO-CMRI.h` has SW_NORMAL/SW_REVERSE swapped (6/7 vs 7/6).**
+- **Layout:** `configureDesk()` hard-codes all 7 stations across columns 1–14. CP_Luchessa (columns 5–7) uses KiCad-derived names (783/795/799/784); the other stations still use legacy names.
+- **Build quirks:**
+  - Keep the hand-written forward declarations near the top; arduino-cli's ctags misses functions under `#ifdef`.
+  - `getArduinoLoopTaskStackSize()` is raised to 16 KB for the OLED.
+  - `CODELINE_VISUAL_STEPPING` (authentic 15-step US&S pulse display) is off by default because it makes each lever/CODE action take 10–30 s. Enable it for demos, not for development.
+- **Secrets:** copy `secrets.h.example` to `secrets.h` (gitignored) for WiFi and MQTT. OTA hostname is `spcoast-ctc`.
+- **MQTT:**
+  - Client id `ctc-desk-south`.
+  - Subscribes to `ctc/SPCoast/codeline/+/indications`; publishes to `ctc/SPCoast/codeline/<station>/controls`.
+  - Last will: `ctc/SPCoast/telemetry` = `OFFLINE`.
+- **Other files:** `historical/` is reference-only legacy XML. Ignore `examples/spcoast_ctc_bench`, a one-off electrical connectivity test.
 
 ### Python Test Runner
 
@@ -78,6 +120,8 @@ python3 tools/test_ctc_desk.py --loopback
 # Exercise all 7 station lamps
 python3 tools/test_ctc_desk.py --walk
 ```
+
+`tools/test_ctc_desk.py` needs `paho-mqtt` and a broker on localhost:1883. Its `STATIONS["CP_Luchessa"]` still uses legacy names (1/3/5/2); update it whenever desk names change.
 
 ---
 
@@ -96,7 +140,7 @@ The system is organized into a four-tier decoupled architecture:
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │            2. Control Point Vital Safety Engine             │
-│   (ControlPoint, ControlTable, Route Locking, Approach,     │
+│   (InterlockingPlant, ControlTable, Route Locking, Approach,│
 │       Sectional Release, Fleeting, Engine Return)           │
 └──────────────────────────────┬──────────────────────────────┘
                                │ Logical Commands / Feedback
@@ -120,15 +164,15 @@ The system is organized into a four-tier decoupled architecture:
   - Ingress: `ControlTransaction` (desired demands for all plant appliances).
   - Egress: `IndicationVector` (verified physical truth and lock status).
   - Codecs: `AarTextCodec` formats and parses human-readable AAR tokens (e.g., `1NWS, (1RWS), 2NGS` $\longleftrightarrow$ `1NWK, 1T1K, 2NGK`). `BitPackedCodec` packs dense bitstreams for C/MRI input/output byte arrays.
-  - Symmetrical Office/Field Design: Both field bungalows (`ControlPoint`) and office consoles (`cTcMachine`) use the same codec layer and data structures without duplicated logic.
+  - Symmetrical Office/Field Design: Both field bungalows (`InterlockingPlant`) and office consoles (`cTcMachine`) use the same codec layer and data structures without duplicated logic.
 
 - **Device Interface (Trackside Plane)**:
   Decouples logical appliance safety models from physical actuation and telemetry.
   - Low-Level Electrical: `IOBus`, `InputBit`, and `OutputBit` handle pin numbers, port offsets, and active-high vs active-low polarity across GPIO, MCP23017 I2C expanders, and shift registers.
   - High-Level Semantic: `MqttApplianceBus` maps appliances directly to discrete MQTT topics (e.g. JMRI MQTT schemas: `track/sensor/`, `track/turnout/`, `track/signalmast/`).
-  - Driver Policies: `ControlPoint::setDefaultDriverPolicy()` runs atomic `sampleAll(nowMs)` and `driveAll(nowMs)` during scan ticks. `mockSwitch()` and `overrideDriver()` allow hybrid bench-testing of individual appliances before physical track installation.
+  - Driver Policies: `InterlockingPlant::setDefaultDriverPolicy()` runs atomic `sampleAll(nowMs)` and `driveAll(nowMs)` during scan ticks. `mockSwitch()` and `overrideDriver()` allow hybrid bench-testing of individual appliances before physical track installation.
 
-### 2. Vital Interlocking Engine (`ControlPoint`, `ControlTable`)
+### 2. Vital Interlocking Engine (`InterlockingPlant`, `ControlTable`)
 
 - **Execution Model**:
   - Zero dynamic heap allocation after startup. All appliance lookups occur once during configuration; runtime cycles use $O(1)$ raw pointer dereferences.
@@ -162,7 +206,7 @@ The system is organized into a four-tier decoupled architecture:
 
 ### 5. Dynamic Plant Serialization (`PlantSerializer.h`)
 
-- In-place, zero-allocation scanner that serializes plant topology to JSON and deserializes JSON into `ControlPoint` at boot.
+- In-place, zero-allocation scanner that serializes plant topology to JSON and deserializes JSON into `InterlockingPlant` at boot.
 - Enables universal microcontroller binaries (`Universal_FieldUnit.ino`) that configure their entire interlocking layout dynamically from flash/LittleFS or MQTT schema distribution.
 
 ---
@@ -171,7 +215,8 @@ The system is organized into a four-tier decoupled architecture:
 
 When authoring or modifying code in this codebase:
 - Use **Switch**, never "Turnout" (following AAR standard terminology).
-- Switches use **odd** numbers (`"1"`, `"3"`, `"5"`); Signals use **even** numbers (`"2"`, `"4"`, `"6"`).
+- Switches use **odd** numbers (`"1"`, `"783"`); Signals use **even** numbers (`"2"`, `"784"`). KiCad-derived plants use prototype numbers (switch 783, signal 784, masts like `784EAB`, OS circuit `783T1`).
+- Dependent derails are named `<switch>D` (e.g. `795D`), paired inversely with their switch and hidden from the CodeLine. NORMAL means clear and REVERSE means on-rail. See `docs/how-to/05_derails_and_os_binding.md`. `addSwitch(name, os)` and the JSON `"os"` key bind a switch to its OS track circuit, which provides the detector lock.
 - Suffix **`S`** denotes inbound control demands (`1NWS`, `1RWS`, `2SGS`, `2NGS`, `2HS`, `MC1S`).
 - Suffix **`K`** denotes outbound indication truth (`1NWK`, `1RWK`, `1T1K`, `2NGK`, `2TEK`, `MC1K`).
 - Parenthesized tokens indicate unasserted/false states (`(1RWK)`, `(2HS)`).
