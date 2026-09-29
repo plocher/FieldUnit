@@ -63,7 +63,7 @@ public:
 
     /**
      * Mark this appliance as a derail and set fail-safe on-rail rest position.
-     * Called by ControlPoint::addDerail before optional dependence pairing.
+     * Called by InterlockingPlant::addDerail before optional dependence pairing.
      */
     void configureAsDerail() {
         isDerail_ = true;

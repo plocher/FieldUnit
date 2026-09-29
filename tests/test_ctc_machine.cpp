@@ -160,7 +160,7 @@ void testHarvestReportsCurrentLeverPositions() {
     MockPanelHardware hw;
     cTcMachine machine(hw);
 
-    machine.addStation("CP_Luchessa")
+    machine.addStation("Luchessa")
         .inColumn(5).withSwitch("1")
         .inColumn(6).withSwitch("3").withSignal("2")
         .inColumn(7).withSwitch("5").withCodeButton();
@@ -243,6 +243,26 @@ void testCtcMachineIndicationFanOut() {
     printf("  -> PASS: Out-of-version-sync transmission rejected immediately.\n\n");
 }
 
+void testStationLookupFoldsCaseOnly() {
+    printf("--- Running testStationLookupFoldsCaseOnly ---\n");
+    MockPanelHardware hw;
+    cTcMachine machine(hw);
+
+    CtcStation& interlocking = machine.addStation("Luchessa");
+    interlocking.inColumn(5).withSwitch("783").withCodeButton();
+
+    assert(machine.findStation("Luchessa") == &interlocking);
+    assert(machine.findStation("luchessa") == &interlocking);
+    assert(machine.findStation("LUCHESSA") == &interlocking);
+    assert(&machine.addStation("LUCHESSA") == &interlocking);
+    assert(machine.stationCount() == 1);
+
+    // A controlled point sharing the interlocking's base name is a different name.
+    assert(machine.findStation("CP Luchessa") == nullptr);
+    assert(machine.findStation("CP_Luchessa") == nullptr);
+    printf("  -> PASS: station lookup folds case only; interlocking and CP names stay distinct.\n");
+}
+
 int main() {
     printf("====================================================\n");
     printf("   CTC MACHINE UNIT TESTS                           \n");
@@ -252,6 +272,7 @@ int main() {
     testPollCodeUsesPreallocatedBuffer();
     testHarvestReportsCurrentLeverPositions();
     testCtcMachineIndicationFanOut();
+    testStationLookupFoldsCaseOnly();
 
     printf("\nALL CTC MACHINE TESTS PASSED!\n");
     return 0;

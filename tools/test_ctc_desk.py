@@ -38,9 +38,9 @@ STATIONS = {
         "normal": "1NWK, (1RWK), 3NWK, (3RWK), (1T1K), (3T1K), (TK1K), (MC1K), (MC2K)",
         "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, 1T1K, 3T1K, TK1K, MC1K, MC2K",
     },
-    "CP_Luchessa": {
-        "normal": "1NWK, (1RWK), 3NWK, (3RWK), 5NWK, (5RWK), (1T1K), (3T1K), (2SGK), (2NGK), (2TEK), (MC1K)",
-        "reverse": "(1NWK), 1RWK, (3NWK), 3RWK, (5NWK), 5RWK, 1T1K, 3T1K, (2SGK), 2NGK, (2TEK), MC1K",
+    "Luchessa": {
+        "normal": "783NWK, (783RWK), 795NWK, (795RWK), 799NWK, (799RWK), (783T1K), (795T1K), (784SGK), (784NGK), (784TEK), (MC1K)",
+        "reverse": "(783NWK), 783RWK, (795NWK), 795RWK, (799NWK), 799RWK, 783T1K, 795T1K, (784SGK), 784NGK, (784TEK), MC1K",
     },
     "CP_Christopher": {
         "normal": "1NWK, (1RWK), 3NWK, (3RWK), 5NWK, (5RWK), (1T1K), (1WAK), (2WAK), (3T1K), (3BT1K), (5T1K), (1EAK), (2EAK), (2SGK), (2NGK), (2TEK), (MC1K), (MC2K)",

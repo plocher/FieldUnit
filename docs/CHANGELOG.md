@@ -4,7 +4,18 @@ All notable changes to the FieldUnit library will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **Interlocking naming and case-insensitive station lookup**:
+  - `spcoast_ctc` desk station `CP_Luchessa` is now `Luchessa` (the interlocking; `CP Luchessa`, `CP Gilroy` and `CP Carnadero` are its controlled points, one per column 5–7). MQTT topics become `ctc/SPCoast/codeline/Luchessa/...`. `tools/test_ctc_desk.py` follows.
+  - `cTcMachine::addStation` / `findStation` compare names case-insensitively (`strcasecmp`). Only case is folded, so an interlocking and a CP with the same base name stay distinct. New test `testStationLookupFoldsCaseOnly`.
+- **CP_Luchessa desk bindings cut over to KiCad-derived truth (`examples/spcoast_ctc/`)**:
+  - `configureDesk()` Column 5-7 station now uses the appliance names compiled from the KiCad schematic (`profiles/spcoast_south/cps/generated/CP_Luchessa.json` in FieldUnit-Subdivision) instead of the placeholder legacy names: switches `1`/`3`/`5` -> `783`/`795`/`799`, signal `2` -> `784`, track lamps `1T1`/`3T1` -> `783T1`/`795T1`. Dependent derail `795D` has no independent lever (combined with switch `795`'s `KR`).
+
 ### Fixed
+- **Stale names after the `ControlPoint` → `InterlockingPlant` rename and Luchessa cutover**:
+  - Comments in `src/Switch.h` and tests now say `InterlockingPlant`.
+  - `tools/test_ctc_desk.py` `--walk` uses the KiCad-derived CP_Luchessa tokens (`783`/`795`/`799`, signal `784`, `783T1K`/`795T1K`).
+  - Corrected this changelog: `CODELINE_VISUAL_STEPPING` is off by default.
 - **ESP32-C6 (RISC-V) Build & Runtime Stability (`examples/spcoast_ctc/`)**:
   - Added explicit forward declarations for every sketch-defined function ahead of any `#if`/`#ifdef` block. Arduino's ctags-based automatic prototype generator cannot reliably insert prototypes when the first function definition in a sketch is guarded by a preprocessor conditional; newer arduino-cli/esp32-core toolchains silently corrupt the generated translation unit in that case, producing a cascade of "expected primary-expression" / "was not declared in this scope" errors far from the real cause.
   - Overrode arduino-esp32's weak `getArduinoLoopTaskStackSize()` to grow `loopTask`'s stack from the 8 KB default to 16 KB. ESP32-C6's RISC-V toolchain plus arduino-esp32 3.x's new ESP-IDF 5.x I2C master driver has a deeper call chain than classic Xtensa ESP32 sketches were tuned for; `Adafruit_SSD1306::begin()`'s first I2C write was overflowing the default stack (confirmed via crash-dump symbolication against the built `.elf`).
@@ -25,7 +36,7 @@ All notable changes to the FieldUnit library will be documented in this file.
 
 ### Added
 - **`CODELINE_VISUAL_STEPPING` fast-path toggle (`examples/spcoast_ctc/`)**:
-  - Comment out `#define CODELINE_VISUAL_STEPPING` in `spcoast_ctc.ino` for fast bench/dev iteration: controls publish and indications apply immediately, with a single quick lamp flash instead of the full 15-step, per-column US&S Form 506 pulse dance. Left on by default to preserve the existing authentic behavior. Note the visual-stepping path always replays every column of a station on any single incoming message (it cannot tell that only one function bit changed), so a station that receives several indications in quick succession (e.g. multiple switches settling independently) will queue several full replays back to back; the fast path avoids this by design.
+  - Comment out `#define CODELINE_VISUAL_STEPPING` in `spcoast_ctc.ino` for fast bench/dev iteration: controls publish and indications apply immediately, with a single quick lamp flash instead of the full 15-step, per-column US&S Form 506 pulse dance. Off by default (the `#define` is commented out): the full per-column replay made every lever/CODE action take 10–30 s during development. Uncomment it to restore the authentic display. Note the visual-stepping path always replays every column of a station on any single incoming message (it cannot tell that only one function bit changed), so a station that receives several indications in quick succession (e.g. multiple switches settling independently) will queue several full replays back to back; the fast path avoids this by design.
 - **CodeLine Cadence & Fast-Clock Timeline (`docs/AAR_SIGNALING_PRIMER.md`)**:
   - Added Section 9.5 documenting the office/field line transmission boundary, lock dog dominance over point detection, and the compressed 4.5–5.5s timeline for model railroad fast clocks.
 - **Derails and OS binding**:
