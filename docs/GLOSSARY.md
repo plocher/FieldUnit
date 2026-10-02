@@ -107,6 +107,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
 
 - One interlocking plant can have several field units at different times or places. Example: a unit in the bungalow and a virtual unit in a simulator.
 - Luchessa answers at three field stations on a 506 line. It answers at one field station on an MQTT line.
+- An interlocking that answers on two code lines is two interlocking applications, so two field units. A field processor runs one or more interlocking applications.
 - A microcontroller in a bungalow is a field processor with one field unit. The simulator `spcoast_virtual_plant` is a field processor with seven.
 
 ## 3. Roles, organization and equipment
@@ -123,15 +124,15 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
   - FieldUnit: `cTcMachine` is a code name. The aliases `CtcMachine` and `OfficeUnit` exist. Prose uses "CTC machine".
   - The SPCoast machine is "the SPCoast CTC machine (US&S style)". It has no model number.
 - **device interface** [FieldUnit]. The boundary between the field unit and the hardware of its appliances. Code names: `IOBus`, `CmriIOBus`, `MqttApplianceBus`.
-- **dispatcher** [Prototype]. The person who controls trains at a CTC machine.
+- **dispatcher** [Both]. The operator role that controls trains at a distance. The dispatcher uses a CTC machine, a code line and the distributed handshake of control and office indication. This is the only operator role that the model covers today. Compare tower operator and maintainer.
 - **field** [Both]. All places and equipment outside the office.
 - **field processor** [FieldUnit]. The microcontroller, computer or process that runs one or more field units. It exists when it is installed or started.
 - **field station** [FieldUnit]. One address on a code line, and the set of controls and office indications carried under that address.
   - A field station has no behavior. It is how one code line type lets the office reach a field unit.
   - A field station is the abstraction that the interlocking presents to the dispatcher. It carries the functions of the levers and lamps in its panel column. Routes, masts and aspects are not code line functions; the interlocking handles them in the field.
   - The code line type assigns field stations. On a 506 line a field unit can answer at several. On an MQTT line it answers at one.
-  - On a 506 line each control point is one field station. Its name is the control point name: the Value of the KiCad `MAIN HOUSE` symbol. A name carries no `CP` prefix; a model board can add `CP ` for display. The tooling rejects a duplicate. It does not invent or normalize a name.
-  - An interlocking model with no `MAIN HOUSE` symbol cannot use a code line type that needs field stations of this kind.
+  - On a 506 line each control point is one field station. Its name is the control point name: the Value of the KiCad `MAIN HOUSE` symbol. A name carries no `CP` prefix; a model board can add `CP ` for display. The tooling rejects a duplicate. It does not invent a name. A name used in an MQTT topic or a key has each space replaced by `-`. No code adds or strips a `CP` prefix.
+  - An interlocking model with no `MAIN HOUSE` symbol is an error. The `MAIN HOUSE` symbol is the explicit source of the name. The tooling does not take it from the title block or the file name. The symbol can display a title block variable.
   - The address of a field station on a 506 line is authored. The tooling does not allocate it.
   - Prototype note: [RRS506] uses "field station" and "field location" for the places on a 506 line.
   - FieldUnit: the class `CtcStation` is the office-side record of one field station.
@@ -141,6 +142,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
 - **interlocking logic** [FieldUnit]. The generic logic of interlocking, in software. It is the same for every interlocking plant. Code name today: `InterlockingPlant`. A rename to `Interlocking` is planned.
 - **interlocking model** [FieldUnit]. The data that describes one interlocking plant. Examples: the KiCad schematic, the FieldUnit JSON (`generated/<Interlocking>.json`) and the portable model (`InterlockingPlantModel`).
 - **interlocking plant** [Both]. The real track, switches, derails, signals and track circuits that one interlocking controls. It can contain more than one control point. One field unit solves one interlocking plant.
+- **maintainer** [Both]. The operator role that works at a location in maintenance or debug mode, without the interlocking. Compare dispatcher and tower operator. Not yet covered by the model. The maintainer call (section 5) calls the signal maintainer to a location.
 - **office** [Both]. The place where the dispatcher and the CTC machine are.
 - **panel column** [FieldUnit]. One vertical part of the CTC machine face. It holds levers, lamps and a code button. Code names: KiCad `PanelColumn`, C++ `PanelColumn`. A `CtcStation` can span up to four panel columns (`MAX_COLUMNS_PER_STATION`).
 - **subdivision** [FieldUnit]. The set of control points, code lines and CTC machines that the subdivision linker joins into one model. Example: SPCoast South.
@@ -169,7 +171,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
 - **interlocking limits** [Both]. The track between the opposing home signals of an interlocking. The tooling can derive them: cut the track graph at every controlled signal; each piece that contains a switch or derail is one interlocking (`FieldUnit-Subdivision/docs/review/spike-cp-membership.md`).
 - **interlocking machine** [Prototype]. The lever frame and its locking that a tower operator works. The locking bed is the part that holds a lever that must not move.
 - **tower** [Prototype]. The building at an interlocking from which the tower operator works the interlocking machine.
-- **tower operator** [Prototype]. The person who works an interlocking machine in a tower.
+- **tower operator** [Both]. The operator role that works directly on a locking bed, real or virtual. On the prototype this is the person who works an interlocking machine in a tower. The tower operator does not use a code line. Compare dispatcher and maintainer. Not yet covered by the model.
 - **yard limits** [Prototype]. A part of main track, designated by the railroad, inside which the yard limit rule applies. The KiCad symbol is `Rule6.13-Yard Limits`. (unverified: the rule text was not opened.)
 
 ## 5. Controls, indications and functions
@@ -553,6 +555,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | Control Point Engine | interlocking logic |
 | control snapshot | control transaction |
 | Controlled Point, controlled point | control point (a place) or field station (an address) |
+| controller (as a role) | dispatcher, tower operator or maintainer. The names `controllers{}`, `tools/controller_graph` and `parse_kicad_controller.py` are code names and keep their spelling. |
 | Controls-as-Demands | control |
 | corridor | subdivision |
 | correspondence (alone) | switch correspondence or office correspondence |
