@@ -59,6 +59,13 @@ function" so that nobody reads the code line as vital. Decided: vital and non-vi
 sentence above about the code line. It is the owner's word, and it needs no rename in the code or in
 the symbol library.
 
+### A switch or signal marked non-vital (owner, 2026-10-02)
+
+A switch or a signal is vital by kind. A drawing that marks one non-vital gets a compiler warning;
+the attribute is ignored and the field unit processes the appliance as vital. The `Vital` field
+belongs to auxiliary appliances only. A non-interlocked switch is dark track; a non-interlocked
+signal is an auxiliary lamp; relaxed checks belong to the maintainer role.
+
 ## Consequences
 
 ### Design
