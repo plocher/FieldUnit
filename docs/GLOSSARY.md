@@ -340,7 +340,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - A dependent derail is `<switch>D`.
 - The default OS track circuit name is `<switch>T1`. A `TC` field overrides it. AAR56 uses `<number>T`.
 - Names are produced with case preserved and compared without case.
-- One grammar for all names is proposed in `FieldUnit-Subdivision/docs/review/name-grammar.md`. It is not adopted.
+- One grammar for all names is proposed in `FieldUnit-Subdivision/docs/adr/0003-name-grammar.md`. It is not adopted.
 
 ### 10.3 Letters
 

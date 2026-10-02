@@ -140,7 +140,7 @@ These rules let a KiCad schematic be the source of structural routes. They do no
 - SPCoast switch and signal numbers are the milepost in tenths: switches `783`, `795`, `799` and signal `784` at Luchessa. The SP Coast Division timetable of 1952 shows automatic signals numbered this way. That reading rests on three numbers.
 - Odd switch numbers and even signal numbers are a common convention, not an AAR rule. AAR56 Fig. 6 numbers switch-type appliances with even numbers.
 - AAR56 (p. 31) names a track circuit with a number and T. Inside interlocking limits the number is that of a frog, switch or derail in it. The project default for an OS track circuit is `<switch>T1`.
-- Other track circuit names (`1SA`, `2NA`, `2NAA`) follow no project rule today. A grammar for all names is proposed in `FieldUnit-Subdivision/docs/review/name-grammar.md`. It is not adopted.
+- Other track circuit names (`1SA`, `2NA`, `2NAA`) follow no project rule today. A grammar for all names is proposed in `FieldUnit-Subdivision/docs/adr/0003-name-grammar.md`. It is not adopted.
 - The tooling keeps each name as drawn. `parse_kicad_plant.py --aliases` maps drawn names to display names (implemented).
 
 ### 4.3 Track circuits on a route
