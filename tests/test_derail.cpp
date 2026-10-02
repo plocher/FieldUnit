@@ -13,9 +13,9 @@ static void testIndependentDerailWithOs() {
     assert(d5->isDerail());
     assert(!d5->isDependentDerail());
     assert(d5->appearsOnCodeLine());
-    // Fail-safe default: derail on-rail (REVERSE)
-    assert(d5->commandedPosition() == SwitchPosition::REVERSE);
-    assert(d5->reportedPosition() == SwitchPosition::REVERSE);
+    // Fail-safe default: derail in derailing position (NORMAL)
+    assert(d5->commandedPosition() == SwitchPosition::NORMAL);
+    assert(d5->reportedPosition() == SwitchPosition::NORMAL);
     assert(cp.findTrackCircuit("5T1") != nullptr);
     assert(cp.findDetectorCircuitForSwitch(d5) == cp.findTrackCircuit("5T1"));
     assert(cp.findSwitch("5") == d5);
@@ -23,7 +23,7 @@ static void testIndependentDerailWithOs() {
 }
 
 static void testDependentDerailBindsToBase() {
-    printf("[TEST] Dependent derail addDerail(\"1D\", \"1DT1\") binds inverse to switch 1\n");
+    printf("[TEST] Dependent derail addDerail(\"1D\", \"1DT1\") binds to switch 1\n");
     InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1", "1T1");
     Switch* d1 = cp.addDerail("1D", "1DT1");
@@ -35,10 +35,10 @@ static void testDependentDerailBindsToBase() {
     assert(sw1->dependentDerail() == d1);
     assert(d1->pairedSwitch() == sw1);
 
-    // At rest: main NORMAL, derail on-rail REVERSE, master in combined correspondence
+    // At rest: main NORMAL, derail NORMAL (derailing), master in combined correspondence
     assert(sw1->commandedPosition() == SwitchPosition::NORMAL);
-    assert(d1->commandedPosition() == SwitchPosition::REVERSE);
-    assert(d1->reportedPosition() == SwitchPosition::REVERSE);
+    assert(d1->commandedPosition() == SwitchPosition::NORMAL);
+    assert(d1->reportedPosition() == SwitchPosition::NORMAL);
     assert(sw1->inCorrespondence());
     assert(sw1->KR());
     assert(sw1->NWCR());
@@ -56,7 +56,7 @@ static void testDependentMissingBaseFails() {
     printf("  -> PASS\n\n");
 }
 
-static void testInverseThrowAndCombinedKr() {
+static void testPairedThrowAndCombinedKr() {
     printf("[TEST] Master throw REVERSE clears derail; KR waits for both ends\n");
     InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1", "1T1");
@@ -65,7 +65,7 @@ static void testInverseThrowAndCombinedKr() {
 
     assert(sw1->throwSwitch(SwitchPosition::REVERSE, t));
     assert(sw1->reportedPosition() == SwitchPosition::MOVING);
-    assert(d1->commandedPosition() == SwitchPosition::NORMAL);
+    assert(d1->commandedPosition() == SwitchPosition::REVERSE);
     assert(d1->reportedPosition() == SwitchPosition::MOVING);
     assert(!sw1->inCorrespondence());
     assert(!sw1->KR());
@@ -75,17 +75,18 @@ static void testInverseThrowAndCombinedKr() {
     assert(!sw1->KR());
     assert(!sw1->inCorrespondence());
 
-    d1->updateFeedback(SwitchPosition::NORMAL);
+    d1->updateFeedback(SwitchPosition::REVERSE);
     assert(sw1->inCorrespondence());
     assert(sw1->KR());
     assert(sw1->RWCR());
     assert(!sw1->NWCR());
     assert(sw1->reportedPosition() == SwitchPosition::REVERSE);
 
-    // Back to normal main: derail must return on-rail
+    // Back to normal main: derail must return to derailing (NORMAL); KR waits for it
     assert(sw1->throwSwitch(SwitchPosition::NORMAL, t + 100));
     sw1->updateFeedback(SwitchPosition::NORMAL);
-    d1->updateFeedback(SwitchPosition::REVERSE);
+    assert(!sw1->KR());
+    d1->updateFeedback(SwitchPosition::NORMAL);
     assert(sw1->NWCR());
     assert(sw1->KR());
     printf("  -> PASS\n\n");
@@ -121,13 +122,13 @@ static void testDependentDerailNotDirectlyCommandable() {
     Switch* sw1 = cp.addSwitch("1", "1T1");
     Switch* d1 = cp.addDerail("1D", "1DT1");
     sw1->updateFeedback(SwitchPosition::NORMAL);
-    d1->updateFeedback(SwitchPosition::REVERSE);
+    d1->updateFeedback(SwitchPosition::NORMAL);
 
     // Direct demand on dependent derail index must be ignored
     ControlTransaction rogue;
-    rogue.switchDemands[d1->index()] = SwitchDemand::NORMAL;
+    rogue.switchDemands[d1->index()] = SwitchDemand::REVERSE;
     cp.applyControlTransaction(rogue, 1500);
-    assert(d1->commandedPosition() == SwitchPosition::REVERSE);
+    assert(d1->commandedPosition() == SwitchPosition::NORMAL);
 
     assert(!d1->appearsOnCodeLine());
     assert(sw1->appearsOnCodeLine());
@@ -135,18 +136,18 @@ static void testDependentDerailNotDirectlyCommandable() {
 }
 
 static void testApplyTransactionDrivesDependentDerail() {
-    printf("[TEST] ControlTransaction on switch 1 drives dependent derail inverse\n");
+    printf("[TEST] ControlTransaction on switch 1 drives dependent derail to the same position\n");
     InterlockingPlant cp("CP_Test");
     Switch* sw1 = cp.addSwitch("1", "1T1");
     Switch* d1 = cp.addDerail("1D", "1DT1");
     sw1->updateFeedback(SwitchPosition::NORMAL);
-    d1->updateFeedback(SwitchPosition::REVERSE);
+    d1->updateFeedback(SwitchPosition::NORMAL);
 
     ControlTransaction ctl;
     ctl.switchDemands[sw1->index()] = SwitchDemand::REVERSE;
     cp.applyControlTransaction(ctl, 2000);
     assert(sw1->commandedPosition() == SwitchPosition::REVERSE);
-    assert(d1->commandedPosition() == SwitchPosition::NORMAL);
+    assert(d1->commandedPosition() == SwitchPosition::REVERSE);
     printf("  -> PASS\n\n");
 }
 
@@ -185,7 +186,7 @@ int main() {
     testIndependentDerailWithOs();
     testDependentDerailBindsToBase();
     testDependentMissingBaseFails();
-    testInverseThrowAndCombinedKr();
+    testPairedThrowAndCombinedKr();
     testDetectorLockFansAcrossPair();
     testSwitchOsOptional();
     testDependentDerailNotDirectlyCommandable();

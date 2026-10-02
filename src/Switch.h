@@ -9,15 +9,15 @@ namespace FieldUnit {
 enum class SwitchPairMode : uint8_t {
     NONE = 0,
     CROSSOVER = 1,         // Same-polarity pair (both ends of a crossover)
-    DEPENDENT_DERAIL = 2   // Inverse-polarity pair (main switch + protecting derail)
+    DEPENDENT_DERAIL = 2   // Same-polarity pair (main switch + protecting derail), derail hidden from CodeLine
 };
 
 /**
  * TrackSwitch / SwitchMachine appliance (AAR standard: Switch, not Turnout).
  *
  * Derails are switch-shaped appliances (often points + machine, no frog).
- * NORMAL on a derail = off-rail / clear (train may pass).
- * REVERSE on a derail = on-rail / active (cars are dumped).
+ * NORMAL on a derail = derailing position (on the rail), as on the prototype.
+ * REVERSE on a derail = clear (off the rail; a train may pass).
  */
 class Switch {
 public:
@@ -62,12 +62,12 @@ public:
     }
 
     /**
-     * Mark this appliance as a derail and set fail-safe on-rail rest position.
+     * Mark this appliance as a derail. It rests in NORMAL (derailing), like every appliance.
      * Called by InterlockingPlant::addDerail before optional dependence pairing.
      */
     void configureAsDerail() {
         isDerail_ = true;
-        forceSettledPosition(SwitchPosition::REVERSE);
+        forceSettledPosition(SwitchPosition::NORMAL);
     }
 
     virtual SwitchPosition commandedPosition() const { return commanded_; }
@@ -95,9 +95,8 @@ public:
             return false;
         }
         if (pairMode_ == SwitchPairMode::DEPENDENT_DERAIL && !isDependentSlave_ && pairedSwitch_) {
-            const SwitchPosition expect = inversePosition(commanded_);
-            return pairedSwitch_->commandedPosition() == expect &&
-                   pairedSwitch_->reportedPosition() == expect &&
+            return pairedSwitch_->commandedPosition() == commanded_ &&
+                   pairedSwitch_->reportedPosition() == commanded_ &&
                    pairedSwitch_->selfInCorrespondence();
         }
         if (pairMode_ == SwitchPairMode::CROSSOVER && pairedSwitch_) {
@@ -136,9 +135,9 @@ public:
     }
 
     /**
-     * Pair this mainline switch with a dependent derail (inverse polarity).
-     * Master NORMAL => derail REVERSE (on-rail).
-     * Master REVERSE => derail NORMAL (clear).
+     * Pair this mainline switch with a dependent derail (same polarity).
+     * Master NORMAL => derail NORMAL (derailing).
+     * Master REVERSE => derail REVERSE (clear).
      */
     void pairDependentDerail(Switch* derail) {
         if (!derail) return;
@@ -149,8 +148,8 @@ public:
         derail->pairMode_ = SwitchPairMode::DEPENDENT_DERAIL;
         derail->isDependentSlave_ = true;
         derail->isDerail_ = true;
-        // Rest: main stays as-is (typically NORMAL); derail on-rail
-        derail->forceSettledPosition(inversePosition(commanded_));
+        // Rest: derail takes the position of its main switch (typically NORMAL, derailing)
+        derail->forceSettledPosition(commanded_);
     }
 
     Switch* pairedSwitch() const { return pairedSwitch_; }
@@ -193,9 +192,8 @@ public:
             if (!pairedSwitch_->WLR()) {
                 return false;
             }
-            const SwitchPosition derailTarget = inversePosition(target);
             const bool okSelf = throwSelf(target, nowMs);
-            pairedSwitch_->throwSelf(derailTarget, nowMs);
+            pairedSwitch_->throwSelf(target, nowMs);
             return okSelf;
         }
 
@@ -231,12 +229,6 @@ public:
     void forceSettledPosition(SwitchPosition pos) {
         commanded_ = pos;
         reported_ = pos;
-    }
-
-    static SwitchPosition inversePosition(SwitchPosition pos) {
-        if (pos == SwitchPosition::NORMAL) return SwitchPosition::REVERSE;
-        if (pos == SwitchPosition::REVERSE) return SwitchPosition::NORMAL;
-        return pos;
     }
 
 private:

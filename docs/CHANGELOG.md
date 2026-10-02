@@ -5,6 +5,10 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- **Derail polarity now follows the prototype (breaking)**:
+  - Derail `NORMAL` is the derailing position (on the rail). `REVERSE` is clear. Derails rest in `NORMAL`.
+  - A dependent derail (`<switch>D`) takes the same position as its switch. The inverse pairing and `Switch::inversePosition` are removed.
+  - Routes through an independent derail must align it `REVERSE`. `NWS`/`RWS`/`NWK`/`RWK` token names are unchanged; their meaning for a derail is reversed, so retained derail indications are stale.
 - **Interlocking naming and case-insensitive station lookup**:
   - `spcoast_ctc` desk station `CP_Luchessa` is now `Luchessa` (the interlocking; `CP Luchessa`, `CP Gilroy` and `CP Carnadero` are its controlled points, one per column 5–7). MQTT topics become `ctc/SPCoast/codeline/Luchessa/...`. `tools/test_ctc_desk.py` follows.
   - `cTcMachine::addStation` / `findStation` compare names case-insensitively (`strcasecmp`). Only case is folded, so an interlocking and a CP with the same base name stay distinct. New test `testStationLookupFoldsCaseOnly`.
