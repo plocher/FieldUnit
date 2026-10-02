@@ -685,49 +685,54 @@ This timeline gives the mechanical and electrical hesitation of prototype signal
 
 ### 10. The Code Line Taxonomy: Controls versus Office Indications
 
-First, one fact about safety: **vital logic is in the field.** The code line and the CTC machine are not vital. A code line function is therefore not "vital" or "non-vital". It is one of two classes:
-- **Interlocked function**: Controls or reports an appliance that the interlocking logic governs (switches, signals, electric locks, track circuits). The field unit checks each interlocked control against the locking before it acts.
-- **Auxiliary function**: Outside the interlocking logic (maintainer call, snow melters, power-off). The field unit does not check it against the locking.
+First, one fact about safety: **vital logic is in the field.** The code line and the CTC machine are not vital. The words "vital" and "non-vital" describe how the field unit processes a control, not the wire that carries it. Each control is in one of two classes:
+- **Vital control**: Can affect a safety protection (switches, signals, electric locks). The interlocking logic checks it before the field unit acts.
+- **Non-vital control**: Cannot affect a safety protection (maintainer call, snow melters). The interlocking logic does not check it against the locking.
+
+Office indications carry the same class column in the tables below. It names the class of the function they report.
 
 FieldUnit's `AarTextCodec` carries switch, signal, electric lock and maintainer call controls, and switch, track circuit, signal, electric lock and maintainer call office indications. Rows marked † are prototype examples with no FieldUnit token today.
 
 #### 10.1 Control Taxonomy (Office to Field)
 
-| Domain | Control Token | Prototype Function | Class | Precondition in the Field Unit |
+| Domain | Control Token | Prototype Function | Safety Class | Precondition in the Field Unit |
 |---|---|---|---|---|
-| **Switch** | `1NWS` | Control Switch 1 Normal | Interlocked | Must satisfy `WLR` (OS track circuit `1T1` vacant, no route lock, no time locking, no electric lock). |
-| **Switch** | `1RWS` | Control Switch 1 Reverse | Interlocked | Must satisfy `WLR` (OS track circuit `1T1` vacant, no route lock, no time locking, no electric lock). |
-| **Signal** | `2NGS` / lever `2L` | Clear Signal 2 LEFT | Interlocked | Signal clears only when the route checks pass (switches in `KR`, route track circuits clear, opposing signals held). |
-| **Signal** | `2SGS` / lever `2R` | Clear Signal 2 RIGHT | Interlocked | Signal clears only when the route checks pass (switches in `KR`, route track circuits clear, opposing signals held). |
-| **Signal** | `2HS` | Put Signal 2 at Stop | Interlocked | Always accepted. If the approach track circuit is occupied, time locking runs. |
-| **Electric Lock**| `7WLS` | Release Electric Lock 7 | Interlocked | Every signal must be at Stop and no time locking may run. |
-| **Fleeting** † | `2FS` | Turn Fleeting On for Signal 2 | Interlocked | Conditions the `FSR` stick bypass. |
-| **Call-On** † | `2COS` | Call-On (Restricting) | Interlocked | Allows `RESTRICTING` into an occupied track circuit. |
-| **Maintainer** | `MC1S` | Maintainer Call ON/OFF | Auxiliary | Applied at once; no locking checks. |
-| **Auxiliary** † | `SNOWS` | Switch Heater / Snow Melter | Auxiliary | Applied at once. |
+| **Switch** | `1NWS` | Control Switch 1 Normal | Vital | Must satisfy `WLR` (OS track circuit `1T1` vacant, no route lock, no time locking, no electric lock). |
+| **Switch** | `1RWS` | Control Switch 1 Reverse | Vital | Must satisfy `WLR` (OS track circuit `1T1` vacant, no route lock, no time locking, no electric lock). |
+| **Signal** | `2NGS` / lever `2L` | Clear Signal 2 LEFT | Vital | Signal clears only when the route checks pass (switches in `KR`, route track circuits clear, opposing signals held). |
+| **Signal** | `2SGS` / lever `2R` | Clear Signal 2 RIGHT | Vital | Signal clears only when the route checks pass (switches in `KR`, route track circuits clear, opposing signals held). |
+| **Signal** | `2HS` | Put Signal 2 at Stop | Vital | Always accepted. If the approach track circuit is occupied, time locking runs. |
+| **Electric Lock**| `7WLS` | Release Electric Lock 7 | Vital | Every signal must be at Stop and no time locking may run. |
+| **Fleeting** † | `2FS` | Turn Fleeting On for Signal 2 | Vital | Conditions the `FSR` stick bypass. |
+| **Call-On** † | `2COS` | Call-On (Restricting) | Vital | Allows `RESTRICTING` into an occupied track circuit. |
+| **Maintainer** | `MC1S` | Maintainer Call ON/OFF | Non-vital | Applied at once; no locking checks. |
+| **Auxiliary** † | `SNOWS` | Switch Heater / Snow Melter | Non-vital | Applied at once. |
 
 #### 10.2 Office Indication Taxonomy (Field to Office)
 
-| Domain | Office Indication Token | Prototype Meaning | Class | Source in the Field Unit |
+| Domain | Office Indication Token | Prototype Meaning | Safety Class | Source in the Field Unit |
 |---|---|---|---|---|
-| **Switch** | `1NWK` | Switch 1 Normal, in switch correspondence | Interlocked | `1NWCR` picked up. |
-| **Switch** | `1RWK` | Switch 1 Reverse, in switch correspondence | Interlocked | `1RWCR` picked up. |
+| **Switch** | `1NWK` | Switch 1 Normal, in switch correspondence | Vital | `1NWCR` picked up. |
+| **Switch** | `1RWK` | Switch 1 Reverse, in switch correspondence | Vital | `1RWCR` picked up. |
 | **Switch** | (no token) | Switch 1 out of switch correspondence | — | Both `1NWK` and `1RWK` dropped (in motion or failed). |
-| **Track** | `1T1K` | OS Track Circuit 1T1 Occupied | Interlocked | `1TR` track relay dropped (wheels shunting rails). |
-| **Track** | `1SAK` | Approach Track Circuit 1SA Occupied | Interlocked | `1SATR` track relay dropped. |
-| **Signal** | `2NGK` | Signal 2 Cleared LEFT | Interlocked | `2HSR` holds LEFT. |
-| **Signal** | `2SGK` | Signal 2 Cleared RIGHT | Interlocked | `2HSR` holds RIGHT. |
-| **Signal** | `2TEK` | Time Locking Runs at Signal 2 | Interlocked | The time-locking timer runs (`ASR()` of signal 2 is false). |
-| **Electric Lock**| `7WLK` | Electric Lock 7 Released | Interlocked | The field unit released the lock. |
-| **Maintainer** | `MC1K` | Maintainer Call On | Auxiliary | The field unit's maintainer call state. |
-| **Power** † | `PORK` | Power Off (Commercial AC Loss) | Auxiliary | A power-off relay dropped; running on battery. |
-| **Security** † | `DOORK` | Bungalow Door Open (modeling idea) | Auxiliary | Door contact. |
+| **Track** | `1T1K` | OS Track Circuit 1T1 Occupied | Vital | `1TR` track relay dropped (wheels shunting rails). |
+| **Track** | `1SAK` | Approach Track Circuit 1SA Occupied | Vital | `1SATR` track relay dropped. |
+| **Signal** | `2NGK` | Signal 2 Cleared LEFT | Vital | `2HSR` holds LEFT. |
+| **Signal** | `2SGK` | Signal 2 Cleared RIGHT | Vital | `2HSR` holds RIGHT. |
+| **Signal** | `2TEK` | Time Locking Runs at Signal 2 | Vital | The time-locking timer runs (`ASR()` of signal 2 is false). |
+| **Electric Lock**| `7WLK` | Electric Lock 7 Released | Vital | The field unit released the lock. |
+| **Maintainer** | `MC1K` | Maintainer Call On | Non-vital | The field unit's maintainer call state. |
+| **Power** † | `PORK` | Power Off (Commercial AC Loss) | Non-vital | A power-off relay dropped; running on battery. |
+| **Security** † | `DOORK` | Bungalow Door Open (modeling idea) | Non-vital | Door contact. |
 
-#### 10.3 The Auxiliary Function Rule
-When a `ControlTransaction` arrives at a field unit:
-1. **Interlocked controls** pass through the interlocking checks. If a switch is locked, the field unit does not act on its control.
-2. **Auxiliary controls** (such as Maintainer Call `MC1S`) are applied regardless of the lock state. `InterlockingPlant::applyControlTransaction()` applies the maintainer call even when it marks the interlocked part of the transaction invalid.
-   This lets a dispatcher call a maintainer even when a derailment or broken rail has locked down the interlocking.
+#### 10.3 The Two Classes of Control
+When a `ControlTransaction` arrives at a field unit, two rules apply:
+1. **A malformed transaction is ignored as a whole.** A transaction is malformed when it is incomplete, contains unknown or corrupted data, or fails a structural check of its code line. The field unit ignores the controls of both classes, updates its error counters, and sends office indications of its current, unchanged state. A UDP packet with a bad checksum behaves the same way.
+2. **A valid transaction that is unsafe has every vital control ignored together.** If acting on the transaction would violate a safety protection, the field unit ignores every vital control in it. It does not act on the safe ones and skip the unsafe one. If a switch is locked, no vital control in that transaction acts, including the free switches. The field unit acts on every non-vital control (such as Maintainer Call `MC1S`). It sends no refusal; the office learns the result from the office indications.
+
+This lets a dispatcher call a maintainer even when a derailment or broken rail has locked down the interlocking.
+
+The current code differs: `InterlockingPlant::applyControlTransaction()` still applies the maintainer call when it marks the transaction invalid, and skips only the unsafe control. See FieldUnit `docs/adr/0002-control-transaction-classes.md`.
 
 ---
 
@@ -860,7 +865,7 @@ On the prototype, the maintainer call did what its name says: it called the sign
 ### 15. Bungalow Telemetry (Power-Off and Door)
 A real CTC machine could show a power-off indication for each location.
 FieldUnit has no power-off or door token today. If you add one:
-- Make it an auxiliary function, with its own token.
+- Make it a non-vital function, with its own token.
 - A power-off indication means a loss of power. A door indication means an open door. Do not reuse either one for other faults, such as an I2C expander that stops answering or a switch motor that runs past its travel timeout; give each fault its own name.
 - The dispatcher then calls out the signal maintainer to investigate the bungalow.
 

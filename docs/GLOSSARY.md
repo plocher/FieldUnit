@@ -176,20 +176,24 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
 
 ## 5. Controls, indications and functions
 
-- **auxiliary function** [FieldUnit]. A function outside the interlocking logic. The field unit does not check it against the locking. Examples: maintainer call, power-off indication.
 - **code button** [Both]. The push button that sends the controls of one field station. The label on the machine is CODE.
   - FieldUnit: `PanelInput::CODE_BUTTON`. `cTcMachine` sends when the button is released (`OneShot`).
 - **control** [Both]. A function sent from the office to the field. It states the intent of the dispatcher. The field unit decides whether to act on it. Examples: `783NWS`, `784NGS`.
-- **control transaction** [FieldUnit]. The complete set of controls for one field unit, applied as one unit. Code name: `ControlTransaction`.
+- **control transaction** [FieldUnit]. The complete set of controls for one field unit, applied as one unit. Code name: `ControlTransaction`. Two rules govern it (FieldUnit `docs/adr/0002-control-transaction-classes.md`):
+  - A malformed transaction is ignored as a whole. This includes the controls of both classes. The field unit updates its error counters and sends office indications of its current state.
+  - A valid transaction that would violate a safety protection has every vital control ignored together. The field unit does not act on the safe ones and skip the unsafe one. It processes every non-vital control.
 - **function** [FieldUnit]. One named control or office indication. Its written form is a token. Example: `783NWS`.
 - **indication vector** [FieldUnit]. The complete set of office indications from one field unit, sent as one unit. Code name: `IndicationVector`.
-- **interlocked function** [FieldUnit]. A function that controls or reports an appliance that the interlocking logic governs. The field unit checks each interlocked control against the locking before it acts. Examples: `NWS`, `RWS`, `NGS`, `SGS`, `HS`, `WLS`, and their indications.
 - **lever** [Both]. A handle on a CTC machine or an interlocking machine. It states one intent for one switch or signal.
   - AAR56 names the positions of a three-position lever L and R, as in `10L` and `10R` [AAR56 p. 34]. The middle position is N, the normal position [AAR56 Figs. 18, 22].
   - A switch lever has the positions N and R. A signal lever has the positions L, N and R.
   - FieldUnit: `PanelInput::SW_NORMAL`, `SW_REVERSE`, `SIG_LEFT`, `SIG_STOP`, `SIG_RIGHT`. A switch lever with neither contact closed sends no switch control.
 - **maintainer call** [Both]. A control and lamp that call the signal maintainer to a location. A 1959 machine had a "maintainer's call" control and a "maintainers' call lamp" [RS1959]. No source says that train crews used it.
-  - FieldUnit: tokens `MC<n>S` and `MC<n>K`. It is an auxiliary function. The prefix `MC` is a FieldUnit name.
+  - FieldUnit: tokens `MC<n>S` and `MC<n>K`. It is a non-vital control. The prefix `MC` is a FieldUnit name.
+- **non-vital control** [FieldUnit]. A control that cannot affect a safety protection. The interlocking logic does not check it against the locking.
+  - Processing: when a transaction is malformed, the field unit ignores it with the rest of the transaction. When a valid transaction is unsafe, the field unit still processes every non-vital control.
+  - Examples: maintainer call `MC<n>S`.
+  - The code line that carries a non-vital control is not vital. The class describes how the field unit processes the control.
 - **office correspondence** [Both]. Agreement between a lever and the office indication of its appliance.
   - Out of office correspondence: the lever and the office indication disagree. This is how the office knows that the field unit did not act.
   - A tower lever has no such state.
@@ -199,9 +203,13 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
 - **track indication lamp** [Both]. A lamp on the CTC machine that shows the condition of a track circuit.
   - AAR56: `TK`, "indicator, indicating condition of a track circuit" [AAR56 p. 34].
   - FieldUnit: `PanelColumn::withTrackLamps()`, `PanelOutput::TRACK_LAMP_1` to `TRACK_LAMP_6`.
-- **vital** [Both]. A property of a circuit or logic function whose failure must leave the interlocking plant in a safe, restrictive state.
-  - Vital logic is in the field. The code line and the CTC machine are not vital.
-  - A code line function is not vital or non-vital. It is interlocked or auxiliary.
+- **vital** [Both]. Two senses; the context tells which.
+  - (a) A property of a circuit or logic function whose failure must leave the interlocking plant in a safe, restrictive state. Vital logic is in the field. The code line and the CTC machine are not vital.
+  - (b) The class of a control that can affect a safety protection (see vital control). The class describes how the field unit processes the control. It does not make the code line vital. Code: `vitalValid`; the `Vital` field on panel symbols.
+- **vital control** [FieldUnit]. A control that can affect a safety protection. The interlocking logic checks it before the field unit acts.
+  - Processing: a malformed transaction is ignored as a whole. When a valid transaction would violate a safety protection, the field unit ignores every vital control in it together, including the safe ones, and sends no refusal. The office learns the result from the office indications.
+  - Examples: `NWS`, `RWS`, `NGS`, `SGS`, `HS`, `WLS`.
+  - The code line that carries a vital control is not vital. Vital logic is in the field.
 
 ## 6. US&S 506 code line
 
@@ -542,6 +550,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | 15-step (US&S code line) | 16-step (US&S 506) |
 | 20-step, 32-step | no replacement; not sourced |
 | Approach Block | approach track circuit |
+| auxiliary function | non-vital control |
 | Aspect Ceiling | indication ceiling |
 | bit (for a code line function) | function |
 | central instrument location, CIL | no replacement; not sourced |
@@ -575,6 +584,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | indication (alone) | signal indication or office indication |
 | indication snapshot | indication vector |
 | Indications-as-Truth | office indication |
+| interlocked function | vital control |
 | Interlocking Plant (meaning the logic) | interlocking logic |
 | interlocking frame | interlocking machine |
 | island, Island Block (for a switch section) | OS section |
@@ -584,7 +594,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | mnemonic | token |
 | Model 503, Model 506, Type 506 machine, US&S506 machine | the SPCoast CTC machine (US&S style) |
 | neutral contact (for front contact) | front contact |
-| Non-Vital Command, Non-Vital Circuit (for a code line function) | auxiliary function |
+| Non-Vital Command, Non-Vital Circuit (for a code line function) | non-vital control |
 | Occupied Section, On-Sheet Section | OS section |
 | out of correspondence (alone) | out of switch correspondence or out of office correspondence |
 | panel (for the whole machine) | CTC machine |
@@ -597,7 +607,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | TOL, track occupancy light | track indication lamp |
 | US&S cTc | CTC machine |
 | vital engine | interlocking logic |
-| Vital Command, Vital Circuit (for a code line function) | interlocked function |
+| Vital Command, Vital Circuit (for a code line function) | vital control |
 
 ## 12. Sources
 
