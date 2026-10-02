@@ -32,6 +32,15 @@
 
 using namespace FieldUnit;
 
+// Explicit forward declarations.
+// Arduino's automatic prototype generator fails when functions are defined
+// inside #ifdef blocks. Declare every function here, ahead of any #ifdef.
+void configurePlant();
+void executeCycle(CodeLine& line, uint32_t nowMs);
+void configureHardwareDrivers();
+void samplePhysicalInputs(IOBus& bus, uint32_t nowMs);
+void drivePhysicalOutputs(IOBus& bus, uint32_t nowMs);
+
 // Interlocking Plant Instance
 InterlockingPlant cp("CP_Christopher");
 AarTextCodec codec;

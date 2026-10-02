@@ -16,6 +16,7 @@ All notable changes to the FieldUnit library will be documented in this file.
   - `configureDesk()` Column 5-7 station now uses the appliance names compiled from the KiCad schematic (`profiles/spcoast_south/cps/generated/CP_Luchessa.json` in FieldUnit-Subdivision) instead of the placeholder legacy names: switches `1`/`3`/`5` -> `783`/`795`/`799`, signal `2` -> `784`, track lamps `1T1`/`3T1` -> `783T1`/`795T1`. Dependent derail `795D` has no independent lever (combined with switch `795`'s `KR`).
 
 ### Fixed
+- **Example sketches compile under arduino-cli again**: `CP_Corporal`, `CP_Christopher` and `FieldUnit_Tracer` now forward-declare every function ahead of any `#ifdef`. Arduino's prototype generator fails on functions defined inside conditionals.
 - **Stale names after the `ControlPoint` → `InterlockingPlant` rename and Luchessa cutover**:
   - Comments in `src/Switch.h` and tests now say `InterlockingPlant`.
   - `tools/test_ctc_desk.py` `--walk` uses the KiCad-derived CP_Luchessa tokens (`783`/`795`/`799`, signal `784`, `783T1K`/`795T1K`).

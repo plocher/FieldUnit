@@ -25,6 +25,11 @@ FieldUnit::I2CexpanderIOBus hardwareBus(&expander, 1);
 
 using namespace FieldUnit;
 
+// Explicit forward declarations.
+// Arduino's automatic prototype generator fails when functions are defined
+// inside #ifdef blocks. Declare every function here, ahead of any #ifdef.
+void serialOutput(const char* line);
+
 // Create unconfigured Interlocking Plant
 InterlockingPlant cp("Tracer_CP");
 
