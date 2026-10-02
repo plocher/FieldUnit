@@ -1,20 +1,29 @@
 # How-To: Semaphores and Eastern Speed Signaling
 
-This guide explains how to model mechanical semaphore signals with hobby servos and how to configure Eastern Railroad speed signaling and position-light systems in FieldUnit.
+This guide explains how to model mechanical semaphore signals with hobby servos and how to configure speed signaling, position-light signals and color-position-light signals in FieldUnit.
+
+Each section says what the library code does ("as implemented in FieldUnit").
+The aspect tables in this guide come from the aspect policies in `src/SignalAspectPolicy.h` and from the drivers in `src/drivers/`. They are not rulebook text.
 
 ---
 
 ## 1. Modeling Semaphores (Servo-Actuated Blades)
 
-On a prototype railroad, semaphores use mechanical blades with colored spectacle glasses moving in front of an oil or electric lamp.
-On model layouts, semaphores are actuated by micro-servos (e.g. SG90) or multi-channel servo controllers (e.g. PCA9685 I2C boards).
+On model layouts, semaphores are moved by micro-servos (e.g. SG90) or by multi-channel servo controllers (e.g. PCA9685 I2C boards).
 
-FieldUnit provides a dedicated hardware driver for mechanical blades: **`SemaphoreDriver`**.
+FieldUnit provides a driver for mechanical blades: **`SemaphoreDriver`**.
+It sends an angle for each arm through `IOBus::writeAngle(device, channel, angle)`.
+`MockIOBus` implements `writeAngle`.
+The library has no `IOBus` for a PCA9685. To drive real servos, write an `IOBus` of your own that overrides `writeAngle`.
 
 ### Blade Positions (Angles)
-- **Stop (Horizontal)**: 0 degrees (Red spectacle).
-- **Approach / Caution (45 deg diagonal)**: 45 degrees (Yellow spectacle).
-- **Clear / Proceed (90 deg vertical)**: 90 degrees (Green spectacle).
+Each arm has three angles. `addArm` uses these defaults:
+- **Stop (horizontal)**: 0 degrees.
+- **Approach (diagonal)**: 45 degrees.
+- **Clear (vertical)**: 90 degrees.
+
+The driver reads the appearance of one head for each arm: arm 1 follows `head1()`, arm 2 follows `head2()`, arm 3 follows `head3()`.
+A Green head gives the clear angle, a Yellow head the approach angle, and every other appearance the stop angle.
 
 ### Configuring a Two-Blade Semaphore Mast
 
@@ -23,23 +32,27 @@ FieldUnit provides a dedicated hardware driver for mechanical blades: **`Semapho
 
 using namespace FieldUnit;
 
-ControlPoint cp("CP_Junction");
+InterlockingPlant cp("CP_Junction");
+MockIOBus hardwareBus;   // replace with your own IOBus that overrides writeAngle()
 
 // 1. Declare the two-arm semaphore mast
 auto semMast = cp.addSignalMast("SEM_2R", MastType::TWO_HEAD);
 
-// 2. Set the semaphore rulebook policy
+// 2. Set the semaphore aspect policy
 semMast->setAspectPolicy(AspectPolicies::upperQuadrantSemaphore);
 
-// 3. Configure the Semaphore Driver with calibrated servo angles
+// 3. Configure the semaphore driver with calibrated servo angles
 SemaphoreDriver semDriver(semMast);
 
-// Arm 0 (Top blade): Device 0 (PCA9685 board), Channel 0 (Stop=0 deg, Approach=45 deg, Clear=90 deg)
+// Arm 1 (top blade): device 0, channel 0 (Stop=0 deg, Approach=45 deg, Clear=90 deg)
 semDriver.addArm(/*device=*/0, /*channel=*/0, /*stop=*/0, /*approach=*/45, /*clear=*/90);
 
-// Arm 1 (Lower blade): Device 0, Channel 1
+// Arm 2 (lower blade): device 0, channel 1
 semDriver.addArm(/*device=*/0, /*channel=*/1, /*stop=*/0, /*approach=*/45, /*clear=*/90);
 ```
+
+`AspectPolicies::upperQuadrantSemaphore` returns what `AspectPolicies::defaultRoute` returns for every signal indication.
+The semaphore behavior comes from `SemaphoreDriver`, not from the policy.
 
 ### Driving Servos in `loop()`
 
@@ -50,62 +63,61 @@ void loop() {
     // Advance interlocking logic
     cp.tick(nowMs);
 
-    // Output calibrated PWM angles to servos
+    // Output calibrated angles to servos
     semDriver.drive(hardwareBus);
 }
 ```
 
-When a route clears:
-- **Mainline Route (`CLEAR`)**: Top blade moves to 90 degrees; lower blade stays at 0 degrees.
-- **Diverging Route (`DIVERGING_CLEAR`)**: Top blade stays at 0 degrees; lower blade moves to 90 degrees.
-- **Stop (`STOP`)**: Both blades return to 0 degrees horizontal.
+With the default policy and angles, when a route clears:
+- **Mainline route (`CLEAR`)**: Arm 1 moves to 90 degrees; arm 2 stays at 0 degrees.
+- **Diverging route (`DIVERGING_CLEAR`)**: Arm 1 stays at 0 degrees; arm 2 moves to 90 degrees.
+- **Stop (`STOP`)**: Both arms return to 0 degrees.
 
 ---
 
-## 2. Eastern Speed Signaling (New York Central 3-Head Masts)
+## 2. Speed Signaling (the `nycSpeed` Policy)
 
-Eastern railroads (New York Central, DL&W, Reading, Erie, Conrail, and NORAC) used **Speed Signaling** rather than Western Route Signaling.
-Signals inform the engineer of the maximum authorized speed through the interlocking rather than the assigned track route:
-- **Head 0 (Top)**: High / Normal Speed.
-- **Head 1 (Middle)**: Medium Speed (typically 30 mph through turnouts).
-- **Head 2 (Bottom)**: Slow Speed (typically 15 mph) or Restricting.
+Some railroads use **speed signaling** rather than route signaling.
+The signal shows the maximum authorized speed through the interlocking rather than the assigned track route.
+The policy `AspectPolicies::nycSpeed` implements a three-head form.
+As implemented in FieldUnit, a Green lamp in one head position gives the speed class:
+- **Head 1 (top)**: Green means Clear.
+- **Head 2 (middle)**: Green means Medium Clear.
+- **Head 3 (bottom)**: Green means Slow Clear. Yellow in this head position shows Slow Approach and Restricting.
 
-### Configuring a 3-Head NYC Speed Signal
+### Configuring a 3-Head Speed Signal
 
 ```cpp
-// 1. Declare three-head interlocking home signal
-auto mastNYC = cp.addSignalMast("NYC_HOME", MastType::THREE_HEAD);
+// 1. Declare a three-head interlocking home signal with the nycSpeed policy
+auto mastNYC = cp.addSignalMast("NYC_HOME", MastType::THREE_HEAD, AspectPolicies::nycSpeed);
 
-// 2. Assign the NYC Speed Signaling policy
-mastNYC->setAspectPolicy(AspectPolicies::nycSpeed);
-
-// 3. Connect hardware driver (pins for all 3 heads)
+// 2. Connect the hardware driver (red, yellow, green pins for each head)
 SignalMastDriver mastDriver(mastNYC);
-mastDriver.addHead(h0Red, h0Yellow, h0Green);
-mastDriver.addHead(h1Red, h1Yellow, h1Green);
-mastDriver.addHead(h2Red, h2Yellow, h2Green);
+mastDriver.addHead(OutputBit(1, 0, 0), OutputBit(1, 0, 1), OutputBit(1, 0, 2)); // head 1
+mastDriver.addHead(OutputBit(1, 0, 3), OutputBit(1, 0, 4), OutputBit(1, 0, 5)); // head 2
+mastDriver.addHead(OutputBit(1, 0, 6), OutputBit(1, 0, 7), OutputBit(1, 1, 0)); // head 3
 ```
 
-### How Routes Drive Eastern Speed Indications
+### How Routes Drive Speed Signal Indications
 
-In your Interlocking Control Table, specify the prototype speed indication:
+In your Interlocking Control Table, name the signal indication that each route may show:
 
 ```cpp
-// High Speed Mainline: CLEAR -> Green over Red over Red (Rule 281)
+// High speed mainline: CLEAR -> Green over Red over Red
 cp.route("MAIN_HIGH")
   .governedBy(sig2, DirectionAuthority::RIGHT)
   .displays(mastNYC, Indication::CLEAR)
   .aligns({ {sw1, SwitchPosition::NORMAL} })
   .clears({ tc1T1 });
 
-// Medium Speed Turnout (#15 Turnout): MEDIUM_CLEAR -> Red over Green over Red (Rule 283)
+// Medium speed turnout: MEDIUM_CLEAR -> Red over Green over Red
 cp.route("TURNOUT_MEDIUM")
   .governedBy(sig2, DirectionAuthority::RIGHT)
   .displays(mastNYC, Indication::MEDIUM_CLEAR)
   .aligns({ {sw1, SwitchPosition::REVERSE} })
   .clears({ tc1T1, tc2T1 });
 
-// Slow Speed Track (#8 Turnout): SLOW_CLEAR -> Red over Red over Green (Rule 287)
+// Slow speed track: SLOW_CLEAR -> Red over Red over Green
 cp.route("YARD_SLOW")
   .governedBy(sig2, DirectionAuthority::RIGHT)
   .displays(mastNYC, Indication::SLOW_CLEAR)
@@ -113,70 +125,85 @@ cp.route("YARD_SLOW")
   .clears({ tc3T1 });
 ```
 
+In this policy, Slow Approach and Restricting have the same aspect (Red over Red over Yellow). See Tutorial 3.
+
 ---
 
-## 3. Pennsylvania Railroad (PRR) Position-Light Signals
+## 3. Position-Light Signals (the `prrPositionLight` Policy)
 
-PRR signals communicate indications using geometry (angles of amber light rows) instead of colors:
-- **Horizontal**: Stop.
-- **45° Diagonal Right**: Approach / Caution.
-- **Vertical**: Clear.
+A position-light head shows its aspect with the position of its lamps.
+FieldUnit's policy `AspectPolicies::prrPositionLight` returns colors, so you wire each lamp row to a color pin of `SignalMastDriver`.
+As implemented in FieldUnit:
+- The horizontal lamp row goes to the red pin.
+- The diagonal lamp row goes to the yellow pin.
+- The vertical lamp row goes to the green pin.
 
-### Pin Mapping Strategy
-Wire each row pair to the standard color pins:
-- Horizontal lamp pair $\implies$ `redPin`
-- Diagonal lamp pair $\implies$ `yellowPin`
-- Vertical lamp pair $\implies$ `greenPin`
-
-### Configuring PRR Rulebook Policy
+### Configuring the Policy
 
 ```cpp
 auto prrMast = cp.addSignalMast("PRR_HOME", MastType::TWO_HEAD);
 prrMast->setAspectPolicy(AspectPolicies::prrPositionLight);
 ```
 
-Aspect resolution:
+The policy returns these head appearances for a two-head mast:
 - **Clear**: Vertical over Dark (`Aspect::GREEN`, `Aspect::DARK`).
 - **Approach**: Diagonal over Dark (`Aspect::YELLOW`, `Aspect::DARK`).
 - **Medium Clear**: Horizontal over Vertical (`Aspect::RED`, `Aspect::GREEN`).
+- **Medium Approach** and **Restricting**: Horizontal over Diagonal (`Aspect::RED`, `Aspect::YELLOW`).
 - **Stop**: Horizontal over Dark (`Aspect::RED`, `Aspect::DARK`).
 
 ---
 
-## 4. Baltimore & Ohio (B&O) Color-Position-Light (CPL) Signals
+## 4. Color-Position-Light (CPL) Signals
 
-The Baltimore & Ohio railroad created the iconic **Color-Position-Light (CPL)** signal. Instead of vertical stacks of colored heads, a B&O CPL mast consists of:
-1. **Central Circular Cluster**: Four pairs of colored lamps displayed across 180 degrees:
-   - **Horizontal (Red)**: Stop (Rule 292).
-   - **45° Diagonal Right (Yellow)**: Approach (Rule 285).
-   - **Vertical (Green)**: Clear (Rule 281).
-   - **135° Diagonal Left (Lunar White)**: Restricting (Rule 290).
-2. **Orbital Markers**: Up to six white or colored marker lamps mounted around the perimeter of the disk:
-   - **12 o'clock (Top)**: Normal Speed route.
-   - **2 o'clock (Upper Right)**: Medium Speed route.
-   - **4 o'clock (Lower Right)**: Limited Speed route.
-   - **6 o'clock (Bottom)**: Slow Speed route / Stop & Proceed.
-   - **10 o'clock (Upper Left)**: Cab Speed route.
+### What the sources say about B&O CPL markers
 
-### Configuring a B&O CPL Signal Mast
+A 1925 proposal for B&O color-position-light signals (Railway Signaling, July 1925) describes markers that sit above or below the two red lights:
+- "White marker light above two red lights in horizontal line, stop, then proceed; main route."
+- "White marker light below two red lights in horizontal line, stop, then proceed; restricted route."
+
+That text is an early proposal, and later practice changed.
+A later web summary of CPL practice (read through a fetch tool, not checked against a primary source) says that markers above are high speed, markers below are medium speed, and no marker is slow speed.
+No source we opened gives marker meanings by clock position.
+No source we opened gives a "limited speed" marker or a "cab speed" marker.
+The marker meanings below are therefore FieldUnit's own. They are not B&O practice.
+
+### As implemented in FieldUnit
+
+A CPL mast in FieldUnit has a cluster of four lamp pairs, wired to four pins: red, yellow, green and lunar.
+It can also have up to six marker lamps. `CplMarker` in `types.h` names them by clock position:
+
+| `CplMarker` | Position | Code comment in `types.h` |
+|---|---|---|
+| `TOP_12` | 12 o'clock | Normal speed route |
+| `UPPER_R_2` | 2 o'clock | Medium speed route |
+| `LOWER_R_4` | 4 o'clock | Limited speed route |
+| `BOTTOM_6` | 6 o'clock | Slow speed route |
+| `LOWER_L_8` | 8 o'clock | Auxiliary or restricting |
+| `UPPER_L_10` | 10 o'clock | Cab speed or advance |
+
+The policy `AspectPolicies::boCpl` never sets `LOWER_R_4` or `LOWER_L_8`.
+
+### Configuring a CPL Signal Mast
 
 ```cpp
 #include <FieldUnit.h>
 
 using namespace FieldUnit;
 
-ControlPoint cp("CP_HarpersFerry");
+InterlockingPlant cp("CP_HarpersFerry");
+MockIOBus hardwareBus;   // replace with the IOBus of your hardware
 
-// 1. Declare high signal mast (ONE_HEAD or DWARF)
+// 1. Declare the signal mast (ONE_HEAD or DWARF)
 auto cplMast = cp.addSignalMast("2LA", MastType::ONE_HEAD);
 
-// 2. Assign the B&O CPL rulebook policy
+// 2. Assign the CPL aspect policy
 cplMast->setAspectPolicy(AspectPolicies::boCpl);
 
-// 3. Connect the dedicated CPL hardware driver
+// 3. Connect the CPL hardware driver
 CplMastDriver cplDriver(cplMast);
 
-// Configure central disk lamp pair pins
+// Cluster lamp pair pins: red, yellow, green, lunar
 cplDriver.setDiskPins(
     /*red=*/   OutputBit(1, 0, 0),
     /*yellow=*/OutputBit(1, 0, 1),
@@ -184,16 +211,16 @@ cplDriver.setDiskPins(
     /*lunar=*/ OutputBit(1, 0, 3)
 );
 
-// Configure orbital marker pins
+// Marker pins, in the order top12, upperR2, lowerR4, bottom6 (then optionally upperL10, lowerL8)
 cplDriver.setMarkerPins(
-    /*top12=*/    OutputBit(1, 0, 4), // 12 o'clock: Normal Speed
-    /*upperR2=*/  OutputBit(1, 0, 5), // 2 o'clock: Medium Speed
-    /*lowerR4=*/  OutputBit(1, 0, 6), // 4 o'clock: Limited Speed
-    /*bottom6=*/  OutputBit(1, 0, 7)  // 6 o'clock: Slow Speed
+    /*top12=*/    OutputBit(1, 0, 4),
+    /*upperR2=*/  OutputBit(1, 0, 5),
+    /*lowerR4=*/  OutputBit(1, 0, 6),
+    /*bottom6=*/  OutputBit(1, 0, 7)
 );
 ```
 
-### Driving B&O CPL Hardware in `loop()`
+### Driving CPL Hardware in `loop()`
 
 ```cpp
 void loop() {
@@ -202,23 +229,25 @@ void loop() {
     // Advance interlocking logic
     cp.tick(nowMs);
 
-    // Drive lamp pairs, flashers (1 Hz), and orbital markers
+    // Drive the lamp pairs, the flashing lamps (1 Hz) and the markers
     cplDriver.drive(hardwareBus, nowMs);
 }
 ```
 
-### Aspect Resolution Table
+### What `boCpl` Returns (as implemented in FieldUnit)
 
-| Indication | Center Disk Lamps | Orbital Marker | B&O Rule |
-| :--- | :--- | :--- | :--- |
-| `CLEAR` | Vertical Green | Top (12 o'clock) | Rule 281 |
-| `APPROACH` | Diagonal Yellow | Top (12 o'clock) | Rule 285 |
-| `ADVANCE_APPROACH` | Flashing Diagonal Yellow (1 Hz) | Top (12 o'clock) | Rule 282A |
-| `MEDIUM_CLEAR` / `DIVERGING_CLEAR` | Vertical Green | Upper Right (2 o'clock) | Rule 283 |
-| `MEDIUM_APPROACH` / `DIVERGING_APPROACH` | Diagonal Yellow | Upper Right (2 o'clock) | Rule 286 |
-| `SLOW_CLEAR` | Vertical Green | Bottom (6 o'clock) | Rule 287 |
-| `SLOW_APPROACH` / `APPROACH_SLOW` | Diagonal Yellow | Bottom (6 o'clock) | Rule 288 / 284 |
-| `RESTRICTING` | Diagonal Lunar | None | Rule 290 |
-| `DIVERGING_RESTRICTING` | Diagonal Lunar | Bottom (6 o'clock) | Rule 290A |
-| `STOP` | Horizontal Red | None | Rule 292 |
-| `CAB_SPEED` | Vertical Green | Upper Left (10 o'clock) | Rule 281A |
+| Signal indication | Cluster lamp | Marker |
+| :--- | :--- | :--- |
+| `CLEAR` | Green | `TOP_12` |
+| `APPROACH` | Yellow | `TOP_12` |
+| `ADVANCE_APPROACH` | Flashing Yellow (1 Hz) | `TOP_12` |
+| `MEDIUM_CLEAR`, `DIVERGING_CLEAR` | Green | `UPPER_R_2` |
+| `MEDIUM_APPROACH`, `APPROACH_MEDIUM`, `DIVERGING_APPROACH`, `APPROACH_DIVERGING` | Yellow | `UPPER_R_2` |
+| `SLOW_CLEAR` | Green | `BOTTOM_6` |
+| `SLOW_APPROACH`, `APPROACH_SLOW` | Yellow | `BOTTOM_6` |
+| `RESTRICTING`, `APPROACH_RESTRICTING` | Lunar | none |
+| `DIVERGING_RESTRICTING` | Lunar | `BOTTOM_6` |
+| `STOP` | Red | none |
+| `CAB_SPEED` | Green | `UPPER_L_10` |
+
+A dwarf mast has no markers. It shows only the cluster lamp.

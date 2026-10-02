@@ -5,6 +5,7 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- **Vocabulary rewrite of the documentation**: `docs/GLOSSARY.md` is rewritten in ASD-STE100 style and is the source of truth for terms (three roles and one seam; interlocking plant, logic, model, application, field processor, field unit; control point; field station; US&S 506 code line facts; retired terms table; relay model of the interlocking logic). The primer, README, tutorials, how-tos and `CTC_SUBDIVISION_AND_PLANT_DESIGN.md` follow it. Tutorial and how-to code samples match the current API (`InterlockingPlant`). The record of findings and decisions is `FieldUnit-Subdivision/docs/review/vocabulary-review.md`.
 - **Derail polarity now follows the prototype (breaking)**:
   - Derail `NORMAL` is the derailing position (on the rail). `REVERSE` is clear. Derails rest in `NORMAL`.
   - A dependent derail (`<switch>D`) takes the same position as its switch. The inverse pairing and `Switch::inversePosition` are removed.
