@@ -86,7 +86,7 @@ Consequences:
 | 3 | The logic combined with one model | interlocking application | `Luchessa.ino` (generated sketch) or a native build | not as a file; `spcoast_virtual_plant` builds it at start |
 | 4 | A computer that can run (3) | field processor | a cpNode or ESP32 in the Luchessa bungalow; the Mac that runs the simulator | simulator only |
 | 5 | (3) running on (4) | field unit | the unit that answers at `ctc/SPCoast/codeline/Luchessa/...` | virtual only |
-| 6 | An address at which (5) answers on a code line | field station | 506 line: `CP Luchessa`, `CP Gilroy`, `CP Carnadero` (the `MAIN HOUSE` Values). MQTT line: `Luchessa`. | MQTT only |
+| 6 | An address at which (5) answers on a code line | field station | US&S 506 encoding: `Luchessa`, `Gilroy`, `Carnadero` (the `MAIN HOUSE` Values; drawn today as `CP Luchessa` and so on, to be fixed). AAR token encoding: `Luchessa`. | AAR tokens over MQTT only |
 
 field unit = (interlocking logic + interlocking model) on a field processor = interlocking application on a field processor
 
@@ -102,7 +102,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
 | interlocking plant to control point | 1 : N | the drawing (one `MAIN HOUSE` symbol for each control point) |
 | control point to field station | 1 : 1 on a 506-style code line; N : 1 on an AAR token code line | the code line type |
 | interlocking plant to field unit | 1 : 1 in one deployment | nothing |
-| field unit to field station | 1 : N | the code line type (506: N can exceed 1; MQTT: N = 1) |
+| field unit to field station | 1 : N | the encoding of the code line type (US&S 506: N can exceed 1; AAR tokens: N = 1) |
 | field processor to field unit | 1 : N | the deployment only |
 
 - One interlocking plant can have several field units at different times or places. Example: a unit in the bungalow and a virtual unit in a simulator.
@@ -117,7 +117,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
   - FieldUnit: the class `CodeLine` is the transport (`MqttCodeLine`, `StreamCodeLine`, `MockCodeLine`). `AarTextCodec` writes functions as tokens.
   - History: one account of the first CTC installation (NYC, 1927, GRS) describes one wire to each switch plus a common return [EKEVING]. This is one secondary source.
   - History: a 1937 article describes a "Union time-code C.T.C. system" on a "single series circuit of two wires" [RS1937].
-- **code line type** [FieldUnit]. The definition of how one kind of code line carries functions: addressing, capacity, encoding and timing. Examples: US&S 506, MQTT. The MQTT type has no capacity limit.
+- **code line type** [FieldUnit]. The definition of how one kind of code line carries functions: addressing, capacity, encoding and timing. A code line type is one encoding on one transport (`FieldUnit-Subdivision/docs/adr/0001-code-line-type-contract.md`). Examples: AAR tokens over MQTT; US&S 506 over a relay line. The AAR token encoding has no capacity limit.
 - **CTC machine** [Both]. The equipment at the office from which the dispatcher sends controls and reads office indications. It has levers, code buttons and lamps.
   - US&S wrote "C.T.C. control machine" in 1949 [USS1949].
   - FieldUnit: `cTcMachine` is a code name. The aliases `CtcMachine` and `OfficeUnit` exist. Prose uses "CTC machine".
@@ -130,7 +130,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
   - A field station has no behavior. It is how one code line type lets the office reach a field unit.
   - A field station is the abstraction that the interlocking presents to the dispatcher. It carries the functions of the levers and lamps in its panel column. Routes, masts and aspects are not code line functions; the interlocking handles them in the field.
   - The code line type assigns field stations. On a 506 line a field unit can answer at several. On an MQTT line it answers at one.
-  - On a 506 line each control point is one field station. Its name is the control point name: the Value of the KiCad `MAIN HOUSE` symbol. The tooling normalizes the name and rejects a duplicate. It does not invent a name.
+  - On a 506 line each control point is one field station. Its name is the control point name: the Value of the KiCad `MAIN HOUSE` symbol. A name carries no `CP` prefix; a model board can add `CP ` for display. The tooling rejects a duplicate. It does not invent or normalize a name.
   - An interlocking model with no `MAIN HOUSE` symbol cannot use a code line type that needs field stations of this kind.
   - The address of a field station on a 506 line is authored. The tooling does not allocate it.
   - Prototype note: [RRS506] uses "field station" and "field location" for the places on a 506 line.
