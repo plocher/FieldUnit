@@ -257,6 +257,9 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **approach track circuit** [Both]. A track circuit in approach of a signal: a train passes it before it reaches the signal. Code name: `Route::approaching()`.
 - **aggregation** [FieldUnit]. The rule that makes one occupancy from several detections. It has two places.
   - Inside one track circuit: several detectors of different kinds (a current detector and an optical detector on the same rails) feed one `TrackCircuit`. The circuit is occupied when any detector reports occupied. This is a device interface fact. The interlocking model does not see the detectors.
+    - Wired OR: each detector has an open-collector output (active low, `!DETECTED`), and the outputs are wired in parallel to one input. The hardware does the OR. The field unit sees one input bit. The I/O sheet draws one input, with the detectors on one net.
+    - Software OR: each detector has its own input bit, and the field unit does the OR in software. The I/O sheet draws one input for each detector, all bound to the same `TrackCircuit`. The field unit can then also tell the detectors apart, for diagnostics.
+    - Either way the result is one track circuit with one occupancy. The choice is a wiring decision, recorded on the field I/O sheet, not in the interlocking model.
   - Inside one block: several track circuits are members of one block (see block, cut section). The block is occupied when any member is occupied. This is an interlocking model fact.
   - The code chart decides what the office sees: the members, the block, or both. Each is one office indication and one unit of capacity.
 - **block** [Both]. One or more track circuits treated as one occupancy for one purpose. A block is occupied when any of its track circuits is occupied.
