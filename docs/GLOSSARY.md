@@ -260,19 +260,20 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
     - Wired OR: each detector has an open-collector output (active low, `!DETECTED`), and the outputs are wired in parallel to one input. The hardware does the OR. The field unit sees one input bit. The I/O sheet draws one input, with the detectors on one net.
     - Software OR: each detector has its own input bit, and the field unit does the OR in software. The I/O sheet draws one input for each detector, all bound to the same `TrackCircuit`. The field unit can then also tell the detectors apart, for diagnostics.
     - Either way the result is one track circuit with one occupancy. The choice is a wiring decision, recorded on the field I/O sheet, not in the interlocking model.
-  - The three levels, side by side (owner, 2026-10-03):
+  - The four rungs (owner, 2026-10-03). Each rung is one or more of the rung below, treated as one occupancy.
 
-    | Drawn | Detectors in the model | Where the OR happens | Occupancies in the model | What the office can see |
-    |---|---|---|---|---|
-    | `TC = 01T`, one input, several sensors on one net (wired OR) | no; one input bit | in the wiring | one: `01T` | `01T` |
-    | `TC = 01T`, one input for each sensor (software OR) | yes: for example a current detector and an optical detector, each a device bound to `01T` | in the field unit, at the device interface | one: `01T` | `01T` |
-    | `TC = 01T, 02T` (a block of track circuits) | each circuit has its own binding, by either form above | in the interlocking logic | three: `01T`, `02T`, and the block (a new logical occupancy) | `01T`, `02T`, the block, or any of them, as the code chart says |
+    | Rung | What it is | Own relay or input | Named | Office can see it | Where the OR happens |
+    |---|---|---|---|---|---|
+    | detector | one sensor: current, optical, axle | no; an open-collector output on a net | no | no | |
+    | cut section | a detection section with its own relay or input bit | yes | by its track circuit | no | in the wiring, when several detectors share its input |
+    | track circuit | one or more cut sections, one name (`01T`) | derived | yes | yes | in the field unit, at the device interface |
+    | block | one or more track circuits, for one purpose | derived | yes, when it is more than one circuit | yes, as the code chart says | in the interlocking logic |
 
-  - The first two levels end in one track circuit. The third level builds on them: it takes
-    track circuits that already have their own occupancies and makes one more, the block. All
-    three objects exist in the model.
-  - Inside one block: several track circuits are members of one block (see block, cut section). The block is occupied when any member is occupied. This is an interlocking model fact.
-  - The code chart decides what the office sees: the members, the block, or both. Each is one office indication and one unit of capacity.
+  - The three drawn cases: `TC = 01T` with the sensors on one net is a track circuit of one cut
+    section, and the detectors are not in the model. `TC = 01T` with one input for each sensor is a
+    track circuit of several cut sections; each sensor is a device in the model, bound to `01T`, and
+    the field unit aggregates them. `TC = 01T, 02T` is a block of two track circuits; `01T`, `02T` and
+    the block are all in the model, and the block is one more occupancy.
 - **block** [Both]. One or more track circuits treated as one occupancy for one purpose. A block is occupied when any of its track circuits is occupied.
   - Signal block [Prototype]: the track between consecutive signals that govern movement into it. On a long block the track circuit is divided into cut sections (see cut section). A block is clear only when every section is clear: in relay terms the `TR` front contacts of the sections are in series.
   - OS section: the block over the switches of a control point (see OS section).
@@ -280,7 +281,9 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - FieldUnit: the model has no block entity yet; `addSwitch(id, os)` finds an existing OS circuit by name, so several switches can share one. The block entity with member track circuits is planned (FieldUnit-Subdivision issue #24).
   - A block is not a track circuit. A track circuit is one physical detection section. A block is the logical unit that locking, a route or a lamp uses.
 - **crossover** [Both]. Two switches that connect two tracks and work together from one lever.
-- **cut section** [Prototype]. One of the track circuits into which a long block is divided. Each has its own track relay. The length of one track circuit is limited by ballast leakage, so a long block is several circuits end to end. The block is clear when every cut section is clear.
+- **cut section** [Both]. A detection section with its own track relay, or in the model its own input bit. It is the smallest unit of detection that the field unit can see. One or more cut sections make one track circuit (see track circuit, aggregation).
+  - Prototype: a long block is divided into cut sections because ballast leakage limits the length of one circuit. Each has its own relay. The block is clear when every section is clear.
+  - Model: each detector that has its own input (software OR) is one cut section of its track circuit. Detectors wired in parallel to one input are not visible; that input is one cut section.
   - AAR56 (p. 31): a track circuit with no switch takes the number of the signal that governs over it, with letters for several sections. The letters name the cut sections of one block.
   - The relation to aggregation: cut sections are members of one block (see block, aggregation). Nothing in the field adds them up except the series of their relay contacts; the office sees the block, or the sections, as the code chart says.
   - AAR56 names functions of one lever with A, B, C after the lever number, as in `10A`, `10B` [AAR56 p. 34].
@@ -313,7 +316,8 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **switch correspondence** [Both]. Agreement between the position of a switch and its control.
   - Out of switch correspondence: the switch is moving, or it did not reach the position of its control.
   - FieldUnit: `Switch::inCorrespondence()` is true when the reported position equals the position of its control (`commandedPosition()`) and is NORMAL or REVERSE. After the travel timeout (default 5000 ms) a moving switch reports `SwitchPosition::OUT_OF_CORRESPONDENCE`.
-- **track circuit** [Both]. One physical detection section: an electrical circuit in the rails, between insulated joints, with one track relay. The wheels and axles shunt the rails. It is the unit of detection. A block is the unit of use (see block, cut section, aggregation).
+- **track circuit** [Both]. One or more cut sections treated as one occupancy, with one name (`01T`). On the prototype it is an electrical circuit in the rails, between insulated joints, that the wheels and axles shunt. It is the unit that has a name and that the office can see. A block is the unit of use (see block, cut section, aggregation).
+  - A cut section that is given a name of its own is a track circuit. AAR56 names the sections of a signal-governed block with letters (`784LAT`, `784LBT`), so a prototype cut section can be a track circuit. In the model that is the designer's choice, made by naming.
   - AAR56: "A track circuit is designated by the letter T preceded by a number" [AAR56 p. 31].
   - FieldUnit: `TrackCircuit`. Occupancy can come from any detector. A dropout delay (`dropoutDelayMs`) bridges gaps between cars for optical sensors. This is a model workaround.
   - FieldUnit: a track circuit starts OCCUPIED. A remote circuit with no update for 5000 ms gets quality `LOST_COMMS` and is not clear.
