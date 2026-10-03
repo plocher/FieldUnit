@@ -157,7 +157,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
   - GCOR: "Control Point: The location of absolute signals controlled by a control operator." [GCOR6]
   - NORAC uses "Controlled Point (CP)": "A station designated in the Timetable where signals are remotely controlled from the control station." [NORAC9]
   - 49 CFR 236.782 defines "controlled point" as a location where signals or other functions of a traffic control system are controlled from the control machine. This is a paraphrase [CFR236].
-  - Example name: `CP Luchessa`.
+  - Example name: `Luchessa` (drawn today as `CP Luchessa`; the prefix goes, ADR 0001 D12).
   - A control point has one bungalow. On a 506-style code line it has one field station, with the same name.
 - **control point limits** [Both]. The track and appliances that belong to one control point. In an interlocking with one control point they are the interlocking limits. In an interlocking with several control points the `CP` field draws them. (unverified: no rulebook definition was opened.)
 - **CTC** (centralized traffic control) [Both]. A traffic control system in which a dispatcher controls the signals and switches of control points from a distance.
@@ -172,7 +172,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
 - **interlocking machine** [Prototype]. The lever frame and its locking that a tower operator works. The locking bed is the part that holds a lever that must not move.
 - **tower** [Prototype]. The building at an interlocking from which the tower operator works the interlocking machine.
 - **tower operator** [Both]. The operator role that works directly on a locking bed, real or virtual. On the prototype this is the person who works an interlocking machine in a tower. The tower operator does not use a code line. Compare dispatcher and maintainer. Not yet covered by the model.
-- **yard limits** [Prototype]. A part of main track, designated by the railroad, inside which the yard limit rule applies. The KiCad symbol is `Rule6.13-Yard Limits`. (unverified: the rule text was not opened.)
+- **yard limits** [Prototype]. A part of main track, designated by the railroad, inside which the yard limit rule applies. Standard Code Rule 93 [PRR56]: "Within yard limits, movements not authorized by timetable schedule or train order may be made on the main track by proper signal indication or permission of the operator without protecting against extra trains or engines." GCOR 6.13 is the modern equivalent. The KiCad symbol is `Rule93-Yard Limits` (`RULE_93`; was `Rule6.13-Yard Limits`).
 
 ## 5. Controls, indications and functions
 
@@ -283,11 +283,12 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - AAR56: `WL`, switch lock [AAR56 p. 35].
   - FieldUnit: tokens `WLS` (release) and `WLK` (released). `SwitchLock::HAND_LOCKED`. The field unit releases the lock only when every signal is at stop and no time locking runs.
   - An electric lock is not a dual-control switch.
+  - SPCoast today: locks and switches carry the same tokens (`NWS`/`RWS`, `NWK`/`RWK`) for simplicity; the crew, dispatcher and field coordination of a real electric lock is deferred (FieldUnit-Subdivision ADR 0002 D14).
 - **fouling point** [Prototype]. The point beyond which a car on one track can be struck by a movement on another track.
-- **head** [Both]. One unit of lamps on a mast. It shows one part of an aspect. KiCad head Value: one letter, A to E.
+- **head** [Both]. One unit of lamps on a mast. It shows one part of an aspect. KiCad head Value: one letter. The compiler accepts A to E today; ADR 0003 D9 allows any letter A to Z.
 - **independent derail** [FieldUnit]. A derail with its own lever and its own tokens. Example: Corporal derail `5` in the legacy profile.
 - **LEFT, RIGHT** [FieldUnit]. The two directions of a signal lever and of a route. Code names: `DirectionAuthority::LEFT`, `DirectionAuthority::RIGHT`. Today the KiCad compiler (`tools/plant_graph`) maps mast letters N and W to LEFT, and S and E to RIGHT.
-- **mast** [Both]. The structure that carries one or more heads. KiCad mast Value today: `^\d+[NSEW][A-E]+$`, for example `784EAB`.
+- **mast** [Both]. The structure that carries one or more heads. KiCad mast Value today: `^\d+[NSEW][A-E]+$`, for example `784EAB`; ADR 0003 D9 widens the head letters to A to Z.
 - **OS section** [Both]. The track between opposing signals in a control point, treated as one block. It is usually one track circuit over the switches. It can be several (see block, aggregation).
   - "OS" means "on sheet": the dispatcher's record of a train that passes a location. The BNSF source gives both meanings (paraphrase) [BNSF].
   - FieldUnit: the OS track circuit detector-locks its switch. Declare it with `addSwitch(id, osName)` or `addDerail(id, osName)`.
@@ -336,6 +337,8 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 | 262 | "A train for which the direction of traffic has been established must not move in the opposite direction without proper interlocking or manual block signal indication or train order." |
 | D-151 | "Where two main tracks are in service, trains must keep to the right unless otherwise provided on the time-table." |
 | D-152 | "When a train or engine crosses over to or obstructs a track where block signal system rules are in effect, the movement must be protected by the operator as provided by Rules 327 or 504, except where 605 is in effect. (Rev. 10-18-64)" The heading in the source reads "152." |
+| 93 | Yard limits: see the yard limits entry [PRR56]. |
+| 105 | SP Coast Division Rules & Regulations, effective 1943-02-15 (owner's transcription): "Before entering a siding or other track, it must be known that switch, and derail if any, is properly lined... All movements on sidings must be made with caution." Later editions: at restricted speed. GCOR 6.28 is the modern equivalent. KiCad symbol `Rule105-RestrictedSpeed` (`RULE_105`). |
 
 - SP numbering: an SP 1960 excerpt shows D-251 and D-254. The SP and SPCoast rule texts were not opened.
 - CTC rule numbers vary by code and year. A 1960 consolidated western code used 265 to 273 [RS1960]. A 1962 Canadian code used 263 and 264.
