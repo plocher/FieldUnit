@@ -1,7 +1,7 @@
 # Glossary
 
 This file is the source of truth for terms in FieldUnit and FieldUnit-Subdivision.
-It follows the decisions in `FieldUnit-Subdivision/docs/review/vocabulary-review.md` (rev 7, 2026-10-01).
+It follows the decisions in `FieldUnit-Subdivision/docs/archive/vocabulary-review.md` (rev 7, 2026-10-01).
 
 ## 1. How to read this glossary
 
@@ -168,7 +168,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
 - **interlocking** [Both]. An arrangement that forces switch and signal movements to follow each other in a safe sequence.
   - History: first a mechanical machine (levers, locking bed, pipe and wire); later relays.
   - Interlocking is the mechanism facet. A CTC control point uses the same kind of field logic.
-- **interlocking limits** [Both]. The track between the opposing home signals of an interlocking. The tooling can derive them: cut the track graph at every controlled signal; each piece that contains a switch or derail is one interlocking (`FieldUnit-Subdivision/docs/review/spike-cp-membership.md`).
+- **interlocking limits** [Both]. The track between the opposing home signals of an interlocking. The tooling can derive them: cut the track graph at every controlled signal; each piece that contains a switch or derail is one interlocking (`FieldUnit-Subdivision/docs/archive/spike-cp-membership.md`).
 - **interlocking machine** [Prototype]. The lever frame and its locking that a tower operator works. The locking bed is the part that holds a lever that must not move.
 - **tower** [Prototype]. The building at an interlocking from which the tower operator works the interlocking machine.
 - **tower operator** [Both]. The operator role that works directly on a locking bed, real or virtual. On the prototype this is the person who works an interlocking machine in a tower. The tower operator does not use a code line. Compare dispatcher and maintainer. Not yet covered by the model.
@@ -648,4 +648,4 @@ Quotes marked "paraphrase" came through a web fetch tool. Their wording is not v
 | RS1960 | Railway Signaling and Communications, 1960, "Fourteen RRs adopt new operating code", jonroma.net |
 | USS1949 | Farrington, Union Switch & Signal history, 1949, utahrails.net |
 
-The full verdicts and quotes are in `FieldUnit-Subdivision/docs/review/vocabulary-sources.md`.
+The full verdicts and quotes are in `FieldUnit-Subdivision/docs/archive/vocabulary-sources.md`.

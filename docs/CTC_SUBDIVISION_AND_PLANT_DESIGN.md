@@ -172,7 +172,7 @@ At run time the field unit shows Stop on a route when a track circuit on its cle
 
 - Controlled signals make a place a control point. A switch does not.
 - The designer declares each control point with a `MAIN HOUSE` symbol. The `CP` field of an appliance assigns it to a control point. An interlocking can contain several control points. Example: Luchessa has three.
-- A spike (`FieldUnit-Subdivision/docs/review/spike-cp-membership.md`) found the interlocking limits from the signals alone: cut the track graph at every Signal IRJ that carries a signal face; each piece that contains a switch or a derail is one interlocking.
+- A spike (`FieldUnit-Subdivision/docs/archive/spike-cp-membership.md`) found the interlocking limits from the signals alone: cut the track graph at every Signal IRJ that carries a signal face; each piece that contains a switch or a derail is one interlocking.
 - The compiler does not use this rule. It uses the opposing signal only to give the roles home-clear and downstream (§4.3).
 - The Value of a `MAIN HOUSE` symbol is the control point name, such as `CP Luchessa`. On a 506-style code line it is also the field station name.
 
