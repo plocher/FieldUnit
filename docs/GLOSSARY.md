@@ -255,8 +255,20 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 ## 7. Track and appliances
 
 - **approach track circuit** [Both]. A track circuit in approach of a signal: a train passes it before it reaches the signal. Code name: `Route::approaching()`.
-- **block** [Both]. A length of track between consecutive signals that govern movement into it. A block can contain several track circuits. (unverified: no rulebook definition was opened.)
+- **aggregation** [FieldUnit]. The rule that makes one occupancy from several detections. It has two places.
+  - Inside one track circuit: several detectors of different kinds (a current detector and an optical detector on the same rails) feed one `TrackCircuit`. The circuit is occupied when any detector reports occupied. This is a device interface fact. The interlocking model does not see the detectors.
+  - Inside one block: several track circuits are members of one block (see block, cut section). The block is occupied when any member is occupied. This is an interlocking model fact.
+  - The code chart decides what the office sees: the members, the block, or both. Each is one office indication and one unit of capacity.
+- **block** [Both]. One or more track circuits treated as one occupancy for one purpose. A block is occupied when any of its track circuits is occupied.
+  - Signal block [Prototype]: the track between consecutive signals that govern movement into it. On a long block the track circuit is divided into cut sections (see cut section). A block is clear only when every section is clear: in relay terms the `TR` front contacts of the sections are in series.
+  - OS section: the block over the switches of a control point (see OS section).
+  - Logical detection block [FieldUnit]: several physical track circuits, each with its own detector, treated as one occupancy. Example: three switches whose three circuits are one block for detector locking. Drawn today as the list in the `TC` field of a switch; a desk lamp's `IndicationToken` list is the same idea on the office side (`FieldUnit-Subdivision/docs/adr/0002-symbol-contract.md`, request 14).
+  - FieldUnit: the model has no block entity yet; `addSwitch(id, os)` finds an existing OS circuit by name, so several switches can share one. The block entity with member track circuits is planned (FieldUnit-Subdivision issue #24).
+  - A block is not a track circuit. A track circuit is one physical detection section. A block is the logical unit that locking, a route or a lamp uses.
 - **crossover** [Both]. Two switches that connect two tracks and work together from one lever.
+- **cut section** [Prototype]. One of the track circuits into which a long block is divided. Each has its own track relay. The length of one track circuit is limited by ballast leakage, so a long block is several circuits end to end. The block is clear when every cut section is clear.
+  - AAR56 (p. 31): a track circuit with no switch takes the number of the signal that governs over it, with letters for several sections. The letters name the cut sections of one block.
+  - The relation to aggregation: cut sections are members of one block (see block, aggregation). Nothing in the field adds them up except the series of their relay contacts; the office sees the block, or the sections, as the code chart says.
   - AAR56 names functions of one lever with A, B, C after the lever number, as in `10A`, `10B` [AAR56 p. 34].
   - FieldUnit: `addCrossover(name, swA, swB)`. Both ends move and lock together in the same position. The suffix `D` must not name a crossover end.
 - **derail** [Both]. A switch-shaped appliance that derails a car before it fouls another track.
@@ -277,7 +289,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **independent derail** [FieldUnit]. A derail with its own lever and its own tokens. Example: Corporal derail `5` in the legacy profile.
 - **LEFT, RIGHT** [FieldUnit]. The two directions of a signal lever and of a route. Code names: `DirectionAuthority::LEFT`, `DirectionAuthority::RIGHT`. Today the KiCad compiler (`tools/plant_graph`) maps mast letters N and W to LEFT, and S and E to RIGHT.
 - **mast** [Both]. The structure that carries one or more heads. KiCad mast Value today: `^\d+[NSEW][A-E]+$`, for example `784EAB`.
-- **OS section** [Both]. The track between opposing signals in a control point. It is usually covered by the track circuit over the switches.
+- **OS section** [Both]. The track between opposing signals in a control point, treated as one block. It is usually one track circuit over the switches. It can be several (see block, aggregation).
   - "OS" means "on sheet": the dispatcher's record of a train that passes a location. The BNSF source gives both meanings (paraphrase) [BNSF].
   - FieldUnit: the OS track circuit detector-locks its switch. Declare it with `addSwitch(id, osName)` or `addDerail(id, osName)`.
 - **signal** [Both]. An appliance that shows an aspect to govern a train movement. One signal can use heads on one or more masts.
@@ -287,7 +299,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **switch correspondence** [Both]. Agreement between the position of a switch and its control.
   - Out of switch correspondence: the switch is moving, or it did not reach the position of its control.
   - FieldUnit: `Switch::inCorrespondence()` is true when the reported position equals the position of its control (`commandedPosition()`) and is NORMAL or REVERSE. After the travel timeout (default 5000 ms) a moving switch reports `SwitchPosition::OUT_OF_CORRESPONDENCE`.
-- **track circuit** [Both]. An electrical circuit in the rails that detects a train. The wheels and axles shunt the rails.
+- **track circuit** [Both]. One physical detection section: an electrical circuit in the rails, between insulated joints, with one track relay. The wheels and axles shunt the rails. It is the unit of detection. A block is the unit of use (see block, cut section, aggregation).
   - AAR56: "A track circuit is designated by the letter T preceded by a number" [AAR56 p. 31].
   - FieldUnit: `TrackCircuit`. Occupancy can come from any detector. A dropout delay (`dropoutDelayMs`) bridges gaps between cars for optical sensors. This is a model workaround.
   - FieldUnit: a track circuit starts OCCUPIED. A remote circuit with no update for 5000 ms gets quality `LOST_COMMS` and is not clear.
