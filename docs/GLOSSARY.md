@@ -260,6 +260,17 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
     - Wired OR: each detector has an open-collector output (active low, `!DETECTED`), and the outputs are wired in parallel to one input. The hardware does the OR. The field unit sees one input bit. The I/O sheet draws one input, with the detectors on one net.
     - Software OR: each detector has its own input bit, and the field unit does the OR in software. The I/O sheet draws one input for each detector, all bound to the same `TrackCircuit`. The field unit can then also tell the detectors apart, for diagnostics.
     - Either way the result is one track circuit with one occupancy. The choice is a wiring decision, recorded on the field I/O sheet, not in the interlocking model.
+  - The three levels, side by side (owner, 2026-10-03):
+
+    | Drawn | Detectors in the model | Where the OR happens | Occupancies in the model | What the office can see |
+    |---|---|---|---|---|
+    | `TC = 01T`, one input, several sensors on one net (wired OR) | no; one input bit | in the wiring | one: `01T` | `01T` |
+    | `TC = 01T`, one input for each sensor (software OR) | yes: for example a current detector and an optical detector, each a device bound to `01T` | in the field unit, at the device interface | one: `01T` | `01T` |
+    | `TC = 01T, 02T` (a block of track circuits) | each circuit has its own binding, by either form above | in the interlocking logic | three: `01T`, `02T`, and the block (a new logical occupancy) | `01T`, `02T`, the block, or any of them, as the code chart says |
+
+  - The first two levels end in one track circuit. The third level builds on them: it takes
+    track circuits that already have their own occupancies and makes one more, the block. All
+    three objects exist in the model.
   - Inside one block: several track circuits are members of one block (see block, cut section). The block is occupied when any member is occupied. This is an interlocking model fact.
   - The code chart decides what the office sees: the members, the block, or both. Each is one office indication and one unit of capacity.
 - **block** [Both]. One or more track circuits treated as one occupancy for one purpose. A block is occupied when any of its track circuits is occupied.
