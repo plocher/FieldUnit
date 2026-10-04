@@ -189,7 +189,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
   - A switch lever has the positions N and R. A signal lever has the positions L, N and R.
   - FieldUnit: `PanelInput::SW_NORMAL`, `SW_REVERSE`, `SIG_LEFT`, `SIG_STOP`, `SIG_RIGHT`. A switch lever with neither contact closed sends no switch control.
 - **maintainer call** [Both]. A control and lamp that call the signal maintainer to a location. A 1959 machine had a "maintainer's call" control and a "maintainers' call lamp" [RS1959]. No source says that train crews used it.
-  - FieldUnit: tokens `MC<n>S` and `MC<n>K`. It is a non-vital control. The prefix `MC` is a FieldUnit name.
+  - FieldUnit: tokens `MC<n>S` and `MC<n>K`. It is a non-vital control. `MC` is the AAR abbreviation per the owner (AAR Signal Manual Parts 33 and 91, tokens `MCS`, `MCK`; unverified, ADR 0003 D12). FieldUnit adds the instance number `<n>`.
 - **non-vital control** [FieldUnit]. A control that cannot affect a safety protection. The interlocking logic does not check it against the locking.
   - Processing: when a transaction is malformed, the field unit ignores it with the rest of the transaction. When a valid transaction is unsafe, the field unit still processes every non-vital control.
   - Examples: maintainer call `MC<n>S`.
@@ -267,9 +267,11 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - FieldUnit: the model has no block or `TP` entity yet; `addSwitch(id, os)` finds an existing OS circuit by name, so several switches can share one circuit. The block entity is planned (FieldUnit-Subdivision issue #24).
   - A block is not a track circuit. A track circuit is one `TR`. A block is the unit that locking, a route or a lamp uses.
 - **crossover** [Both]. Two switches that connect two tracks and work together from one lever.
-- **cut section** [Both]. A track circuit that is one part of a longer block. It has its own track relay. AAR56 names the sections of a signal-governed block with letters (`784LAT`, `784LBT`) [AAR56 p. 31].
+  - Name: one gang of switches that share a gang id (the Value minus its trailing letter): `815`, `815A`; a double crossover runs to `815C`. Any letter A to Z can name a member, including D (FieldUnit-Subdivision ADR 0003 D7, D8; proposed).
+- **cut section** [Both]. A track circuit that is one part of a longer block. It has its own track relay. AAR56 names the sections of a signal-governed block with letters (`784LAT`, `784LBT`) [AAR56 p. 31]. Where the letter goes (`784LAT` or `A10T`) is open (ADR 0003 D6).
   - Prototype: a long block is cut into sections because ballast leakage limits the length of one circuit.
   - Model: a sensor with its own input is its own track relay, so its own track circuit; two such sensors on one section are two cut sections (`01AT`, `01BT`) of one block.
+  - Examples by the owner's reading of AAR practice (ADR 0003 D15): successive circuits that govern signal 10 take progressive letters (`A10T`, `B10T`, `C10T` in the owner's statement; `10AT` in the suffix form).
 - **derail** [Both]. A switch-shaped appliance that derails a car before it fouls another track.
   - FieldUnit rule: NORMAL is the derailing position. REVERSE is the clear position. A derail rests in NORMAL.
   - Prototype convention (recall). No source was found for power-operated derails.
@@ -277,7 +279,8 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - GCOR 8.20: "Sidings having hand-thrown derails will have derail locked in non-derailing position, except when engines or cars are left unattended on siding." [GCOR6]
   - A route through a derail requires REVERSE.
 - **dependent derail** [FieldUnit]. A derail that moves with its switch, in the same position. Switch Normal gives derail Normal. Switch Reverse gives derail Reverse.
-  - Name: `<switch>D`, for example `795D`. `addDerail("795D")` requires switch `795` to exist.
+  - Name: a derail symbol whose gang id (the Value minus its trailing letter) matches a switch or lock gang of the same interlocking. Convention: the letter D, for example `795D`. The symbol kind and the name relation decide dependence, not the letter D. Values are unique across switches, locks and derails (FieldUnit-Subdivision ADR 0003 D8, proposed).
+  - Code today: `addDerail("795D")` parses the trailing D and requires switch `795` to exist; it is to take the base from the model (`controllingSwitch`).
   - It has no lever and no tokens of its own. The switch's `NWK` and `RWK` require both machines in switch correspondence.
 - **electric lock** [Both]. A lock on a hand-operated switch. The dispatcher releases it by a control.
   - AAR56: `WL`, switch lock [AAR56 p. 35].
@@ -287,6 +290,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **fouling point** [Prototype]. The point beyond which a car on one track can be struck by a movement on another track.
 - **head** [Both]. One unit of lamps on a mast. It shows one part of an aspect. KiCad head Value: one letter. The compiler accepts A to E today; ADR 0003 D9 allows any letter A to Z.
 - **independent derail** [FieldUnit]. A derail with its own lever and its own tokens. Example: Corporal derail `5` in the legacy profile.
+  - Name: a derail symbol whose gang id matches no switch or lock gang. The letter is optional; convention: none or D (ADR 0003 D8, proposed).
 - **LEFT, RIGHT** [FieldUnit]. The two directions of a signal lever and of a route. Code names: `DirectionAuthority::LEFT`, `DirectionAuthority::RIGHT`. Today the KiCad compiler (`tools/plant_graph`) maps mast letters N and W to LEFT, and S and E to RIGHT.
 - **mast** [Both]. The structure that carries one or more heads. KiCad mast Value today: `^\d+[NSEW][A-E]+$`, for example `784EAB`; ADR 0003 D9 widens the head letters to A to Z.
 - **OS section** [Both]. The track between opposing signals in a control point, treated as one block. It is usually one track circuit over the switches. It can be several (see block, aggregation).
@@ -300,6 +304,8 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - Out of switch correspondence: the switch is moving, or it did not reach the position of its control.
   - FieldUnit: `Switch::inCorrespondence()` is true when the reported position equals the position of its control (`commandedPosition()`) and is NORMAL or REVERSE. After the travel timeout (default 5000 ms) a moving switch reports `SwitchPosition::OUT_OF_CORRESPONDENCE`.
 - **track circuit** [Both]. The section of track that one track relay (`TR`) detects: an electrical circuit in the rails, between insulated joints, that the wheels and axles shunt. One track circuit has one `TR` and one name (`01T`). It is the unit of detection and the unit that the office can see. A block is the unit of use (see block, cut section).
+  - Names (ADR 0003 D3, D5, D15; proposed): inside interlocking limits a circuit that encloses switch 11 is `11T`, and the OS circuit of switch 11 is `11T1`, so `833T` and `833T1` are different circuits. Outside, a circuit is numbered from the signal that governs over it (`10T`). A track with no interlocked switch that governs no signal takes an arbitrary number starting with the digit zero (`01T`).
+  - Directional coded-track form: track number, direction, T (`1WT`, `1ET`: track 1, west or east of the insulated joint). It is the source of names such as `1SAT` (track 1, southbound approach).
   - AAR56: "A track circuit is designated by the letter T preceded by a number" [AAR56 p. 31].
   - FieldUnit: `TrackCircuit`. Occupancy can come from any detector. A dropout delay (`dropoutDelayMs`) bridges gaps between cars for optical sensors. This is a model workaround.
   - FieldUnit: a track circuit starts OCCUPIED. A remote circuit with no update for 5000 ms gets quality `LOST_COMMS` and is not clear.
@@ -359,7 +365,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 
 - The KiCad Value is the railroad name. A KiCad reference (`SW1`, `S7`) is not a name.
 - Odd switch levers and even signal levers are a common convention that goes back to lever-and-pipe interlocking plants (owner's knowledge; unverified). They are not an AAR rule.
-- A dependent derail is `<switch>D`.
+- A dependent derail is a derail whose gang id matches a switch or lock gang; by convention `<id>D` (ADR 0003 D8, proposed).
 - The default OS track circuit name is `<switch>T1`. A `TC` field overrides it. AAR56 uses `<number>T`.
 - Names are produced with case preserved and compared without case.
 - One grammar for all names is proposed in `FieldUnit-Subdivision/docs/adr/0003-name-grammar.md`. It is not adopted.
@@ -396,7 +402,7 @@ FieldUnit token letters. The rows marked "FieldUnit" are FieldUnit dialect, not 
 | `HS` | control: put the signal at stop | FieldUnit. AAR56: HS is the positive control of the home stick relay (`HSR`) [AAR56 p. 37]. |
 | `TE` in `TEK` | time locking runs | FieldUnit. TE is not on the AAR list. |
 | `WL` in `WLS`, `WLK` | electric lock | AAR56: WL is switch lock (p. 35). |
-| `MC` | maintainer call | FieldUnit. No source. |
+| `MC` | maintainer call | AAR Signal Manual Parts 33 and 91 per the owner (unverified; ADR 0003 D12). The instance number in `MC<n>` is FieldUnit. |
 
 FieldUnit tokens by appliance:
 
