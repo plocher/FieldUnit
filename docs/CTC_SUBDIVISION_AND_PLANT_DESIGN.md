@@ -94,7 +94,7 @@ A route end is the place where the compiler stops one route walk.
 | Next signal face | `next_face` | The approach side of another signal face in the same direction. A new set of routes starts there. |
 | Dead end | `dead_end` | A `Bumper` symbol. |
 | Dark-track exit | `dark_exit` | The IRJ before a track net that a `Rule6.28-OtherThanMain` marker marks as dark track. |
-| Edge of the drawing | `cp_limit` | A `NextCP` symbol, or a `Direction_L`, `Direction_R` or `Direction_BOTH` terminal. |
+| Edge of the drawing | `cp_limit` (code name; the glossary has no control point limits) | A `NextCP` symbol, or a `Direction_L`, `Direction_R` or `Direction_BOTH` terminal. |
 
 - The code name `cp_limit` is older than the glossary. The terminal is not the interlocking limits. The interlocking limits are at the opposing controlled signal (§5.1). A route usually crosses that signal before it reaches the terminal.
 - A route does not continue past the next signal face (§8.2).
@@ -168,7 +168,7 @@ At run time the field unit shows Stop on a route when a track circuit on its cle
 
 ## 5. Between control points
 
-### 5.1 Control point limits
+### 5.1 Interlocking limits and control points
 
 - Controlled signals make a place a control point. A switch does not.
 - The designer declares each control point with a `MAIN HOUSE` symbol. The `CP` field of an appliance assigns it to a control point. An interlocking can contain several control points. Example: Luchessa has three.
@@ -178,7 +178,7 @@ At run time the field unit shows Stop on a route when a track circuit on its cle
 
 ### 5.2 Track between control points (planned)
 
-- The design assumes controlled signals at the control point limits and automatic block signals between control points.
+- The design assumes controlled signals at the interlocking limits and automatic block signals between interlockings.
 - On single track, when the dispatcher clears a signal toward the next control point, the opposing automatic block signals between the two control points go to Stop. This document calls this tumble-down. Automatic permissive block (APB) signals behave the same way.
 - Following movements still need clear track circuits.
 - This is subdivision behavior. It adds no routes to one control point.

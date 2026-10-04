@@ -38,7 +38,7 @@ These terms answer different questions about the same place.
 |---|---|---|
 | Function | What is done here? | control point |
 | Mechanism | How is safety enforced? | interlocking |
-| Extent | Where does it start and stop? | interlocking limits, control point limits, CTC limits |
+| Extent | Where does it start and stop? | interlocking limits, CTC limits |
 | Addressing | How does the office reach it? | field station (per code line type) |
 | Logic | What solves it? | field unit |
 | Enclosure | Where is the equipment? | bungalow |
@@ -61,7 +61,7 @@ The rows marked ► carry the difference in behavior.
 | Where safety is enforced | in the tower | in the field |
 | Link to the appliances | pipe and wire, or direct wires | code line, then local wires |
 | Addressing | none: one machine, one interlocking plant | field station (per code line type) |
-| Extent | interlocking limits | control point limits inside CTC limits |
+| Extent | interlocking limits | interlocking limits, inside CTC limits |
 | Enclosure | tower | bungalow |
 
 One-sentence form: the code line, the field station and the field unit together replace the locking bed; they do at a distance, and after the fact, what the locking bed does in the operator's hand.
@@ -159,7 +159,7 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
   - 49 CFR 236.782 defines "controlled point" as a location where signals or other functions of a traffic control system are controlled from the control machine. This is a paraphrase [CFR236].
   - Example name: `Luchessa` (drawn today as `CP Luchessa`; the prefix goes, ADR 0001 D12).
   - A control point has one bungalow. On a 506-style code line it has one field station, with the same name.
-- **control point limits** [Both]. The track and appliances that belong to one control point. In an interlocking with one control point they are the interlocking limits. In an interlocking with several control points the `CP` field draws them. (unverified: no rulebook definition was opened.)
+- **control point limits**. Not a term (owner, 2026-10-03). A control point has no limits of its own. The interlocking limits bound every control point of the interlocking. The `CP` field assigns an appliance to a control point; it draws membership, not a boundary. An appliance inside the interlocking limits that is not on the code line (a local hand-throw switch) can belong to no control point.
 - **CTC** (centralized traffic control) [Both]. A traffic control system in which a dispatcher controls the signals and switches of control points from a distance.
   - CTC adds a code line, field stations, controls, office indications and a remote dispatcher to the interlocking.
   - 49 CFR 236 uses the term "traffic control system" [CFR236].
@@ -589,7 +589,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | corridor | subdivision |
 | correspondence (alone) | switch correspondence or office correspondence |
 | CP (as a common noun) | control point |
-| CP Boundary | control point limits |
+| CP Boundary, control point limits | interlocking limits (a control point has no limits of its own) |
 | cTc, cTc machine (in prose) | CTC machine |
 | demand (for a control) | control |
 | desk | CTC machine |
