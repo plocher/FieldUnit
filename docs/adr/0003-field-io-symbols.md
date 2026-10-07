@@ -12,9 +12,9 @@
 - D3. Plant switch Kinds say what the interlocking may do and may know, never how: `SWITCH_REMOTE` (the dispatcher commands it), `SWITCH_LOCK` (the crew operates it under an electric lock), `SWITCH_MANUAL_SENSED` (the crew operates it; the field unit knows its position), `SWITCH_MANUAL` (the crew operates it; position unknown). Manual switches lie outside interlocking limits by definition: routes end at the controlled signals and never include one, so "sensed" has no vital consequence and serves local lamps and devices. A manual switch inside the limits is an error: there it must be `SWITCH_LOCK`. The circuit-controller-without-lock arrangement (a switch that can be thrown while a governing signal is not at STOP) is rejected as unsafe and is not modelled.
 - D4. The electric lock is three things, each already drawn: the plant Kind `SWITCH_LOCK`, the lock lever (desk and fascia), and the firmware flag `HAND_LOCKED` in FieldUnit. It is not a device: nothing on the layout is driven to lock. `Device-Switch-ElectricLock` is deleted; its `N`/`R` pins are a `Device-Switch-Sense`, its `REQ`/`LOCK` pins are the fascia lock lever's `WLS`/`WLK`. See the worked example.
 - D5. Switch device Kinds, the 95% set: `SWITCH_SENSE`, `SWITCH_STALL_SIM`, `SWITCH_STALL_SENSED`, `SWITCH_SERVO_SIM`, `SWITCH_SERVO_SENSED`. `SWITCH_SERVO_CURRENT` later. Stall motors have no current sense (they stall); an integrated DPDT is `SENSED` like any contact.
-- D6. Polarity is one attribute per pin that has one, named for the pin (`OCC=ACTIVE_LOW`), defaulted in the library symbol, overridable on the instance. Direction of travel is `NormalIs=` (`HIGH`/`LOW` for a bit motor, `LOW_ANGLE`/`HIGH_ANGLE` for a servo). The free-text `Polarity` field is removed.
+- D6. Polarity is carried by the pin name: `X` is channel or token `X`, `ACTIVE_HIGH`; `~{X}` (KiCad overbar) is `X`, `ACTIVE_LOW`. That is the library default and is visible on the sheet; the library carries no polarity attributes. An instance may override one pin with an attribute named for it (`OCC=ACTIVE_HIGH`). Two pins with the same base name on one symbol are allowed only on a `PANEL` symbol and only for a two-state token (`WLK` and `~{WLK}`); on a `DEVICE` it is an error, and `~{NWK}` is rejected because NWK/RWK have a third state (rule 7). Direction of travel is not polarity: `NormalIs=` (`HIGH`/`LOW` for a bit motor, `LOW_ANGLE`/`HIGH_ANGLE` for a servo) stays an attribute. The free-text `Polarity` field is removed.
 - D7. An unconnected pin on a `DEVICE` or `PANEL` symbol is an error. Variants are separate symbols with separate Kinds, never optional pins.
-- D8. One Role, `PANEL`, for every operator interface: the dispatcher's desk, the crew's fascia, the tower operator's machine. Where a lever binds, to a `PanelColumn` of a CTC machine (code line) or on an interlocking's field sheet (local client of the `Switch`), is derived from the netlist and the sheet path, never declared. Fascia symbols are the desk symbols without the `Column` pin: `Local-Switch` (NWS, RWS, NWK, RWK), `Local-Switch-NoLamp` (NWS, RWS), `Local-Lock` (WLS, WLK), and `Local-Lamp` (one pin, `IndicationToken`, `Color`, polarity) in `-Bit`, `-PWM` and `-NeoPixel` packagings, the twin of `PanelLamp-*`. Kinds `SWITCH_LEVER`, `SWITCH_LEVER_NOLAMP`, `LOCK_LEVER`, `LAMP`.
+- D8. One Role, `PANEL`, for every operator interface: the dispatcher's desk, the crew's fascia, the tower operator's machine. Where a lever binds, to a `PanelColumn` of a CTC machine (code line) or on an interlocking's field sheet (local client of the `Switch`), is derived from the netlist and the sheet path, never declared. Fascia symbols are the desk symbols without the `Column` pin: `Local-Switch` (NWS, RWS, NWK, RWK), `Local-Switch-NoLamp` (NWS, RWS), `Local-Lock` (WLS, WLK), `Local-Lock-2Lamp` (WLS, WLK, `~{WLK}`: the locked lamp is the complement of the same token on a second channel), and `Local-Lamp` (one pin, `IndicationToken`, `Color`, polarity) in `-Bit`, `-PWM` and `-NeoPixel` packagings, the twin of `PanelLamp-*`. Kinds `SWITCH_LEVER`, `SWITCH_LEVER_NOLAMP`, `LOCK_LEVER`, `LOCK_LEVER_2LAMP`, `LAMP`.
 - D9. Heads, not signals: a head device binds to a head name (`836NA`); a mast is its heads. `Lamp` for non-signal lamps (`HBA`, `MC1`).
 - D10. Driver symbols: Role `IODRIVER`, Kind = chip (`MCP23017`, `PCA9685`), Value = address; every pin has a channel type (BIT, DUTY, ANGLE) and a device pin may only wire to a driver pin of the same type.
 - D11. This ADR lives in FieldUnit `docs/adr/`, numbered after 0002 on `docs/vocabulary-rewrite`.
@@ -68,7 +68,7 @@ A device symbol holds the appliance name (Value) and exposes the driver's constr
 
  Fascia      Local-Lock 835                      PANEL / LOCK_LEVER          WLS ← crew's key or request button
              (field sheet)                                                   WLK → "unlocked" LED
-             Local-Lamp  IndicationToken=835WLK  PANEL / LAMP                LAMP=ACTIVE_LOW → "locked" LED (same token, second channel)
+             (or Local-Lock-2Lamp 835: WLS, WLK, ~{WLK} → "locked" LED from the same token on a second channel)
              [Local-Switch 835 only if a motor exists; the crew's hand throws the points here]
 
  Field       Device-Switch-Sense 835             DEVICE / SWITCH_SENSE       N, R ← point contacts
@@ -94,26 +94,27 @@ Every symbol above binds by the name `835`; no wire crosses between sheets. The 
 
 | Symbol | Role / Kind | Pins (channel type) | Attributes (defaults) | Logic block |
 |---|---|---|---|---|
-| Device-Switch-Sense | DEVICE / SWITCH_SENSE | N, R (BIT) | N=ACTIVE_LOW, R=ACTIVE_LOW | sense-only switch driver |
+| Device-Switch-Sense | DEVICE / SWITCH_SENSE | ~{N}, ~{R} (BIT) | | sense-only switch driver |
 | Device-Switch-StallMotor-Sim | DEVICE / SWITCH_STALL_SIM | M (BIT) | NormalIs=HIGH, Travel_ms=2000 | `MockSwitchDriver` (simulated feedback) |
-| Device-Switch-StallMotor-Sensed | DEVICE / SWITCH_STALL_SENSED | M, N, R (BIT) | NormalIs=HIGH, N=, R= | `SwitchDriver` |
-| Device-Switch-StallMotor-Sensed-OS | DEVICE / SWITCH_STALL_SENSED | M, N, R, OCC (BIT) | + OCC=ACTIVE_LOW | `SwitchDriver` + `TrackCircuitDriver` (OS of the switch; valid only when the OS is one circuit) |
+| Device-Switch-StallMotor-Sensed | DEVICE / SWITCH_STALL_SENSED | M, ~{N}, ~{R} (BIT) | NormalIs=HIGH | `SwitchDriver` |
+| Device-Switch-StallMotor-Sensed-OS | DEVICE / SWITCH_STALL_SENSED | M, ~{N}, ~{R}, ~{OCC} (BIT) | NormalIs=HIGH | `SwitchDriver` + `TrackCircuitDriver` (OS of the switch; valid only when the OS is one circuit) |
 | Device-Switch-Servo-Sim | DEVICE / SWITCH_SERVO_SIM | CH (ANGLE) | NormalIs=LOW_ANGLE, Normal_deg, Reverse_deg, Speed | servo switch driver, simulated |
-| Device-Switch-Servo-Sensed | DEVICE / SWITCH_SERVO_SENSED | CH (ANGLE), N, R (BIT) | as above + N=, R= | servo switch driver, sensed |
-| Device-Detector-Optical | DEVICE / DETECTOR_OPTICAL | OCC (BIT) | OCC=ACTIVE_HIGH | `TrackCircuitDriver` |
-| Device-Detector-Current | DEVICE / DETECTOR_CURRENT | OCC (BIT) | OCC=ACTIVE_LOW | `TrackCircuitDriver` |
-| Device-Head-3LED | DEVICE / HEAD_3LED | R, Y, G (BIT) | R=,Y=,G=ACTIVE_HIGH | `SignalMastDriver` head |
+| Device-Switch-Servo-Sensed | DEVICE / SWITCH_SERVO_SENSED | CH (ANGLE), ~{N}, ~{R} (BIT) | as above | servo switch driver, sensed |
+| Device-Detector-Optical | DEVICE / DETECTOR_OPTICAL | OCC (BIT) | | `TrackCircuitDriver` |
+| Device-Detector-Current | DEVICE / DETECTOR_CURRENT | ~{OCC} (BIT) | | `TrackCircuitDriver` |
+| Device-Head-3LED | DEVICE / HEAD_3LED | R, Y, G (BIT) | | `SignalMastDriver` head |
 | Device-Head-3LED-Mux2 | DEVICE / HEAD_3LED_MUX2 | S0, S1 (BIT) | | mux head driver (new) |
 | Device-Head-3LED-PWM | DEVICE / HEAD_3LED_PWM | R, Y, G (DUTY) | Fade_ms | PWM head driver (new) |
 | Device-Head-Semaphore-Servo | DEVICE / HEAD_SEMAPHORE_SERVO | ARM (ANGLE), LAMP (DUTY) | Stop_deg, Approach_deg, Clear_deg | `SemaphoreDriver` |
-| Device-Lamp-Bit | DEVICE / LAMP_BIT | OUT (BIT) | OUT=ACTIVE_HIGH | bit output |
+| Device-Lamp-Bit | DEVICE / LAMP_BIT | OUT (BIT) | | bit output |
 | Device-Lamp-PWM | DEVICE / LAMP_PWM | D (DUTY) | | duty output |
 | Device-Lamp-NeoPixel | DEVICE / LAMP_NEOPIXEL | (none) | Chain, Index | NeoPixel lamp (bus) |
-| Device-Input-Bit | DEVICE / INPUT_BIT | IN (BIT) | IN=ACTIVE_LOW | bit input |
+| Device-Input-Bit | DEVICE / INPUT_BIT | ~{IN} (BIT) | | bit input |
 | Local-Switch | PANEL / SWITCH_LEVER | NWS, RWS (BIT in), NWK, RWK (BIT out) | | local client of the Switch |
 | Local-Switch-NoLamp | PANEL / SWITCH_LEVER_NOLAMP | NWS, RWS | | |
 | Local-Lock | PANEL / LOCK_LEVER | WLS (in), WLK (out) | | |
-| Local-Lamp, -PWM, -NeoPixel | PANEL / LAMP | LAMP (BIT / DUTY / none) | IndicationToken, Color, LAMP=ACTIVE_HIGH; Chain, Index | lamp showing one or more indications |
+| Local-Lock-2Lamp | PANEL / LOCK_LEVER_2LAMP | WLS (in), WLK, ~{WLK} (out) | | unlocked and locked lamps from one token |
+| Local-Lamp, -PWM, -NeoPixel | PANEL / LAMP | LAMP (BIT / DUTY / none) | IndicationToken, Color; Chain, Index | lamp showing one or more indications |
 | Driver-I2C-MCP23017 | IODRIVER / MCP23017 | A1..A8, B1..B8 (BIT) | Address | `I2CexpanderIOBus` |
 | Driver-I2C-PCA9685 | IODRIVER / PCA9685 | A1..A8, B1..B8 (DUTY, ANGLE) | Address | PCA9685 bus (new: duty write) |
 
@@ -123,11 +124,17 @@ The desk library's `PanelSwitch`, `PanelLock`, `PanelSignal`, `PanelLamp-*`, `Pa
 
 1. Value is the plant item's name (switch, circuit, head, auxiliary) or the driver's address. The generator resolves it against the plant of the same interlocking; a head must be a head of a mast there.
 2. A pin wires to exactly one driver pin of a matching channel type. Two devices on one driver pin is an error.
-3. A polarity attribute must name a pin of the symbol. `NormalIs` is the only direction attribute.
+3. Default polarity is read from the pin name (`~{X}`); a polarity attribute is an instance override and must name a pin of the symbol. `NormalIs` is the only direction attribute.
 4. `SIM` Kinds make the compiler warn: correspondence is simulated (not prototypical). A `SWITCH_REMOTE` or `SWITCH_LOCK` with no device symbol is an error. A `SWITCH_MANUAL*` inside the interlocking limits (between controlled signals in the signal-graph cut) is an error; outside them it is never a route condition.
 5. The `-OS` composite is valid only when the switch's OS (`TC` field or `<switch>T1`) is one circuit; a block of several detectors is a virtual indication (`0<n>T`) that aggregates them.
 6. A `PANEL` lever bound on a field sheet is a local client of the `Switch`; the plant's authority Kind says whether its demands are honoured (`SWITCH_MANUAL*` always, `SWITCH_LOCK` when unlocked, `SWITCH_REMOTE` never under CTC). A `PANEL` lever bound to a `PanelColumn` reaches the Switch over the code line.
-7. A lamp displays a token; a second lamp for the same token is a second `PANEL` lamp with its own channel and polarity, never a second token.
+7. A lamp displays a token; a second lamp for the same token is a second channel (a `~{X}` pin or a second `PANEL` lamp), never a second token. Two indications never share a channel: one bit has two states and NWK/RWK have three (normal, reverse, and both dark for out of correspondence), so wiring both to one bit with one inverted would silently lose the vital state. Sharing is only legal for a two-state token through its `~{X}` complement.
+
+   | Switch | NWK | RWK | one bit from NWK | one bit from ~{RWK} |
+   |---|---|---|---|---|
+   | normal | 1 | 0 | 1 | 1 |
+   | reverse | 0 | 1 | 0 | 0 |
+   | moving / out of correspondence | 0 | 0 | 0 | 1 (contradiction) |
 8. A Role that disagrees with its Kind's table row is an error (the libraries and the table are checked against each other).
 9. Nothing from the field library enters the interlocking model. The generator emits a separate hardware-binding output for the same interlocking.
 
@@ -138,12 +145,12 @@ The desk library's `PanelSwitch`, `PanelLock`, `PanelSignal`, `PanelLamp-*`, `Pa
 3. Symbol name mirrors the Kind in Title-Case with hyphens, plus an optional packaging suffix (`-OS`, `-PWM`, `-NeoPixel`); a location prefix (`Panel-`, `Local-`) is a human hint, not data.
 4. Roles: `APPLIANCE` (plant: the thing), `PANEL` (people), `DEVICE` (hardware), `IODRIVER` (channels); plus `TRACK`, `POLICY`, `STRUCTURE` (plant) and `COLUMN`, `MACHINE`, `CODELINE_*` (machine).
 5. Pin names are channel names and equal driver constructor parameters; on `PANEL` symbols they equal token suffixes.
-6. Attributes are named for the pin they qualify or carry their unit (`Travel_ms`, `Normal_deg`).
+6. Attributes are named for the pin they qualify or carry their unit (`Travel_ms`, `Normal_deg`). Default polarity is in the pin name, not in an attribute.
 7. References, sheet names, project names and library names carry no meaning.
 
 ## Consequences: the mechanical cleanup (one scripted pass each)
 
-- InterlockingPlant, field library: rename symbols and Kinds to the table; add polarity and `NormalIs` attributes with defaults; remove `Polarity`; delete `Device-Switch-ElectricLock`, `Device-Switch-HandThrow`, `Device-Switch-Turtle` (becomes the `-OS` packaging), `Device-Signal-*`, `Device-Digital_*`; `Local-Lock` pins to WLS/WLK; add `Local-Lamp` packagings; Role `PANEL` on the `Local-*` symbols; `IODriver` → `IODRIVER`.
+- InterlockingPlant, field library: rename symbols and Kinds to the table; set pin names to the `~{X}` convention and add `NormalIs` where it applies; remove `Polarity`; delete `Device-Switch-ElectricLock`, `Device-Switch-HandThrow`, `Device-Switch-Turtle` (becomes the `-OS` packaging), `Device-Signal-*`, `Device-Digital_*`; `Local-Lock` pins to WLS/WLK and `Local-Lock-2Lamp` to WLS/WLK/~{WLK}; add `Local-Lamp` packagings; Role `PANEL` on the `Local-*` symbols; `IODriver` → `IODRIVER`.
 - InterlockingPlant, desk library: Role `APPLIANCE` → `PANEL` on levers, lamps, MC and code buttons. `PanelLock` carries switch-lever pins (NWS/RWS/NWK/RWK) while the code line carries `WLS`/`WLK` for a lock; reconciled in the same pass (O3).
 - InterlockingPlant, plant library: `Switch_Lock` Kind `SWITCH_LOCK`; `Switch_Manual`, `Switch_Manual_Sensed` stay.
 - Railroad sandbox Sargent: rewrite `lib_id`s to the new names; `ELEC_LOCK 835` → `Device-Switch-Sense 835` + `Local-Lock 835`; `HAND_THROW 1` → `Device-Switch-Sense 1`; remove the `PanelLock`/`PanelSwitch` placeholders; refresh instance Role/Kind.
