@@ -1,7 +1,9 @@
 # Inside the Bungalow: An Introduction to AAR Signaling for Model Railroaders
 
-**Next layer (CTC territory, structural routes, plant drawing rules):**
+**Next layer (CTC, subdivisions, structural routes, drawing rules for interlocking plants):**
 [CTC, Subdivision, and Plant Design](CTC_SUBDIVISION_AND_PLANT_DESIGN.md).
+
+Terms in this primer follow the [Glossary](GLOSSARY.md). Where the primer and the glossary seem to disagree, the glossary wins.
 
 ---
 
@@ -12,14 +14,14 @@ A model railroader stands at the layout fascia and sees track, motors, and LEDs.
 When a train approaches, the modeler flips an electrical toggle switch to throw the points and turns a knob to clear a signal.
 
 A prototype railroad signal maintainer stands in a completely different world.
-The maintainer steps inside a weather-proof steel bungalow sitting in the gravel next to the junction.
+The maintainer steps inside a weather-proof steel bungalow sitting in the gravel next to the control point.
 Inside, there are no toggle switches or track power packs.
-The maintainer sees rows of glass-cased **vital relays**, banks of storage batteries, heavy wire terminals, and an electronic field controller.
+The maintainer sees rows of glass-cased **vital relays**, banks of storage batteries, heavy wire terminals, and, on a modern installation, an electronic field processor.
 
-To the maintainer, a junction is not a passive piece of track.
+To the maintainer, a control point is not a passive piece of track.
 It is an autonomous safety machine that protects human life against error.
 This document introduces you to the mind of a railroad signal maintainer.
-It explains the standardized relay circuits, operational rules, and communication protocols that keep trains safe.
+It explains the relay circuits, operating rules, and code line communication that keep trains safe.
 
 ---
 
@@ -36,64 +38,68 @@ Instead, electricity holds a heavy iron armature lifted up against the force of 
 This mechanical design enforces the prime directive of railroad signaling: **Any failure must produce the most restrictive condition.**
 - If a rail breaks $\implies$ The circuit opens $\implies$ The track relay drops $\implies$ The signal drops to **Stop** (Red).
 - If battery power fails $\implies$ Armatures drop by gravity $\implies$ The signal drops to **Stop** (Red).
-- If a sensor wire disconnects $\implies$ The armature falls $\implies$ The plant reports **Occupied**.
+- If a sensor wire disconnects $\implies$ The armature falls $\implies$ The track circuit reports **Occupied**.
 - If switch points fail to travel and lock $\implies$ Contacts cannot close $\implies$ No signal will clear over the points.
 
-Earth's gravity acts as an unbreakable physical return spring that never fails, never wears out, and never forgets to drop.
+Earth's gravity acts as a physical return spring that does not need power, does not wear out, and does not forget to drop.
 
 ---
 
 ## Act II: The Citizens of the Bungalow (The Appliance Cast)
 
-Every device at a control point is an **appliance** with an assigned role and a suite of vital relays.
+Every device at a control point is an **appliance** with an assigned role and a set of vital relays.
 
 ### 3. The Switch: More Than a Motor
 A railroad track switch is not just a motor.
-It is a heavy electro-mechanical mechanism (such as a US&S M-23 or GRS Model 5) equipped with a point detector circuit controller and an electric lock.
+A power-operated switch has a heavy electro-mechanical switch machine (such as a US&S M-23 or GRS Model 5) with a point detector circuit controller and a lock.
 
-Every switch operates through a standardized suite of vital relays:
+FieldUnit models each switch with the relays below.
+`TR` is an AAR name. `WLR`, `NWCR`, `RWCR` and `KR` are FieldUnit names built from AAR letters; the AAR names for the switch indicators are `NWK` and `RWK` (see [Glossary §10.5](GLOSSARY.md)).
 
 ```
 +=============================================================================+
-|                      THE 6 RELAYS OF A RAILROAD SWITCH                      |
+|                      THE 6 RELAYS OF A FIELDUNIT SWITCH                     |
 +-----------+-----------------------------------+-----------------------------+
-| Relay     | Full AAR Name                     | Operational Role            |
+| Relay     | Name                              | Operational Role            |
 +-----------+-----------------------------------+-----------------------------+
-| **`1TR`** | Switch 1 Track Relay              | Detects trains on points    |
-| **`1WLR`**| Switch 1 Lock Relay               | Cuts motor power if locked  |
-| **`1WR`** | Switch 1 Control Relay            | Drives the switch motor     |
-| **`1NWCR`**| Normal Switch Correspondence     | Proves points locked Normal |
-| **`1RWCR`**| Reverse Switch Correspondence    | Proves points locked Reverse|
-| **`1KR`** | Switch Indication Relay           | Proves points in alignment  |
+| **`1TR`** | Track relay, OS track circuit 1T1 | Detects trains on points    |
+| **`1WLR`**| Switch 1 lock relay               | Cuts motor power if locked  |
+| **`1WR`** | Switch 1 relay                    | Drives the switch motor     |
+| **`1NWCR`**| Normal, in switch correspondence | Reports Normal = control    |
+| **`1RWCR`**| Reverse, in switch correspondence| Reports Reverse = control   |
+| **`1KR`** | Switch correspondence relay       | In correspondence, either   |
+|           |                                   | position                    |
 +-----------+-----------------------------------+-----------------------------+
 ```
 
-#### Secret 1: "W" Means sWitch!
+#### Secret 1: "W" Means Switch!
 Newcomers often wonder: *Why is a switch named with the letter "W"?*
-In railroad telegraphy, the letter **`S`** was already reserved for **`Signal`** (and **`Stick`**).
-To prevent deadly confusion, signal engineers selected the second letter of switch: **`W`**.
+The answer is short: the AAR letter list assigns **`W`** to switch (it also means west) [AAR56 p. 32].
+Do not guess that `S` would have meant "signal": in AAR names, **`S`** means south, stick or storage, and the signal letter is **`G`** (as in `NGS`, `SGK`).
 - `WR` = s**W**itch **R**elay.
 - `WLR` = s**W**itch **L**ock **R**elay.
 - `NW` = **N**ormal s**W**itch.
 - `RW` = **R**everse s**W**itch.
 
-#### Secret 2: Switches Are Always Odd, Signals Are Always Even!
-On physical CTC panels, each control point column pairs an **odd switch lever** on top with an **even signal lever** below it over a common code button.
+#### Secret 2: Odd Switches, Even Signals (a Habit, Not a Rule)
+On the SPCoast CTC machine, each panel column pairs an **odd switch lever** on top with an **even signal lever** below it over a common code button.
 - Switches: `1`, `3`, `5`, `7` (or milepost switches `777`, `781`).
 - Signals: `2`, `4`, `6`, `8` (or milepost signals `778`, `782`).
 
+This is a common convention, older than CTC: it goes back to lever-and-pipe interlocking plants. It is not an AAR rule: the AAR 1956 manual's Fig. 6 numbers its switches with even numbers.
+
 #### Step-by-Step: Throwing Switch 1
 ```
-[ Dispatcher sends 1RWS ] ──> [ Check 1WLR (Is switch unlocked?) ]
+[ Dispatcher codes 1RWS ] ──> [ Check 1WLR (Is switch unlocked?) ]
                                            │
                         ┌──────────────────┴──────────────────┐
                         │                                     │
                  [ 1TR is Occupied ]                   [ 1TR is Vacant ]
                         │                                     │
                         ▼                                     ▼
-                Command REJECTED                      1WR drives Motor
-              (Points cannot move)                            │
-                                                              ▼
+              Control NOT acted on                    1WR drives Motor
+              (Points cannot move;                            │
+               no refusal message)                            ▼
                                                      Points travel (In-Flight)
                                                     (1NWCR drops, 1KR drops)
                                                               │
@@ -108,29 +114,35 @@ On physical CTC panels, each control point column pairs an **odd switch lever** 
 ---
 
 ### 4. The Signal: More Than a Lamp
-Wayside signals do not illuminate lamps directly from dispatcher commands.
-Every signal operates through a standardized chain of vital relays:
+Wayside signals do not light lamps directly from the dispatcher's controls.
+Every signal works through a chain of vital relays:
 
 ```
 +=============================================================================+
 |                      THE 5 RELAYS OF A RAILROAD SIGNAL                      |
 +-----------+-----------------------------------+-----------------------------+
-| Relay     | Full AAR Name                     | Operational Role            |
+| Relay     | Name                              | Operational Role            |
 +-----------+-----------------------------------+-----------------------------+
-| **`2HSR`**| Home Signal Stick Relay           | Latches dispatcher authority|
-| **`2HR`** | Home Signal Relay                 | Verifies plant route clear  |
-| **`2DR`** | Distant Signal Relay              | Verifies block ahead clear  |
-| **`2ASR`**| Approach Stick Relay              | Enforces approach locking   |
-| **`2FSR`**| Fleet Stick Relay                 | Auto re-clears for trains   |
+| **`2HSR`**| Home stick relay (AAR)            | Holds the dispatcher's      |
+|           |                                   | direction (LEFT or RIGHT)   |
+| **`2HR`** | Home relay (AAR letters)          | Interlocking route clear    |
+| **`2DR`** | Proceed-indication relay (AAR     | Block ahead clear           |
+|           | letters; D is NOT "distant")      |                             |
+| **`2ASR`**| Approach stick relay (AAR)        | Enforces approach locking   |
+| **`2FSR`**| Fleet stick relay (FieldUnit name)| Re-clears for following     |
+|           |                                   | trains                      |
 +-----------+-----------------------------------+-----------------------------+
 ```
 
-#### Aspect versus Indication
+#### Aspect versus Signal Indication
 Railroad rulebooks make an exact distinction between what an engineer sees and what it means:
-- **Aspect**: What the signal *looks like* (e.g. Green over Red, Red over Lunar, Flashing Yellow).
-- **Indication**: What the rulebook *instructs the crew to do* (e.g. `CLEAR`, `APPROACH`, `DIVERGING_CLEAR`, `RESTRICTING`, `STOP`).
+- **Aspect**: What the whole signal *looks like*, all its heads together (e.g. Green over Red, Red over Lunar, Flashing Yellow).
+- **Signal indication**: What the rulebook *instructs the crew to do* (e.g. `CLEAR`, `APPROACH`, `DIVERGING_CLEAR`, `RESTRICTING`, `STOP`).
+
+Do not confuse a signal indication with an **office indication** (Act IV): the report that the field sends back to the dispatcher.
 
 #### Step-by-Step: Clearing Signal 2
+The circuits below are illustrative word pictures, not prototype circuit plans.
 ```
                        HR Circuit (Home Relay)
  Power ──[ 2HSR Front ]──[ 1KR Front ]──[ 1TR Front ]──[ Opposing ASR ]──( 2HR )
@@ -140,7 +152,7 @@ Railroad rulebooks make an exact distinction between what an engineer sees and w
                                                        Signal displays at
                                                        least APPROACH (Yellow)
                                                                 │
-                       DR Circuit (Distant Relay)               ▼
+                       DR Circuit (Proceed Indication)          ▼
  Power ──[ 2HR Front ]──[ Next Signal Clear (4HR) ]──────────────( 2DR )
                                                                 │
                                                                 ▼
@@ -151,30 +163,33 @@ Railroad rulebooks make an exact distinction between what an engineer sees and w
 ---
 
 ### 5. The Extended Appliance Cast
-Beyond standard switches and signals, an authentic interlocking plant includes specialized appliances:
+Beyond switches and signals, a real interlocking plant includes other appliances:
 
 #### 1. Crossovers (`Crossover`)
-A crossover connects two parallel main tracks using two paired switches (`SW3` and `SW3B`).
-In prototype signaling, both switch machines are commanded in unison.
-Both points must lock in correspondence before any route clears.
+A crossover connects two parallel main tracks using two switches that work together from one lever (for example `3A` and `3B`).
+In prototype signaling, both switch machines receive the same control.
+Both must be in switch correspondence before any route over them clears.
 
 #### 2. Derails (`Derail`)
 A derail sits on a siding or industrial spur.
-It physically derails a rolling car before it can foul the mainline.
-In FieldUnit, derail **NORMAL** means off-rail / clear (train may pass) and **REVERSE** means on-rail / active.
-Independent derails use their own odd number on the CodeLine.
-Dependent derails are named `<switchId>D` (for example `1D`) and are slaved inversely to the main switch:
-- When the main switch is Normal $\implies$ Derail is REVERSE (ON RAIL).
-- When the main switch is Reverse $\implies$ Derail is NORMAL (OFF RAIL / clear).
+It physically derails a rolling car before it can foul the main track.
+As on the prototype, derail **NORMAL** means the derailing position (on the rail) and **REVERSE** means clear (a train may pass). A route through a derail requires REVERSE.
+An **independent derail** has its own lever, its own number and its own tokens on the code line.
+A **dependent derail** is named `<switchId>D` (for example `1D`). It has no lever and no tokens of its own, and it moves with its switch, in the same position:
+- When the main switch is Normal $\implies$ Derail is NORMAL (derailing).
+- When the main switch is Reverse $\implies$ Derail is REVERSE (clear).
+
+The switch's `NWK` and `RWK` office indications require both machines in switch correspondence.
 Crossover machine ends use `A`/`B`/`C` suffixes; **`D` is reserved for derails**.
 
-#### 3. Electric Switch Locks (`ESL` / `WL`)
-In CTC territory, hand-throw switches feature an electric padlock housing.
-The train crew cannot lift the hand-throw lever until the dispatcher sends an unlock command (`WLS`), releasing the internal solenoid latch.
+#### 3. Electric Switch Locks (`WL`)
+In CTC limits, a hand-throw switch can have an electric lock (AAR `WL`).
+The train crew cannot lift the hand-throw lever until the dispatcher sends a release control (`WLS`), which releases the lock.
+An electric lock on a hand-throw switch is not a dual-control switch: a dual-control switch is a power switch that can also be thrown by hand.
 
 #### 4. Axle Counters and Optical Sensors
 Where track circuits suffer from poor ballast resistance or unpowered model train wheelsets:
-- **Axle Counters** count wheels in and out of a block.
+- **Axle Counters** count wheels into and out of a track section.
 - **Optical Sensors (`d`)** detect physical car bodies at clearance and fouling points.
 
 #### 5. Trackside Defect Detectors
@@ -185,26 +200,30 @@ Where track circuits suffer from poor ballast resistance or unpowered model trai
 Gas burners or electric calrod elements along the rails that melt snow and ice to keep points moving during winter storms.
 
 #### 7. Bungalow Utilities
-- **Maintainer Call (`MC`)**: Outside white lamp summoning personnel.
-- **Power Off Relay (`POR`)**: Senses commercial AC utility failure; warns dispatcher that the plant is running on emergency batteries.
-- **Intrusion Sensor (`DOOR`)**: Detects unauthorized entry into the bungalow.
+- **Maintainer Call (`MC`)**: A control and lamp that call the signal maintainer to the location.
+- **Power-off indication**: Shows the dispatcher that a location has lost power. A 1959 CTC machine had a power-off indication lamp for each location.
+- **Door contact (`DOOR`)**: A modeling idea, not a sourced prototype appliance. It reports that the bungalow door is open.
 
 ---
 
 ### 6. Algorithmic Composition of Names
-AAR relay names follow a standard formula:
+An AAR name has a number prefix and letters [AAR56 p. 31]:
 
-$$\text{Name} = [\text{Appliance Number}] + [\text{Direction / Function}] + [\text{Operational Role}] + [\text{Suffix}]$$
+$$\text{Name} = [\text{Number of the lever, signal or track circuit}] + [\text{Descriptive letters}] + [\text{Letter for the kind of unit}]$$
 
-- `1` + `NW` + `CR` $\implies$ **`1NWCR`**: Switch 1, Normal, Correspondence Relay.
-- `1` + `RW` + `CR` $\implies$ **`1RWCR`**: Switch 1, Reverse, Correspondence Relay.
-- `1` + `W`  + `LR` $\implies$ **`1WLR`**: Switch 1, Switch Lock Relay.
-- `2` + `H`  + `SR` $\implies$ **`2HSR`**: Signal 2, Home, Stick Relay.
-- `2` + `A`  + `SR` $\implies$ **`2ASR`**: Signal 2, Approach, Stick Relay.
+The last letter gives the general kind of unit (`R` for relay). The letters before it describe the unit. Example from the AAR manual: `10HR` is signal 10, home, relay.
+
+- `2` + `HS` + `R` $\implies$ **`2HSR`**: Signal 2, Home Stick, Relay (AAR).
+- `2` + `AS` + `R` $\implies$ **`2ASR`**: Signal 2, Approach Stick, Relay.
+- `1` + `NWC` + `R` $\implies$ **`1NWCR`**: Switch 1, Normal sWitch Correspondence, Relay (FieldUnit name).
+- `1` + `RWC` + `R` $\implies$ **`1RWCR`**: Switch 1, Reverse sWitch Correspondence, Relay (FieldUnit name).
+- `1` + `WL` + `R` $\implies$ **`1WLR`**: Switch 1, sWitch Lock, Relay (FieldUnit name).
+
+One letter has several meanings; its position in the name decides which one is meant.
 
 ---
 
-## Act III: The Laws of Safety (The Interlocking Plant)
+## Act III: The Laws of Safety (The Interlocking)
 
 ---
 
@@ -215,48 +234,58 @@ An interlocking enforces four distinct locking regimes to protect against physic
 +=============================================================================+
 |                      THE 4 PROTOTYPE LOCKING REGIMES                        |
 +----+-------------------+--------------------+-------------------------------+
-| #  | Locking Regime    | AAR Relay Circuit  | What It Protects              |
+| #  | Locking Regime    | Relay / FieldUnit  | What It Protects              |
 +----+-------------------+--------------------+-------------------------------+
-| 1  | **Detector Lock** | `TR` (Island / OS) | Prevents throwing points      |
-|    |                   |                    | directly underneath a train.  |
+| 1  | **Detector Lock** | `TR` (OS track     | Prevents throwing points      |
+|    |                   | circuit)           | directly underneath a train.  |
 +----+-------------------+--------------------+-------------------------------+
-| 2  | **Route Lock**    | `RSR` / `LR`       | Freezes points along a path   |
-|    |                   | (Sectional Route)  | once a signal displays Clear. |\n+----+-------------------+--------------------+-------------------------------+
-| 3  | **Approach Lock** | `ASR`              | Prevents changing points if   |
-|    |                   |                    | a train is approaching Clear. |\n+----+-------------------+--------------------+-------------------------------+
-| 4  | **Time Lock**     | `TER` / `TE`       | Enforces a safety countdown   |\n|    |                   |                    | if a Clear signal is revoked. |\n+----+-------------------+--------------------+-------------------------------+
+| 2  | **Route Lock**    | `ROUTE_LOCKED`     | Holds the points along a      |
+|    |                   | (sectional release)| route once a signal clears.   |
++----+-------------------+--------------------+-------------------------------+
+| 3  | **Approach Lock** | `ASR`              | Holds the points if a cleared |
+|    |                   |                    | signal is cancelled while a   |
+|    |                   |                    | train is approaching.         |
++----+-------------------+--------------------+-------------------------------+
+| 4  | **Time Lock**     | `TIME_LOCKED`,     | Holds the points for a set    |
+|    |                   | office ind. `TEK`  | time after a signal is        |
+|    |                   |                    | restored to stop.             |
++----+-------------------+--------------------+-------------------------------+
 ```
+
+On the prototype, approach locking and time locking are two kinds of locking. FieldUnit uses **one timer** for both, as described below.
 
 #### 7.1 Detector Locking (Points Protection)
 - **The Hazard**: Throwing points while a car sits on them splits the train and causes a derailment.
 - **The Rule**: Power to the switch motor passes through `1TR` front contacts. As long as wheels shunt `1TR`, the switch is detector-locked and cannot move.
 
 #### 7.2 Route Locking (Path Reservation)
-- **The Hazard**: Throwing a trailing-point switch ahead of a train that has entered the plant.
-- **The Rule**: When a signal clears, every switch on the path asserts `ROUTE_LOCKED`. Switches release progressively as the train clears each switch (sectional route release).
+- **The Hazard**: Throwing a trailing-point switch ahead of a train that has entered the interlocking.
+- **The Rule**: When a signal clears, every switch on the route gets `ROUTE_LOCKED`. Switches release progressively as the train clears each switch (sectional route release).
 
-#### 7.3 Approach Locking (Signal Revocation Protection)
-- **The Hazard**: The dispatcher clears a Green signal. A train approaches at speed. The dispatcher cancels the signal and lines an opposing switch. The train cannot stop in time and derails.
-- **Safe Cancellation (Immediate Release)**: If approach track `1SA` is `VACANT`, there is no train. The plant releases immediately with zero delay.
-- **Hazardous Cancellation (Timed Release)**: If approach track `1SA` is `OCCUPIED`, `ASR` drops immediately. The plant engages **Time Locking (`TER`)**. Points stay frozen until a countdown timer expires (30-60s model, 3-5m proto).
+#### 7.3 Approach Locking (Signal Cancellation Protection)
+- **The Hazard**: The dispatcher clears a Green signal. A train approaches at speed. The dispatcher cancels the signal and lines a switch against it. The train cannot stop in time.
+- **Safe Cancellation (Immediate Release)**: If the approach track circuit `1SA` is `VACANT`, there is no train. The field unit releases the switches at once. It does the same if the route declares no approach track circuit.
+- **Hazardous Cancellation (Timed Release)**: If the approach track circuit `1SA` is `OCCUPIED`, the field unit starts the time-locking timer. `ASR()` goes false and the route switches get `TIME_LOCKED`. The points stay held until the timer expires: 30 s by default in FieldUnit (`SignalControl::setTimeLockDuration`).
+- `ASR()` does not drop just because a signal clears. While the signal is clear, route locking holds the switches. `ASR()` is false only while the timer runs.
 
-#### 7.4 Time Locking (`TER`) and CTC Panel Indications
-While the time lock timer counts down:
-- The signal drops to Stop immediately (`2NGK = 0, 2SGK = 0`).
-- The Time Element indication asserts (`2TEK = 1`).
-- On the dispatcher's panel, the red **Time Element lamp (`TE`) flashes**.
-- If the dispatcher tries to throw Switch 1 while `2TEK` is active, the switch does not move, the correspondence lamps go dark, and the panel sounds the **Out-of-Correspondence (OOC) / Transit Alarm**.
-- When the timer reaches zero, `2TEK` drops, the alarm silences, and points are freed.
+#### 7.4 Time Locking and the CTC Machine
+While the time-locking timer runs:
+- The signal is at Stop (`2NGK` and `2SGK` dropped).
+- The office indication `2TEK` (time locking runs) is asserted.
+- On the CTC machine, the red **time element lamp** of signal 2 flashes while time locking runs. (Planned in FieldUnit: `cTcMachine` has no `TEK` lamp output today.)
+- If the dispatcher moves the Switch 1 lever and codes it while `2TEK` is asserted, the switch does not move. The switch lamp keeps showing the old position, so the lever and the lamp disagree: the switch is **out of office correspondence**. That disagreement is the only refusal the dispatcher gets. A CTC machine can also sound an alarm for it. (Planned in FieldUnit: no alarm output exists today.)
+- When the timer reaches zero, `2TEK` drops and the points are free.
 
 ---
 
 ### 8. The Complete Interlocking Logic Chains
 
 In prototype signaling, vital logic is not an abstract mathematical equation.
-It represents an electrical circuit where every contact protects against a specific, life-threatening hazard.
+It is an electrical circuit where every contact protects against a specific, life-threatening hazard.
 
-This section dissects the seven core logic chains evaluated by FieldUnit during each plant cycle.
-For each chain, we show the traditional relay contact word picture, followed by its plain-English logical equivalent and an explanation of why each contact is present.
+This section dissects the core logic chains that FieldUnit evaluates during each scan of the interlocking plant.
+For each chain, we show a relay contact word picture, then its plain-English logical equivalent, and why each contact is there.
+The word pictures are illustrative. They are not prototype circuit plans.
 
 ---
 
@@ -267,67 +296,69 @@ Power to the motor circuit must pass through `1WLR`.
 If any contact opens, `1WLR` drops, instantly cutting all electrical power to the motor:
 
 ```
-  Power ───[ 1TR Front ]───[ RouteLock Back ]───[ 2ASR Front ]───[ SwitchLock Front ]───( 1WLR )
-          (Points Clear)     (Route Free)       (No Approach)    (Local Lock Safe)
+  Power ───[ 1TR Front ]───[ RouteLock Back ]───[ 2ASR Front ]───[ ElectricLock Released ]───( 1WLR )
+          (Points Clear)     (Route Free)     (No Time Locking)    (WLS accepted, if any)
 ```
 
-`WLR = (1TR is VACANT) AND (NOT RouteLocked) AND (2ASR is UNLOCKED) AND (HandSwitchLocked)`
+`WLR = (1TR is VACANT) AND (NOT RouteLocked) AND (2ASR picked up: no time locking) AND (NOT ElectricLocked)`
+
+In FieldUnit, `Switch::WLR()` is true when the switch has no active lock: detector, route, time or electric lock. A switch moves only when `WLR()` is true.
 
 Why each contact is vital:
 1. **`1TR Front` (Detector Locking)**:
    Proves no train is physically standing on or straddling the points.
    If wheels shunt the rails, `1TR` drops and physically breaks the motor circuit.
 2. **`RouteLock Back` (Route Locking)**:
-   Proves no active cleared route has reserved this switch.
-   Even if the track is empty right now, if a signal is Green for an approaching train, the route lock contact opens to freeze the points.
+   Proves no cleared route has reserved this switch.
+   Even if the track is empty right now, if a signal is Green for an approaching train, the route lock contact opens to hold the points.
 3. **`2ASR Front` (Approach Locking)**:
-   Proves no train is bearing down on the plant under a revoked signal whose safety timer is still running down.
-4. **`SwitchLock Front` (Electric Switch Lock)**:
-   Proves that if this is a hand-throw switch, the physical padlock and solenoid are locked and secure.
+   Proves no train is bearing down on the interlocking under a cancelled signal whose time-locking timer is still running.
+4. **`ElectricLock Released` (Electric Switch Lock)**:
+   On a hand-throw switch with an electric lock, `WLR` stays dropped until the dispatcher releases the lock with `WLS`.
+   The field unit releases the lock only when every signal is at stop and no time locking runs.
 
 ---
 
 #### 8.2 Switch Correspondence Relay (`KR`) — Proving the Points Truly Made
-The railroad never trusts a motor command.
+The railroad never trusts a motor alone.
 A motor can hum, an electrical wire can corrode, or ballast gravel can jam between the rail and the point.
-The dispatcher may command Normal, but the points might be gapped open by 1/2 inch—enough to catch a wheel flange and cause a head-on derailment.
+The dispatcher may code Normal, but the points might be gapped open by 1/2 inch—enough for a wheel flange to pick the point and derail the train.
 
-The `KR` relay is the **only proof the interlocking trusts**.
-It proves that the physical points made full travel and mechanically locked:
+The `KR` relay is the **only proof the interlocking trusts** that a switch is where its control says it should be:
 
 ```
-  Power ───┬───[ Normal Commanded ]───[ 1NWCR Front ]───┬───( 1KR )
-           │   (Dispatcher Demand)    (Points Normal)   │
-           │                                            │
-           └───[ Reverse Commanded ]──[ 1RWCR Front ]───┘
-               (Dispatcher Demand)    (Points Reverse)
+  Power ───┬───[ Normal Controlled ]───[ 1NWCR Front ]───┬───( 1KR )
+           │   (Control: Normal)       (Points Normal)   │
+           │                                             │
+           └───[ Reverse Controlled ]──[ 1RWCR Front ]───┘
+               (Control: Reverse)      (Points Reverse)
 ```
 
-`KR = (Normal Commanded AND 1NWCR) OR (Reverse Commanded AND 1RWCR)`
+`KR = (Control Normal AND 1NWCR) OR (Control Reverse AND 1RWCR)`
 
-Why this dual-check is vital:
-- `1NWCR` energizes only when physical circuit controller rods prove the points are locked tight against the stock rail in Normal.
-- `1RWCR` energizes only when the points are locked tight in Reverse.
-- If the points are in transit (`MOVING`), gapped by ballast, or out of correspondence with the command, both `NWCR` and `RWCR` drop.
+Why this dual check is vital:
+- `1NWCR` picks up only when the switch reports Normal and its control is Normal: the switch is in switch correspondence, Normal.
+- `1RWCR` picks up only when the switch reports Reverse and its control is Reverse.
+- If the points are in transit (`MOVING`), gapped by ballast, or disagree with the control, both `NWCR` and `RWCR` drop. After the travel timeout (5000 ms by default), a moving switch reports `OUT_OF_CORRESPONDENCE`.
 - `1KR` drops, making it electrically impossible to clear any signal over the switch.
 
 ---
 
 #### 8.3 Crossover Proving Relay (`3KR`) — Preventing the Half-Thrown Nightmare
-A crossover connects two main tracks via two physical switch machines (`SW3` on Track 1, `SW3B` on Track 2).
-If `SW3` throws to Reverse, but `SW3B` jams in Normal, a train entering the crossover would be steered across the gap directly into the side of a train on the adjacent track!
+A crossover connects two main tracks via two physical switch machines (`3A` on Track 1, `3B` on Track 2).
+If `3A` throws to Reverse, but `3B` jams in Normal, a train entering the crossover would be steered across the gap directly into the side of a train on the adjacent track!
 
 To prevent this catastrophe, the interlocking evaluates both machines in series:
 
 ```
-  Power Source ───[ SW3 KR Front ]───[ SW3B KR Front ]───( 3KR )
-                  (MT1 Points)       (MT2 Points)
+  Power Source ───[ 3A KR Front ]───[ 3B KR Front ]───( 3KR )
+                  (MT1 Points)      (MT2 Points)
 ```
 
-`3KR = (SW3 is KR) AND (SW3B is KR)`
+`3KR = (3A is KR) AND (3B is KR)`
 
-Both switch machines must travel together, lock together, and prove correspondence together.
-If either switch binds or lags, `3KR` drops, and no crossover signal can clear.
+Both switch machines must travel together, lock together, and prove switch correspondence together.
+If either switch binds or lags, `3KR` drops, and no route over the crossover can clear.
 
 ---
 
@@ -337,31 +368,35 @@ Current to the signal mechanism must pass through four independent safety gates:
 
 ```
   Power ───[ 2HSR Front ]───[ Route KR Fronts ]───[ Route TR Fronts ]───[ Opposing ASR Fronts ]───( 2HR )
-     (Dispatcher)     (Switches in Line)        (Track Blocks Clear)      (Opposing Held Stop)
+     (Dispatcher)     (Switches in Line)     (Track Circuits Clear)    (Opposing Held Stop)
 ```
 
-`HR = (2HSR active) AND (All Route Switches in KR) AND (All Route Blocks VACANT) AND (Opposing Signals in ASR)`
+`HR = (2HSR active) AND (All Route Switches in KR) AND (All Route Track Circuits VACANT) AND (Opposing Signals in ASR)`
 
 Why each contact is vital:
-1. **`2HSR Front` (Authority)**: The dispatcher explicitly coded permission in this direction.
-2. **`Route KR Fronts` (Alignment)**: Every single switch on the path is proven locked in correspondence.
-3. **`Route TR Fronts` (Occupancy)**: Every block of track on the path is proven empty and un-shunted.
-4. **`Opposing ASR Fronts` (Collision Protection)**: Conflicting and opposing signals on the same track are locked at Stop, with their approach locks intact.
-When all contacts close, `2HR` energizes. The signal drops its red aspect and displays at least `APPROACH` or `RESTRICTING`.
+1. **`2HSR Front` (Direction)**: The dispatcher coded a control for this direction, and the field unit accepted it.
+2. **`Route KR Fronts` (Alignment)**: Every switch on the route is proven in switch correspondence, in position.
+3. **`Route TR Fronts` (Occupancy)**: Every track circuit on the route is proven empty and un-shunted.
+4. **`Opposing ASR Fronts` (Collision Protection)**: Conflicting and opposing signals on the same track are held at Stop, with their approach locking intact.
+
+When all contacts close, `2HR` picks up. The signal drops its red aspect and displays at least `APPROACH` or `RESTRICTING`.
+
+FieldUnit has no `HR` object. `InterlockingEngine::evaluateIndication` (`ControlTable.h`) takes the least favorable of the route's indication ceiling and these same checks.
 
 ---
 
-#### 8.5 Distant Relay (`DR`) — Looking Down the Line (ABS Upgrades)
-The `HR` relay proves it is safe to enter *this* plant.
+#### 8.5 Proceed-Indication Relay (`DR`) — Looking Down the Line
+The `HR` relay proves it is safe to enter *this* interlocking.
 But how fast may the train travel?
-The `DR` relay looks down the track to the next signal:
+The `DR` relay looks down the track to the next signal.
+(`D` here is the AAR letter for "proceed indication". It does not mean "distant".)
 
 ```
-  Power ───[ 2HR Front ]───[ Advance Block TR Front ]───[ Next Signal HR Front ]───( 2DR )
-                  (Plant Clear)   (Block Ahead Clear)         (Next Signal Permissive)
+  Power ───[ 2HR Front ]───[ Block Ahead TR Front ]───[ Next Signal HR Front ]───( 2DR )
+           (Route Clear)    (Block Ahead Clear)       (Next Signal Permissive)
 ```
 
-`DR = (2HR picked up) AND (Advance Block VACANT) AND (Next Downstream Signal Permissive)`
+`DR = (2HR picked up) AND (Block Ahead VACANT) AND (Next Signal Permissive)`
 
 - If the block ahead is occupied, `DR` stays dropped.
   The signal displays **`APPROACH`** (Yellow).
@@ -369,15 +404,17 @@ The `DR` relay looks down the track to the next signal:
 - If the block ahead is clear AND the next signal is also displaying a permissive aspect, `DR` picks up.
   This upgrades the aspect from `APPROACH` (Yellow) to **`CLEAR`** (Green).
 
+FieldUnit has no `DR` object. It lowers CLEAR to APPROACH when the track circuit named in the route's `approaching()` is occupied.
+
 ---
 
 #### 8.6 Signal Knockdown and Stick Relay (`HSR`) — The One-Shot Rule
 Why must a signal never stay green behind a train?
-If a following train enters the same block, a rear-end collision occurs.
-The signal must drop to Stop the instant the locomotive cab passes the mast:
+If it did, a following train could enter the occupied block, and a rear-end collision could occur.
+The signal must drop to Stop the instant the locomotive passes the mast:
 
 ```
-                        Entrance Island TR Front
+                     Entrance Track Circuit TR Front
   Dispatcher Code ──────[       ]───────┬───────────────────────────( 2HSR )
                                         │
          2HSR Front                     │
@@ -387,49 +424,55 @@ The signal must drop to Stop the instant the locomotive cab passes the mast:
      └──[    ]──────┘
 ```
 
-`HSR_next = (Dispatcher Code) OR ((2HSR picked up) AND (Entrance Island VACANT)) OR (2FSR active)`
+`HSR_next = (Dispatcher Code) OR ((2HSR picked up) AND (Entrance Track Circuit VACANT)) OR (2FSR active)`
 
-1. **The Knockdown**: As the locomotive's front wheels pass the signal and bridge the insulated joint, `1TR` drops.
+1. **The Knockdown**: As the locomotive's front wheels pass the signal and bridge the insulated joint, the entrance track relay drops.
    This opens the contact and breaks the stick circuit on `2HSR`.
-   The signal immediately slams down to Stop (Red) behind the engine.
+   The signal drops to Stop (Red) behind the engine.
 2. **The Stick Break**: Because `2HSR` dropped, its own front contact opens.
-   Even after the entire train leaves the plant and `1TR` picks back up, `2HSR` remains dead.
-   The signal will not clear again until the dispatcher sends a brand new code transmission.
-3. **The Fleeting Bypass (`2FSR`)**: If the dispatcher toggles Fleeting on (`2FSR` picked up), the fleet contact bypasses the broken `2HSR` contact.
-   As soon as the train vacates the route and blocks ahead clear, power feeds back to the signal, clearing it automatically for a following train.
+   Even after the entire train leaves the interlocking and the track relay picks back up, `2HSR` stays dropped.
+   The signal will not clear again until the dispatcher codes a new control.
+3. **The Fleeting Bypass (`2FSR`)**: If the dispatcher turns fleeting on (`2FSR` picked up), the fleet contact bypasses the broken `2HSR` contact.
+   As soon as the train vacates the route and the blocks ahead clear, power feeds back to the signal, clearing it automatically for a following train.
 
 ---
 
 #### 8.7 Engine Return Stick Relay (`ERS`) — Switching Fluidity Without Stalls
-During switching operations, an engine pulls past a signal into an adjacent block or siding, uncouples from its cars, and needs to immediately reverse direction to couple back up.
+During switching operations, an engine pulls past a signal into an adjacent track or siding, uncouples from its cars, and needs to immediately reverse direction to couple back up.
 
-Normally, revoking signal authority or attempting a reverse movement trips Approach Locking (`ASR`), triggering a 5-minute safety countdown timer.
+Normally, revoking signal authority or attempting a reverse movement trips approach locking (`ASR`), starting the time-locking timer.
 The Engine Return circuit eliminates this delay safely:
 
 ```
   Forward Exit Move Trigger
-  ───[ Route Active Front ]───[ Island TR Back ]───[ Exit Track TR Back ]───┐
+  ───[ Route Active Front ]───[ OS TR Back ]───[ Exit Track TR Back ]───┐
                                                                             ▼
                                                                         [ 2ERS Coil ]
   Hold-In Path (Stick)                                                      ▲
   ───[ 2ERS Front ]───────────[ Exit Track TR Back ]────────────────────────┘
 ```
 
-`ERS_pickup = (Forward Route Active) AND (Island TR is OCCUPIED) AND (Exit Track is OCCUPIED)`
+`ERS_pickup = (Forward Route Active) AND (OS TR is OCCUPIED) AND (Exit Track is OCCUPIED)`
 `ERS_hold   = (2ERS picked up) AND (Exit Track remains OCCUPIED)`
 
 1. **The Sequence Trigger**:
    The circuit monitors the physical progression of the locomotive:
-   $$\text{Route Active} \longrightarrow \text{Island shunted} \longrightarrow \text{Exit track shunted}$$
+   $$\text{Route Active} \longrightarrow \text{OS section shunted} \longrightarrow \text{Exit track shunted}$$
    When the engine straddles the boundary onto the exit track, `2ERS` picks up.
 2. **The Hold-In Path**:
    `2ERS` stays energized through its own front contact as long as the train's cars continue to stand on the exit track (`Exit TR` remains dropped).
 3. **The Benefit**:
-   Because `2ERS` proves the train is sitting right at the boundary at switching speed, it **bypasses the 5-minute safety timer**.
+   Because `2ERS` proves the train is sitting right at the boundary at switching speed, it **does not wait for the time-locking timer**.
    The return dwarf signal immediately displays **`RESTRICTING`** (Lunar or Yellow), authorizing the engineer to back up at low speed to couple onto the cars.
 4. **The Fail-Safe Reset**:
-   If another train pulls those cars away and the exit block becomes vacant, the circuit breaks.
+   If another train pulls those cars away and the exit track circuit becomes vacant, the circuit breaks.
    `2ERS` drops immediately, and the return signal drops to Stop fail-safe.
+
+**In FieldUnit today** (`Route::engineReturn(standingCars, os)`): the code implements a reduced form of this circuit.
+It shows `RESTRICTING` when the route switches are in position, the OS track circuit is clear and the standing-cars track circuit is occupied.
+It has no stick: it does not remember the forward move through the OS section, and it does not check the signal control or time locking.
+The relay circuit above is the design principle. The difference is recorded as a defect against the code, not as a change to the principle.
+The name "engine return stick" is the project's; the AAR list has `TSR` (track stick relay), and railroads also used directional stick relays.
 
 ---
 
@@ -437,7 +480,7 @@ The Engine Return circuit eliminates this delay safely:
 
 ---
 
-### 9. The CodeLine: Asynchronous Truth versus Remote Procedure Calls
+### 9. The Code Line: Asynchronous Truth versus Remote Procedure Calls
 
 Modern software developers often think in Remote Procedure Calls (RPC):
 `response = client.call("throwSwitch", 1, REVERSE);`
@@ -445,93 +488,112 @@ They expect immediate return codes, error messages, or NACKs.
 
 Railroad signaling operates on a completely different, asynchronous foundation.
 
-#### 9.1 The Control Packet is an Atomic Plant Transaction
-A dispatcher does not send isolated commands to individual devices.
-The dispatcher lines all levers for a plant on their desk:
+#### 9.0 The Free Lever: Tower Lever versus CTC Lever
+In a tower, the operator pulls a lever on the interlocking machine.
+If the move is unsafe, the lever does not move: the locking bed holds it. The refusal is immediate, in the operator's hand.
+Because the lever cannot be in an unsafe position, the lever itself shows the state of the interlocking plant.
+
+On a CTC machine, the lever moves freely. Nothing at the office holds it.
+The dispatcher moves the lever, presses **CODE**, and the intent goes out on the code line.
+Only the office indication that comes back tells the truth. If the field unit refuses, no message says so: the office indication simply does not change to agree with the lever.
+
+So the code line, the field station and the field unit together replace the locking bed. They do at a distance, and after the fact, what the locking bed does in the operator's hand.
+That is why CTC needs two words where the tower needed one: **control** (the dispatcher's intent) and **office indication** (the state of the interlocking plant).
+
+#### 9.1 One Code, One Control Transaction
+A dispatcher does not send one control at a time to one device.
+The dispatcher lines all levers for a control point on the CTC machine (here, CP Corporal):
 - Switch 1 lever to Normal.
 - Switch 3 lever to Reverse.
-- Switch 5 lever to Normal.
+- Derail 5 lever to Normal (derailing).
 - Signal 2 lever to Right.
+- Signal 4 lever to Stop (center).
 - Maintainer Call toggle to Off.
 
-The dispatcher presses the **Code Button**.
-The office transmits **one complete, atomic snapshot of desired reality** across the CodeLine:
-- **Unparenthesized token (`3RWS`)**: The function is **asserted** (active command to throw or clear).
-- **Parenthesized token (`(1NWS)`)**: The function is **unasserted** (confirmation that this device should not change).
+The dispatcher presses the **code button (CODE)**.
+The office sends **one complete control transaction** across the code line:
+- **Unparenthesized token (`3RWS`)**: The function is **asserted** (the lever is in that position).
+- **Parenthesized token (`(3NWS)`)**: The function is **dropped** (the lever is not in that position).
 
 ```
-[ (1NWS), (1RWS), (3NWS), 3RWS, (5NWS), (5RWS), (2SGS), (2NGS), (2HS), (MC1S) ]
+[ 1NWS, (1RWS), (3NWS), 3RWS, 5NWS, (5RWS), 2SGS, (2NGS), (2HS), (4SGS), (4NGS), 4HS, (MC1S) ]
 ```
 
-Why must unasserted items be present?
-- `(1NWS), (1RWS),` explicitly confirms: *"Leave Switch 1 alone in its existing position."*
-- If tokens were missing, the field unit could not tell whether Switch 1 was supposed to be untouched or if the packet was malformed.
-- **The Truncation Rule**: If any expected token is missing or truncated, the entire vital control transaction is rejected. Zero switches move and zero signals clear.
+Why must dropped tokens be present?
+- Every function the field station carries is sent on every code, asserted or dropped. The field unit can then tell "lever not in this position" from "token lost on the line".
+- A switch lever with neither contact closed sends both switch tokens dropped, `(1NWS), (1RWS)`. FieldUnit reads that as "no switch control": leave Switch 1 where it is.
+- **The Truncation Rule**: If any expected token is missing, out of order, or unknown, `AarTextCodec` rejects the whole packet. Zero switches move and zero signals clear.
 
-#### 9.2 The Indication Stream Reports Ground Truth
-The Control Point in the field does not send "error packets," "NACKs," or conversational replies.
-The Control Point simply reports verified physical reality.
+#### 9.2 Office Indications Report the Truth
+The field unit does not send "error packets," "NACKs," or conversational replies.
+The field unit simply reports the state of the interlocking plant.
 
-- If the dispatcher commands Switch 1 to Reverse while a train sits on the points:
-  - The Control Point does not move the motor.
-  - The Control Point does not send an error text message.
-  - The Control Point continues reporting its true Indication Vector:
-    `[ 1NWK=1, 1RWK=0, 1T1K=1 ]` (Points remain in Normal correspondence; detector track is occupied).
+- If the dispatcher codes Switch 1 to Reverse while a train sits on the points:
+  - The field unit does not move the motor.
+  - The field unit does not send an error message.
+  - The field unit continues to send its true indication vector:
+    `1NWK, (1RWK), 1T1K` (Points remain Normal and in switch correspondence; the OS track circuit is occupied).
 
-#### 9.3 Correspondence: The State of Mind
-The dispatcher's machine detects non-execution by comparing its commanded intent against the reported indications:
+#### 9.3 Office Correspondence: The State of Mind
+The CTC machine detects that the field unit did not act by comparing the lever with the office indications:
 
-$$\text{Commanded Intent} \stackrel{?}{=} \text{Observed Ground Truth}$$
+$$\text{Lever (Intent)} \stackrel{?}{=} \text{Office Indication (Truth)}$$
 
-- When points are in motion, the indication light is **dark** (out of correspondence).
-- When points lock in the commanded position, the indication lamp lights up.
-- If a switch is locked or obstructed, the indication lamp **remains dark** or sounds a transit alarm.
-- The dispatcher sees: *"The plant did not move."*
+- When the points are in motion, both switch lamps are **dark** (out of switch correspondence).
+- When the points lock in the controlled position, the matching lamp lights.
+- If the switch is locked or obstructed, the lamp for the old position **stays lit**, and the lever disagrees with it: the switch is out of office correspondence.
+- The dispatcher sees: *"The switch did not move."*
 
-#### 9.4 cTc machine behavior
-In prototype Centralized Traffic Control (and AAR Rule 261):
--  Levers are Intent, Indications are Truth: Office levers represent human intent; field relays represent physical truth.
--  The Code Button Gate is Inviolable: A CTC machine never transmits controls across the CodeLine on boot. If office power resets while trains are running, transmitting un-coded lever positions could throw switches under a train or violate active approach locks.
--  The Cold-Start Rule: On power-up, the desk listens to retained field indications. The panel lamps illuminate to reflect field reality. If a physical switch lever disagrees with the illuminated lamp, the lever is Out of Correspondence (disagreement). The dispatcher must either move the lever to match reality, or align the lever and deliberately punch the CODE button.
+#### 9.4 CTC Machine Behavior
+- **Levers are intent, office indications are truth**: Office levers state the dispatcher's intent; the field unit reports the state of the interlocking plant.
+- **No controls at power-up**: A CTC machine does not send controls when it powers up. A lever moved while the machine was off holds intent that nobody confirmed. Sending it could throw a switch the dispatcher no longer expects to move.
+- **Cold start (FieldUnit)**: On power-up, the SPCoast desk applies the retained office indications from the MQTT code line. The panel lamps show the state of the interlocking plant. If a switch lever disagrees with its lamp, the switch is out of office correspondence. The dispatcher must either move the lever to match the lamp, or line the lever and deliberately press CODE.
+- **Requirement**: A CTC machine must let the dispatcher state an unsafe intent. The field unit refuses it. A CTC machine that blocks a lever from its own copy of the state moves the locking to the office, which is not vital.
 
-#### 9.5 The Three-Tier Architecture: Interlocking Plant, Controlled Point, and Panel Column
+#### 9.5 Three Roles and One Seam: Interlocking Plant, Field Station, and Panel Column
 
-In prototype signaling, the term "Control Point" is often used loosely, creating confusion between geographic junctions, electrical line stepping units, and office furniture. FieldUnit utilizes a three-tier domain separation:
+The word "control point" is often used loosely, for a place, for an address on the code line, and for a part of the CTC machine. FieldUnit separates them.
+Every CTC layout has **three roles**: the **CTC machine** (office), the **code line**, and the **field unit**.
+Between them runs **one seam**: controls and office indications, as named functions (tokens such as `1NWS` and `1NWK`).
+Everything else (steps, code cycle, addresses, field stations, capacity, encoding, timing) belongs to the **code line type**: US&S 506, MQTT, or another.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ 1. Interlocking Plant (Field Reality)                       │
-│    - The physical track junction, rails, frogs, and signals.│
-│    - Evaluates AAR vital safety rules (WLR, KR, ASR, ERS).  │
-│    - Contains all switches, tracks, and signals in a plant. │
+│ CTC machine (office)                                        │
+│    - Panel columns: levers, lamps, code button.             │
+│    - States intent. Is not vital.                           │
 └──────────────────────────────┬──────────────────────────────┘
-                               │
+                               │  code line (type: US&S 506, MQTT, ...)
+                               │  controls ↓     ↑ office indications
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 2. Controlled Point / Line Station (CodeLine Capacity)      │
-│    - The addressable supervisory unit on the 2-wire line.   │
-│    - Strictly bounded by stepping capacity (15, 20, 32 step)│
-│    - A single plant may aggregate multiple controlled points│
-│      (e.g., Luchessa aggregates three 15-step points).      │
+│ Field station(s): addresses on the code line                │
+│    - 506 line: 7 controls + 7 office indications each.      │
+│    - MQTT line: one per field unit, no capacity limit.      │
+│    - Has no behavior.                                       │
 └──────────────────────────────┬──────────────────────────────┘
-                               │
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ 3. Panel Column (Office Ergonomics)                         │
-│    - The physical 2-inch wide vertical slice on the console.│
-│    - Contains switch levers, signal levers, jewels, lamps.  │
-│    - Consolidated: multiple columns share a CODE start.     │
-└─────────────────────────────────────────────────────────────┘
+│ Field unit = interlocking application on a field processor  │
+│    - Enforces the locking (WLR, KR, ASR, HSR).              │
+│    - Solves one interlocking plant.                         │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+              Interlocking plant: track, switches, derails,
+              signals and track circuits
 ```
 
-1. **Interlocking Plant**: The operational, legal, and engineering unit defined by AAR and FRA rules. A physical junction of tracks governed by interlocking rules. Equipment shelters (bungalows, relay houses, instrument cases, or tower ground floors) are simply architectural enclosures protecting the plant's relays.
-2. **Controlled Point**: The addressable CodeLine unit on the shared wire. Its capacity is physically fixed by the line coding stepper hardware (e.g., 15 steps in US&S Form 506). Large interlockings (like Luchessa) do not invent arbitrary giant code cycles; they assign multiple 15-step controlled point addresses to a single plant.
-3. **Panel Column**: The physical modular vertical slice of the office machine (such as a US&S Model 503). In standard 15-step systems, one column maps 1:1 with one controlled point. Multiple columns are physically grouped under a shared CODE button for dispatcher convenience.
-##### 9.5.1 SPCoast Model 503 15-Step CodeLine Display
+1. **Interlocking Plant**: The real track, switches, derails, signals and track circuits that one interlocking controls. It can contain more than one control point. One field unit solves one interlocking plant. The bungalow (or a tower's ground floor) is only the enclosure for its equipment.
+2. **Field Station**: One address on a code line, and the set of controls and office indications carried under that address. It has no behavior. The code line type assigns field stations. On a US&S 506 line, one field station carries 7 controls and 7 office indications, so a large interlocking plant answers at several field stations, with one field unit behind all of them. Luchessa answers at three field stations on a 506 line; it answers at one on an MQTT line.
+3. **Panel Column**: One vertical part of the CTC machine face, with levers, lamps and a code button. In FieldUnit, a `CtcStation` (the office-side record of one field station) can span up to four panel columns, which share one CODE button.
 
-The SPCoast Model 503 desk represents each `PanelColumn` as a 15-step controlled-point cycle. A shared CODE button for a multi-column Interlocking Plant sequences one cycle per column. The desk sends the complete, atomic MQTT `ControlTransaction` only after the last column's execution pulse. A returned plant indication likewise runs one cycle per column before the desk applies the complete `IndicationVector`.
+##### 9.5.1 The SPCoast CTC Machine's Display Rhythm (a Model Design)
 
-The two repurposed traffic lamps on Column 3 display the line direction:
+Everything in this subsection is a design of the SPCoast CTC machine (US&S style). **It is not a prototype code.** The US&S 506 code has 16 steps and selects a field station with 7 station selection steps (§9.6). This display has 15 steps and a 4-step panel-column address, because it only has to animate lamps on one machine.
+
+The MQTT code line carries each complete control transaction at once. When the display is turned on (`CODELINE_VISUAL_STEPPING` in `examples/spcoast_ctc`; it is off by default), the desk plays one display cycle per `PanelColumn` before it acts. For a field station that spans several columns, a press of the shared CODE button plays one cycle per column, and the desk publishes the complete `ControlTransaction` only after the last column's completion pulse. A received indication vector likewise plays one cycle per column before the desk applies it.
+
+The two repurposed traffic lamps on Column 3 show the direction of the code:
 - **S lamp / Southbound traffic lamp**: Office-to-field control code.
 - **N lamp / Northbound traffic lamp**: Field-to-office indication code.
 
@@ -540,129 +602,137 @@ Each display cycle has the following fixed step allocation:
 | Step | Function |
 | :--- | :--- |
 | 1 | Line clear / synchronization |
-| 2–5 | Four-bit physical panel-column address |
-| 6–7 | Switch Normal and Reverse state |
-| 8–10 | Signal Left, Stop/Time Element, and Right state |
-| 11–13 | Up to three track indication lamps on returned indication cycles |
-| 14 | Maintainer Call state |
-| 15 | Execution / completion |
+| 2–5 | Four-bit panel-column address |
+| 6–7 | Switch Normal and Reverse |
+| 8–10 | Signal Left, Stop/time locking, and Right |
+| 11–13 | Up to three track indication lamps (indication cycles only) |
+| 14 | Maintainer call |
+| 15 | Completion |
 
-An asserted function produces a **long 350 ms pulse**. An unasserted function produces a **short 110 ms pulse**. A 25 ms lamp-off interval separates pulses. Thus operators can distinguish station address and function state from the cadence instead of watching an arbitrary blink pattern. The desk retains the full AAR token snapshot internally; this display rhythm makes the high-speed MQTT transport behave like the intended 15-step office procedure.
+An asserted function produces a **long 350 ms pulse**. A dropped function produces a **short 110 ms pulse**. A 25 ms lamp-off interval separates pulses. Operators can read the address and each function from the cadence, instead of watching an arbitrary blink pattern. The desk keeps the full set of AAR tokens internally; the display only makes the fast MQTT code line look and feel like a stepping code line.
 
-#### 9.6 Machines, Eras, and Line Coding Protocols
+#### 9.6 Machines, Eras, and Code Lines
 
-Railroad **signal towers** housed specialized mechanical, electro-mechanical, and electronic interlocking machines and communication gear used to safely direct train traffic, track switches, and signals.
+Railroad **signal towers** housed mechanical, electro-mechanical, and electric interlocking machines and communication gear used to direct train traffic, switches and signals.
 
 - **Key Equipment Found in Railroad Towers**:
-  - **Interlocking Machines**: Large frames with physical or electric locking beds that forced operators to align tracks in a safe sequence before clearing a signal.
-  - **Mechanical Levers ("Armstrong" Plants)**: Heavy tall levers connected via underground pipes, bell cranks, and rods directly to track switches and derails.
-  - **Pistol-Grip and Miniature Lever Machines**: Compact electric or electro-pneumatic switches produced by companies like General Railway Signal (GRS) and Union Switch and Signal (US&S).
-  - **Model Boards / Track Indication Panels**: Visual display maps with small light bulbs showing track occupancy and block status.
-  - **Relays and Storage Batteries**: Electrical hardware stored on the ground floor to power circuits, track signal indicators, and electric switch motors.
+  - **Interlocking Machines**: Lever frames with mechanical or electric locking that forced operators to line switches in a safe sequence before clearing a signal.
+  - **Mechanical Levers ("Armstrong" Plants)**: Tall levers connected through pipes, bell cranks, and rods directly to switches and derails.
+  - **Pistol-Grip and Miniature Lever Machines**: Compact electric or electro-pneumatic interlocking machines built by General Railway Signal (GRS) and Union Switch & Signal (US&S).
+  - **Model Boards / Track Diagrams**: Track maps with small lamps that show track circuit occupancy.
+  - **Relays and Storage Batteries**: Electrical equipment, often on the ground floor, that powers track circuits, signals, and switch motors.
 
-Later-era electronic control desks allowed a single operator to manage multiple distant junctions over wire pairs.
+CTC machines, built from relays, let one dispatcher control many distant control points over a code line.
 
-##### Union Switch & Signal (US&S) Coded Systems:
-- **15-Step (US&S Form 504 / 506)**: 1930s–1950s workhorse (Southern Pacific, PRR, NYC). Ideal for 1-switch / 1-signal modular columns (~1.8s to 2.2s line cycle).
-- **20-Step (US&S Form 506-A / 508)**: Added capacity for auxiliary controls (Call-On buttons, snow melters, multiple maintainer calls).
-- **32-Step (US&S Type L Form 510)**: 1950s+ high-capacity consolidation for dense universal crossovers and multiple switches per station address (~4.5s line cycle).
-- **Continuous Scan (Electronic / Quindar)**: Solid-state scanning without time-code stepping delays.
+##### Code line types
+Each code line type defines its own steps, addressing and capacity. Do not carry the numbers of one type to another.
 
-##### General Railway Signal (GRS) Systems:
-- **Pistol-Grip Machines**: Early heavy-duty GRS Model 2 control consoles featuring distinctive pistol-grip levers for operating switches and signals.
-- **Type K and Type K2 Class M Coded Systems**: GRS two-wire line systems sending remote indications and controls using polarized line pulses.
-- **NX (Entrance-Exit) Systems**: Introduced by GRS in 1937, this revolutionary relay-based control panel design allowed a dispatcher to set up a complete route simply by pushing an entrance button and an exit button, with the machine automatically lining all intermediate switches and signals.
+- **US&S 506 time code** (the code line type of the SPCoast CTC machine):
+  - One code has **16 steps**: 1 conditioning step, 7 station selection steps, 7 function steps, and 1 delivery step.
+  - A field station on 506 or 506A carries **7 controls and 7 office indications**.
+  - One 506 code line serves up to **35 field stations**.
+  - 506C carries 7 controls and 35 office indications for each field station.
+- **US&S 514**: described as similar to the 506, with 35 field locations.
+- **Earlier Union time code**: a 1937 article describes a "Union time-code C.T.C. system" on a "single series circuit of two wires". A 1937 description of an earlier Union time code says that a control code had 14 impulses. Step counts changed from system to system.
+- **GRS systems**: GRS named its coded systems by letter (Type F, H, J and K) and sold them under names such as SyncroStep and SyncroScan. Its consoles included the NX and the Traffic Master. Their steps and formats differ from the US&S codes. (Do not confuse these with the GRS Model 5 family, 5A to 5H: those are electric switch machines, the appliances that a GRS Type K system controls.)
+- **NX (Entrance-Exit) machines**: A GRS route-setting design. The operator sets a complete route by pushing an entrance button and an exit button, and the machine lines the switches between them.
+- **MQTT (FieldUnit)**: one topic per field unit, so one field station; no capacity limit.
 
 #### 9.7 Switch Machine Physics: Lock Dog Dominance vs. Point Detection
 
-In a dual-control power switch machine (US&S M-23A/B or GRS Model 5D/E):
-$$\text{Correspondence } (\text{KR}) = \text{Points Closed (Detector Rod)} \ \mathbf{AND} \ \text{Lock Dog Seated (Lock Rod)}$$
-- For vital safety, the mechanical lock dog contacts dominate point detection: an unlocked switch **cannot** be in correspondence under any circumstances, even if the point rail is still touching the stock rail.
-- Within **~100 to 150 ms** of lock motor rotation, the escapement withdraws the lock dog from the lock rod notch.
-- The circuit controller contacts break *open* immediately, dropping `NWCR`/`RWCR` and `KR`.
-- On the panel, the correspondence lamp drops **DARK** (Out of Correspondence).
+In a power switch machine (for example a US&S M-23 or GRS Model 5):
+$$\text{Switch correspondence } (\text{KR}) = \text{Points Closed (Detector Rod)} \ \mathbf{AND} \ \text{Lock Dog Seated (Lock Rod)}$$
+- For vital safety, the lock contacts dominate point detection: an unlocked switch **cannot** be in switch correspondence, even if the point rail is still touching the stock rail.
+- As soon as the machine starts to unlock, the lock dog withdraws from the lock rod notch.
+- The circuit controller contacts open immediately, dropping `NWCR`/`RWCR` and `KR`.
+- On the CTC machine, the switch lamp goes **DARK** (out of switch correspondence).
 
-##### Dispatcher-controlled derail: 5
+##### Independent derail: 5
 
-This is a switch-like controlled appliance:
+This is a derail with its own lever and its own tokens:
 
-•  uniquely numbered like a switch;
-•  receives a dispatcher command;
-•  can occupy a route requirement;
-•  may have its own indication;
+- numbered like a switch;
+- receives a control from the dispatcher;
+- a route through it requires REVERSE (clear);
+- has its own office indications (`5NWK`, `5RWK`).
 
-##### Field-controlled dependent derail: 3D
+##### Dependent derail: 3D
 
-This is a dependent appliance:
+This is a derail that moves with its switch:
 
-•  tied to its governing switch, such as 3;
-•  has no independent dispatcher control;
-•  may contribute a field-state/feedback condition;
+- tied to its switch, such as 3, and always in the same position;
+- has no lever and no tokens of its own;
+- the switch's `3NWK` and `3RWK` require both machines in switch correspondence.
 
-It is a switch-dependent field appliance.
+#### 9.8 A Natural Timeline for Fast-Clock Model Railroad Operations
 
-#### 9.8 The Natural Timeline for Fast-Clock Model Railroad Operations
+On the prototype, a code took seconds to step out, the switch took seconds to move, and the office indication took seconds to step back.
+On a model railroad with fast clocks and compressed distances, that full wait feels sluggish. Instantaneous network delivery, however, feels synthetic.
 
-On model railroads where fast clocks and distance compression are standard, a full prototype 11-second cycle (4s code out + 3s motor transit + 4s code back) feels sluggish. However, instantaneous network delivery feels synthetic.
+A suggested cadence for fast-clock layout operations (a model design):
 
-The natural operational cadence for fast-clock layout operations:
-
-| Phase | Operational Duration | What Happens Physically | What You See on the Desk |
+| Phase | Duration | What Happens Physically | What You See on the CTC Machine |
 | :--- | :--- | :--- | :--- |
-| **1. Outbound CodeLine Stepping** | **1.2s to 1.8s** | Office stepper relays transmit address and function pulses. | **Existing lamp stays lit.** Code button released. Stepper relays clatter. |
-| **2. Field Reception & Lock Dog Pull** | **~150ms** | Field execution relay fires. Motor withdraws lock dog. | Lock contacts open $\implies$ **Existing lamp drops DARK**. |
-| **3. Point Travel** | **2.0s to 2.8s** | Motor drives switch points across switch ties. | Both lamps **DARK** (Out of Correspondence / MOVING). |
-| **4. Seating & Inbound Indication Code** | **1.2s to 1.6s** | Points seat firmly; reverse lock dog seats into notch. Field transmits indication code back to office. | Points locked $\implies$ return code steps $\implies$ **New correspondence lamp illuminates**. |
+| **1. Outbound Control Code** | **1.2s to 1.8s** | Office steps out the address and function pulses. | **Old switch lamp stays lit.** Code button released. Stepper relays clatter. |
+| **2. Field Reception & Lock Dog Pull** | **~150ms** | Field unit accepts the control. Motor withdraws the lock dog. | Lock contacts open $\implies$ **Old switch lamp goes DARK**. |
+| **3. Point Travel** | **2.0s to 2.8s** | Motor drives switch points across the ties. | Both lamps **DARK** (out of switch correspondence / MOVING). |
+| **4. Seating & Inbound Office Indication** | **1.2s to 1.6s** | Points seat; the lock dog seats in the notch. The field sends the office indication code back. | Points locked $\implies$ return code steps $\implies$ **New switch lamp lights**. |
 
-Total elapsed time from button punch to new jewel: **~4.5 to 5.5 seconds**.
-This timeline provides the mechanical and electrical hesitation of prototype signaling while maintaining responsiveness for layout operating sessions.
+Total elapsed time from button press to new lamp: **~4.5 to 5.5 seconds**.
+This timeline gives the mechanical and electrical hesitation of prototype signaling while staying responsive for layout operating sessions.
 
 ---
 
-### 10. The CodeLine Taxonomy: Controls versus Indications
+### 10. The Code Line Taxonomy: Controls versus Office Indications
 
-Every token on the CodeLine falls into one of two safety classes:
-- **Vital (Safety-Critical)**: Affects train separation, switch points, and movement authority. Requires strict validation, correspondence checking, and fail-safe defaults.
-- **Non-Vital (Operational / Supervisory / Environmental)**: Auxiliary commands and alerts (Maintainer Call, snow melters, power loss). Cannot cause a collision or derailment. Bypasses interlocking locks.
+First, one fact about safety: **vital logic is in the field.** The code line and the CTC machine are not vital. The words "vital" and "non-vital" describe how the field unit processes a control, not the wire that carries it. Each control is in one of two classes:
+- **Vital control**: Can affect a safety protection (switches, signals, electric locks). The interlocking logic checks it before the field unit acts.
+- **Non-vital control**: Cannot affect a safety protection (maintainer call, snow melters). The interlocking logic does not check it against the locking.
 
-#### 10.1 CodeLine Control Taxonomy (Office to Field)
+Office indications carry the same class column in the tables below. It names the class of the function they report.
 
-| Domain | Control Mnemonic | Prototype Function | Safety Class | Precondition / Safety Checks |
+FieldUnit's `AarTextCodec` carries switch, signal, electric lock and maintainer call controls, and switch, track circuit, signal, electric lock and maintainer call office indications. Rows marked † are prototype examples with no FieldUnit token today.
+
+#### 10.1 Control Taxonomy (Office to Field)
+
+| Domain | Control Token | Prototype Function | Safety Class | Precondition in the Field Unit |
 |---|---|---|---|---|
-| **Switch** | `1NWS` | Command Switch 1 Normal | **VITAL** | Must satisfy `WLR` (detector lock `1TR` vacant, route free, no active approach time-lock). |
-| **Switch** | `1RWS` | Command Switch 1 Reverse | **VITAL** | Must satisfy `WLR` (detector lock `1TR` vacant, route free, no active approach time-lock). |
-| **Signal** | `2NGS` / `2L` | Clear Signal 2 North/Left | **VITAL** | Must satisfy `HR` (switches in `KR`, blocks `TR` clear, opposing held in `ASR`). |
-| **Signal** | `2SGS` / `2R` | Clear Signal 2 South/Right | **VITAL** | Must satisfy `HR` (switches in `KR`, blocks `TR` clear, opposing held in `ASR`). |
-| **Signal** | `2HS` | Force Signal 2 Stop / Cancel | **VITAL** | Always accepted; trips `ASR` approach locking if train is approaching. |
-| **Electric Lock**| `7WLS` | Release Electric Switch Lock 7 | **VITAL** | Mainline signals over switch 7 must be at Stop and approach timer expired. |
-| **Fleeting** | `2FS` | Toggle Fleeting on Signal 2 | **NON-VITAL** | Informational; conditions `FSR` stick bypass. |
-| **Call-On** | `2COS` | Authorize Low-Speed Call-On | **VITAL** | Requires explicit dispatcher button; allows `RESTRICTING` into occupied block. |
-| **Maintainer** | `MC1S` | Maintainer Call Lamp ON/OFF | **NON-VITAL** | Always accepted immediately; zero safety interlocks. |
-| **Auxiliary** | `SNOWS` | Switch Heater / Snow Melter | **NON-VITAL** | Always accepted; environmental auxiliary. |
-| **Auxiliary** | `GENS` | Backup Generator Start/Stop | **NON-VITAL** | Always accepted; environmental auxiliary. |
+| **Switch** | `1NWS` | Control Switch 1 Normal | Vital | Must satisfy `WLR` (OS track circuit `1T1` vacant, no route lock, no time locking, no electric lock). |
+| **Switch** | `1RWS` | Control Switch 1 Reverse | Vital | Must satisfy `WLR` (OS track circuit `1T1` vacant, no route lock, no time locking, no electric lock). |
+| **Signal** | `2NGS` / lever `2L` | Clear Signal 2 LEFT | Vital | Signal clears only when the route checks pass (switches in `KR`, route track circuits clear, opposing signals held). |
+| **Signal** | `2SGS` / lever `2R` | Clear Signal 2 RIGHT | Vital | Signal clears only when the route checks pass (switches in `KR`, route track circuits clear, opposing signals held). |
+| **Signal** | `2HS` | Put Signal 2 at Stop | Vital | Always accepted. If the approach track circuit is occupied, time locking runs. |
+| **Electric Lock**| `7WLS` | Release Electric Lock 7 | Vital | Every signal must be at Stop and no time locking may run. |
+| **Fleeting** † | `2FS` | Turn Fleeting On for Signal 2 | Vital | Conditions the `FSR` stick bypass. |
+| **Call-On** † | `2COS` | Call-On (Restricting) | Vital | Allows `RESTRICTING` into an occupied track circuit. |
+| **Maintainer** | `MC1S` | Maintainer Call ON/OFF | Non-vital | Applied at once; no locking checks. |
+| **Auxiliary** † | `SNOWS` | Switch Heater / Snow Melter | Non-vital | Applied at once. |
 
-#### 10.2 CodeLine Indication Taxonomy (Field to Office)
+#### 10.2 Office Indication Taxonomy (Field to Office)
 
-| Domain | Indication Mnemonic | Prototype Meaning | Safety Class | Source of Truth |
+| Domain | Office Indication Token | Prototype Meaning | Safety Class | Source in the Field Unit |
 |---|---|---|---|---|
-| **Switch** | `1NWK` | Switch 1 Locked in Normal | **VITAL** | `1NWCR` circuit controller contact closed. |
-| **Switch** | `1RWK` | Switch 1 Locked in Reverse | **VITAL** | `1RWCR` circuit controller contact closed. |
-| **Switch** | `1OOK` / Transit | Switch 1 Out of Correspondence | **NON-VITAL** | Derived: both `NWK` and `RWK` are 0 (in motion or failed). |
-| **Track** | `1T1K` | Track Circuit 1T1 Occupied | **VITAL** | `1TR` track relay dropped (wheels shunting rails). |
-| **Track** | `1SAK` | Approach Block 1SA Occupied | **VITAL** | `1SATR` track relay dropped. |
-| **Signal** | `2NGK` | Signal 2 Northward Permissive | **VITAL** | Signal lamp current sensor verifies green/yellow lit. |
-| **Signal** | `2SGK` | Signal 2 Southward Permissive | **VITAL** | Signal lamp current sensor verifies green/yellow lit. |
-| **Signal** | `2TEK` | Signal 2 Time Lock Running | **NON-VITAL** | `2TER` timer relay picked up (drives panel blinking light). |
-| **Electric Lock**| `7WLK` | Electric Lock 7 Unlocked | **VITAL** | Proves lock solenoid is energized and points can move. |
-| **Maintainer** | `MC1K` | Maintainer Call Lamp Lit | **NON-VITAL** | Current sensor on maintainer call lamp fixture. |
-| **Power** | `PORK` | Power Off (Commercial AC Loss) | **NON-VITAL** | Commercial AC power loss relay (`POR` dropped, running on battery). |
-| **Security** | `DOORK` | Bungalow Door Opened | **NON-VITAL** | Door intrusion contact switch. |
+| **Switch** | `1NWK` | Switch 1 Normal, in switch correspondence | Vital | `1NWCR` picked up. |
+| **Switch** | `1RWK` | Switch 1 Reverse, in switch correspondence | Vital | `1RWCR` picked up. |
+| **Switch** | (no token) | Switch 1 out of switch correspondence | — | Both `1NWK` and `1RWK` dropped (in motion or failed). |
+| **Track** | `1T1K` | OS Track Circuit 1T1 Occupied | Vital | `1TR` track relay dropped (wheels shunting rails). |
+| **Track** | `1SAK` | Approach Track Circuit 1SA Occupied | Vital | `1SATR` track relay dropped. |
+| **Signal** | `2NGK` | Signal 2 Cleared LEFT | Vital | `2HSR` holds LEFT. |
+| **Signal** | `2SGK` | Signal 2 Cleared RIGHT | Vital | `2HSR` holds RIGHT. |
+| **Signal** | `2TEK` | Time Locking Runs at Signal 2 | Vital | The time-locking timer runs (`ASR()` of signal 2 is false). |
+| **Electric Lock**| `7WLK` | Electric Lock 7 Released | Vital | The field unit released the lock. |
+| **Maintainer** | `MC1K` | Maintainer Call On | Non-vital | The field unit's maintainer call state. |
+| **Power** † | `PORK` | Power Off (Commercial AC Loss) | Non-vital | A power-off relay dropped; running on battery. |
+| **Security** † | `DOORK` | Bungalow Door Open (modeling idea) | Non-vital | Door contact. |
 
-#### 10.3 The Non-Vital Execution Boundary Rule
-When a `ControlTransaction` arrives at a FieldUnit:
-1. **Vital commands** pass through the interlocking safety checks. If a switch is locked, its movement command is rejected.
-2. **Non-Vital commands** (such as Maintainer Call `MC1S`) execute immediately regardless of interlocking lock state.
-   This guarantees that a dispatcher can always summon a maintainer even if a derailment or broken rail has locked down the vital interlocking logic.
+#### 10.3 The Two Classes of Control
+When a `ControlTransaction` arrives at a field unit, two rules apply:
+1. **A malformed transaction is ignored as a whole.** A transaction is malformed when it is incomplete, contains unknown or corrupted data, or fails a structural check of its code line. The field unit ignores the controls of both classes, updates its error counters, and sends office indications of its current, unchanged state. A UDP packet with a bad checksum behaves the same way.
+2. **A valid transaction that is unsafe has every vital control ignored together.** If acting on the transaction would violate a safety protection, the field unit ignores every vital control in it. It does not act on the safe ones and skip the unsafe one. If a switch is locked, no vital control in that transaction acts, including the free switches. The field unit acts on every non-vital control (such as Maintainer Call `MC1S`). It sends no refusal; the office learns the result from the office indications.
+
+This lets a dispatcher call a maintainer even when a derailment or broken rail has locked down the interlocking.
+
+The current code differs: `InterlockingPlant::applyControlTransaction()` still applies the maintainer call when it marks the transaction invalid, and skips only the unsafe control. See FieldUnit `docs/adr/0002-control-transaction-classes.md`.
 
 ---
 
@@ -676,10 +746,11 @@ Rule 251 double track from the north (`MT1` and `MT2`) converges into single tra
 Switch 3 is operated as a **Spring Switch (`[SS]`)**: Southbound trains on `MT1` make a trailing-point move through the spring points onto single track without needing motor alignment.
 Northbound trains on single track `1NAT` face signal `2nab` at Switch 3:
 - Moving straight onto `MT2` follows the current of traffic (right-hand running).
-- Diverging onto `MT1` enters the track **against the current of traffic (Rule 251 reverse running)**, restricting the aspect to `DIVERGING_RESTRICTING`.
-Switch 1 provides access to the Beet Loader spur, protected by an automatic safety derail (`SW5`).
+- Diverging onto `MT1` enters the track **against the current of traffic**, which limits the aspect to `DIVERGING_RESTRICTING`.
 
-Every block boundary is separated by an **Insulated Rail Joint (IRJ)** (`][`), and signals face the approaching engineer on the engineer's right-hand side using standard schematic symbols:
+Switch 1 provides access to the Beet Loader spur, protected by derail 5. In the sketch, derail 5 follows switch 1 in the same position: switch 1 Normal gives derail 5 Normal (derailing); switch 1 Reverse gives derail 5 Reverse (clear).
+
+Every track circuit boundary is an **Insulated Rail Joint (IRJ)** (`][`), and signals face the approaching engineer on the engineer's right-hand side using standard schematic symbols:
 - **`|-o`** (or **`|-oo`**): Below track, lamps face left (governs Eastward / Southbound moves).
 - **`o-|`** (or **`oo-|`**): Above track, lamps face right (governs Westward / Northbound moves).
 
@@ -699,59 +770,63 @@ Every block boundary is separated by an **Insulated Rail Joint (IRJ)** (`][`), a
 ```
 
 ### 11.2 The Interlocking Control Table
-The route rules read directly in railroad terms:
+The route rules read directly in railroad terms (from `examples/CP_Corporal/CP_Corporal.ino`):
 
 ```cpp
-// Route 1: Northbound from Single Track to MT2 right-hand running
+// Route 1: Northbound Single Track to MT2 right-hand running (SW1=N, SW3=N)
 cp.route("MT-NB")
-  .governedBy(sig2, DirectionAuthority::LEFT)
-  .displays(mast2NAB, Indication::CLEAR)
-  .aligns({ {sw1, SwitchPosition::NORMAL},
-            {sw3, SwitchPosition::NORMAL} })
-  .clears({ tc1T1, tc3T1, tc2SAT });
+  .governedBy("2", DirectionAuthority::LEFT)
+  .displays("2NAB", Indication::CLEAR)
+  .aligns({ {"1", SwitchPosition::NORMAL},
+            {"3", SwitchPosition::NORMAL} })
+  .clears({ "3T1", "1T1", "2SAT" })
+  .entrance("3T1");
 
-// Route 2: Northbound from Single Track to MT1 diverging reverse running
-cp.route("MT-SB")
-  .governedBy(sig2, DirectionAuthority::LEFT)
-  .displays(mast2NAB, Indication::DIVERGING_RESTRICTING)
-  .aligns({ {sw3, SwitchPosition::REVERSE} })
-  .clears({ tc3T1, tc1SAT });
+// Route 2: Northbound Single Track to MT1 reverse running (SW3=R)
+cp.route("MT-NB-REV")
+  .governedBy("2", DirectionAuthority::LEFT)
+  .displays("2NAB", Indication::DIVERGING_RESTRICTING)
+  .aligns({ {"3", SwitchPosition::REVERSE} })
+  .clears({ "3T1", "1SAT" })
+  .entrance("3T1");
 
-// Route 3: Southbound MT1 through Switch 3 onto Single Track
+// Route 3: Southbound MT1 through switch 3 onto single track (SW3=R)
 cp.route("SB-MT")
-  .governedBy(sig2, DirectionAuthority::RIGHT)
-  .displays(mast2SA, Indication::CLEAR)
-  .aligns({ {sw3, SwitchPosition::REVERSE} })
-  .clears({ tc3T1, tc1NAT })
-  .approaching(tc2NAT);
+  .governedBy("2", DirectionAuthority::RIGHT)
+  .displays("2SA", Indication::CLEAR)
+  .aligns({ {"3", SwitchPosition::REVERSE} })
+  .clears({ "3T1", "1NAT" })
+  .entrance("1SAT")
+  .approaching("2NAT");
 ```
 
-### 11.3 The CodeLine Wire Mapping
-The AAR control and indication bits are defined using sequential token streaming:
+### 11.3 The Code Line Token Mapping
+The AAR controls and office indications are declared in the order they travel on the code line:
 
 ```cpp
 codec.decodeControls({
-    decodeSwitch(sw1),   // 1NW, 1RW
-    decodeSwitch(sw3),   // 3NW, 3RW
-    decodeSwitch(sw5),   // 5NW, 5RW
-    decodeSignal(sig2),  // 2SG, 2NG, 2H
-    decodeSignal(sig4),  // 4SG, 4NG, 4H
-    decodeMaintainer("MC1")
+    decodeSwitch(cp.findSwitch("1")),          // 1NWS, 1RWS
+    decodeSwitch(cp.findSwitch("3")),          // 3NWS, 3RWS
+    decodeSwitch(cp.findSwitch("5")),          // 5NWS, 5RWS
+    decodeSignal(cp.findSignalControl("2")),   // 2SGS, 2NGS, 2HS
+    decodeSignal(cp.findSignalControl("4")),   // 4SGS, 4NGS, 4HS
+    decodeMaintainer(0)                        // MC1S
 });
 
 codec.encodeIndications({
-    encodeSwitch(sw1),   // 1NWK, 1RWK
-    encodeSwitch(sw3),   // 3NWK, 3RWK
-    encodeSwitch(sw5),   // 5NWK, 5RWK
-    encodeTrack(tc1T1),  // 1T1
-    encodeTrack(tc3T1),  // 3T1
-    encodeTrack(tc5T1),  // 5T1
-    encodeTrack(tc1NAT), // 1NAT
-    encodeTrack(tc2NAT), // 2NAT
-    encodeTrack(tc1SAT), // 1SAT
-    encodeTrack(tc2SAT), // 2SAT
-    encodeSignal(sig2),  // 2SGK, 2NGK, 2TEK
-    encodeSignal(sig4)   // 4SGK, 4NGK, 4TEK
+    encodeSwitch(cp.findSwitch("1")),          // 1NWK, 1RWK
+    encodeSwitch(cp.findSwitch("3")),          // 3NWK, 3RWK
+    encodeSwitch(cp.findSwitch("5")),          // 5NWK, 5RWK
+    encodeTrack(cp.findTrackCircuit("1T1")),   // 1T1K
+    encodeTrack(cp.findTrackCircuit("3T1")),   // 3T1K
+    encodeTrack(cp.findTrackCircuit("5T1")),   // 5T1K
+    encodeTrack(cp.findTrackCircuit("1NAT")),  // 1NATK
+    encodeTrack(cp.findTrackCircuit("2NAT")),  // 2NATK
+    encodeTrack(cp.findTrackCircuit("1SAT")),  // 1SATK
+    encodeTrack(cp.findTrackCircuit("2SAT")),  // 2SATK
+    encodeSignal(cp.findSignalControl("2")),   // 2SGK, 2NGK, 2TEK
+    encodeSignal(cp.findSignalControl("4")),   // 4SGK, 4NGK, 4TEK
+    encodeMaintainer(0)                        // MC1K
 });
 ```
 
@@ -761,48 +836,50 @@ See the complete, working sketch in `examples/CP_Corporal/CP_Corporal.ino`.
 
 ## Act VI: Beyond the Basics (Modeling the Extended Cast on Your Layout)
 
-Bruce Chubb's classic *Railroader's Application Handbook* showed how adding small realistic operating appliances turns an ordinary layout into a living railroad.
+Bruce Chubb's *Railroader's C/MRI Application Handbook* (Volume 1, Enhancements; Volume 2, Signaling) is a good companion for this part: small operating appliances turn an ordinary layout into a living railroad.
 
 ### 12. Switch Heaters (`SNOW` with Orange LEDs)
-In snow territory, switch points freeze solid without heaters.
+In snow country, switch points freeze solid without heaters.
 - **On the Model**: Mount two miniature flickering orange or amber LEDs under the ties along the stock rails of main track switches.
-- **In FieldUnit**: Bind an `OutputBit` to the switch heater relay.
-- When winter operating sessions begin, the dispatcher asserts `SNOWS`.
+- **In FieldUnit**: FieldUnit has no snow-melter token today. Drive the LEDs from an `OutputBit` in your sketch.
+- When winter operating sessions begin, the dispatcher turns the heaters on.
 - The ties glow with realistic gas fire!
 
-### 13. Electric Switch Locks (`WL` / `ESL`) on the Fascia
+### 13. Electric Switch Locks (`WL`) on the Fascia
 For industrial spurs or hand-operated crossovers:
 - Mount a miniature toggle switch and a bi-color LED (Red/Green) on the layout fascia.
 - The train crew cannot throw the switch stand until they radio the dispatcher for a release.
-- The dispatcher transmits `7WLS = UNLOCK`.
-- The fascia LED turns green, and FieldUnit energizes the virtual `WLR` relay.
-- The crew flips the fascia toggle to throw the switch, and mainline signals drop to Stop immediately.
+- The dispatcher codes `7WLS` (release).
+- The field unit releases the lock only when every signal is at Stop and no time locking runs. It then reports `7WLK` (released), and `7WLR` can pick up.
+- The fascia LED turns green, and the crew flips the fascia toggle to throw the switch.
 
-### 14. Maintainer Call (`MC`) and Wayside Party-Line Telephones
-On pre-radio or secondary mainlines, trains had no radios in locomotive cabs:
-- The dispatcher turned on the **Maintainer Call lamp (`MC1S`)** at the next control point to summon the train crew.
-- **The Operating Rule**: *"When a white light is displayed at a control point, trains must stop and a member of the crew must immediately call the train dispatcher."*
+### 14. Maintainer Call (`MC`) and Wayside Telephones
+On the prototype, the maintainer call did what its name says: it called the signal maintainer to a location. A 1959 CTC machine had a "maintainer's call" control, with a maintainers' call lamp at each location.
+- The dispatcher codes **`MC1S`** to light the Maintainer Call lamp at the location.
 - Mount a tiny white 0402 SMD LED on the peak of the bungalow roof or on the signal mast.
-- Mount a working telephone handset (or magneto phone) on the fascia.
-- When the white light flashes, the train crew stops their train, picks up the handset, and calls the dispatcher for orders!
 
-### 15. Bungalow Diagnostic Telemetry (`POR` and `DOOR`)
-Modern microprocessor field units monitor their own health:
-- If a local I2C expander chip fails to acknowledge on the bus, or if a switch motor runs past its motion timeout, FieldUnit sets the `DOOR` or `POR` alarm bit on the CodeLine.
-- The dispatcher console immediately sounds an equipment trouble alarm.
-- The dispatcher calls out the signal maintainer to investigate the bungalow.
+**A modeling idea (not a prototype rule):** on a layout with no radios, you can use the same lamp to call an operator to a fascia telephone.
+- Mount a working telephone handset (or magneto phone) on the fascia.
+- When the white light shows, the operator picks up the handset and calls the dispatcher.
+
+### 15. Bungalow Telemetry (Power-Off and Door)
+A real CTC machine could show a power-off indication for each location.
+FieldUnit has no power-off or door token today. If you add one:
+- Make it a non-vital function, with its own token.
+- A power-off indication means a loss of power. A door indication means an open door. Do not reuse either one for other faults, such as an I2C expander that stops answering or a switch motor that runs past its travel timeout; give each fault its own name.
+- The dispatcher then calls out the signal maintainer to investigate the bungalow.
 
 ### 16. Defect Detectors (Hot Box and Dragging Equipment)
-Mainline railroads install automated defect detectors every 15 to 25 miles:
+Main line railroads install automated defect detectors at intervals along the line:
 - Place two optical sensors between the ties along a straight stretch of track.
 - An Arduino or audio module (e.g. DFPlayer) counts axles as the train rolls overhead.
-- Once the caboose passes, the module broadcasts an automated radio voice message through a layout speaker:
+- Once the train passes, the module plays an automated radio voice message through a layout speaker:
   *"SP Detector, Milepost 81.2. No defects. Total axles: 48. Temperature: 68 degrees. Detector out."*
 
 ---
 
 ## Summary
 You now hold the keys to the bungalow.
-You understand the 6 relays of a switch, the 5 relays of a signal, the 4 locking regimes, and the asynchronous ground truth of the CodeLine.
+You understand the 6 relays of a switch, the 5 relays of a signal, the 4 locking regimes, the free lever of a CTC machine, and the asynchronous truth of the code line.
 
-Proceed to **[Tutorial 1: Drawing Your Signaling Track Plan](tutorials/01_drawing_your_signaling_track_plan.md)** to begin constructing your first plant.
+Proceed to **[Tutorial 1: Drawing Your Signaling Track Plan](tutorials/01_drawing_your_signaling_track_plan.md)** to begin constructing your first interlocking plant.

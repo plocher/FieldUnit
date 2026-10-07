@@ -44,21 +44,28 @@ Always mark the timetable directions at the ends of your diagram:
 ### Rule 2: Place Insulated Rail Joints and Optical Fouling Sensors
 
 A common model railroad error is placing rail gaps in the wrong location around a switch.
-You must insulate the switch into its own dedicated detection block called the **Island** or **OS Block** (On-Sheet / Occupied Section):
+You must insulate the switch into its own track circuit, the **OS track circuit**.
+It covers the **OS section**, the track between the opposing signals of the control point.
+"OS" means "on sheet": the dispatcher's record of a train that passes a location.
+FieldUnit uses the OS track circuit to detector-lock the switch.
 
 ```
-       Approach Block 1SA           Island Block 1T1           Exit Block 1NA
+   Approach track circuit 1SA    OS track circuit 1T1       Track circuit 1NA
    ══════════════════════════][═════════════\══════════════][════════════════
                                              \
                                               \════════════][════════════════
-                                              (d)              Exit Block 2NA
+                                              (d)              Track circuit 2NA
                                         Optical Sensor (d)
                                         at Fouling Point
 ```
 
+A track circuit is an electrical circuit in the rails that detects a train.
+A block is the length of track between consecutive signals, and it can contain several track circuits.
+This tutorial names track circuits, not blocks.
+
 #### Why Gaps Must Clear the Fouling Point
 If a freight car stands on the switch frog or siding curve, it physically blocks ("fouls") the adjacent track.
-The insulated rail joints on both branches must sit far enough past the frog so that a car inside the island block is detected before it collides with a train on the adjacent track.
+The insulated rail joints on both branches must sit far enough past the frog so that a car inside the OS section is detected before it collides with a train on the adjacent track.
 
 #### The Model Railroad Reality: Optical Fouling Sensors and Hysteresis
 On a real railroad, all wheelsets are steel and conduct track current.
@@ -76,12 +83,13 @@ Without filtering, the sensor flickers to `VACANT` between cars, which would dro
 FieldUnit solves this with a built-in, non-blocking **dropout delay** (hysteresis):
 - Shunting to `OCCUPIED` happens **instantly** (vital safety: zero delay when a train arrives).
 - Clearing to `VACANT` is delayed by a configured hold-off time (for example, 2000 ms).
-- If another car body covers the sensor before 2000 ms expires, the timer resets and the block stays continuously `OCCUPIED`.
+- If another car body covers the sensor before 2000 ms expires, the timer resets and the track circuit stays continuously `OCCUPIED`.
 
 In FieldUnit, configure the dropout delay directly when declaring the track circuit:
 
 ```cpp
-// Add island block with 2000 ms dropout hold-off delay
+// `cp` is the InterlockingPlant that Tutorial 2 declares.
+// Add the OS track circuit of switch 1 with a 2000 ms dropout hold-off delay
 auto tc1T1 = cp.addTrackCircuit("1T1", /*dropoutDelayMs=*/2000);
 ```
 
@@ -89,31 +97,33 @@ auto tc1T1 = cp.addTrackCircuit("1T1", /*dropoutDelayMs=*/2000);
 
 ### Rule 3: Place and Name Your Signals
 Wayside signals protect the entrances to the interlocking.
-Place a signal at every entrance to the island block, outside the insulated rail joints:
+Place a signal at every entrance to the OS section, outside the insulated rail joints:
 
 ```
                                                            Signal 2LA
                                                               o-| (Dwarf)
   <== West ════════][═══════════════════════\══════════════][════════ East ==>
-                    1T1 Island               \
+                    1T1 OS section           \
                    |-oo                       \════════════][════════ Siding
                 Signal 2R                                      o-|
                (Two Heads)                                   Signal 2LB (Dwarf)
 ```
 
-#### Numbering Conventions: Panel Levers vs. Mileposts
+#### Numbering Conventions: Lever Order vs. Mileposts
 There are two common ways to number switches and signals:
 
-1. **Panel Lever Numbering (Classic US&S / GRS)**:
-   Switches and signals are numbered sequentially along the CTC panel:
-   - Signals governing movement to the **Right (Eastward)** receive the **`R`** suffix (`2R`).
-   - Signals governing movement to the **Left (Westward)** receive the **`L`** suffix (`2LA`, `2LB`).
-   - Suffix **`A`** denotes the main track; suffix **`B`** denotes the siding or diverging route.
+1. **Lever Order**:
+   Switches and signals are numbered in order along the CTC machine.
+   AAR names put `R` or `L` after the lever number to give the lever position, as in `10R` and `10L`.
+   Letters `A`, `B`, `C` after that name functions of the lever position.
+   In this tutorial:
+   - A signal that governs movement to the **Right (Eastward)** has the **`R`** suffix (`2R`).
+   - A signal that governs movement to the **Left (Westward)** has the **`L`** suffix (`2LA`, `2LB`).
+   - Letter **`A`** is the main-track function; letter **`B`** is the siding function.
 
-2. **Milepost Numbering (Southern Pacific / Western Roads)**:
-   Switches and signals use the physical timetable milepost location.
-   On the SP Coast Line, switches at CP Christopher (MP 77.8) are numbered `SW777` and `SW781`.
-   Signals carry the milepost prefix with directional letters (for example, `782R` and `782L`).
+2. **Milepost Numbering**:
+   Switches and signals take their number from the milepost of their location.
+   On the SP Coast Line layout, Luchessa (about MP 78.3 to 79.9) has switches `783`, `795` and `799` and signal `784`.
 
 FieldUnit supports both conventions because names are user-defined strings.
 
@@ -131,17 +141,17 @@ The mast requires multiple heads:
 ```
 
 The meaning of multiple heads depends on your railroad's signaling regime:
-- **Route Signaling**: Heads display the assigned track path.
-  The top head displays aspects for the main route; the lower head displays aspects for the diverging route.
-- **Speed Signaling**: Heads display allowable speed zones through the plant.
-  The top head governs maximum track speed; the lower head governs medium or slow speed through turnouts.
+- **Route Signaling**: The signal shows the assigned track path.
+  The top head carries the main route; the lower head carries the diverging route.
+- **Speed Signaling**: The signal shows the allowed speed through the plant.
+  The top head carries maximum track speed; the lower head carries medium or slow speed through turnouts.
 
-Trailing-point entrances (where two tracks merge into one) only need to convey a subset of indications (leaving the track).
+Trailing-point entrances (where two tracks merge into one) only need to convey a subset of signal indications (leaving the track).
 Therefore, trailing entrances typically use a single-head mast or dwarf signal (`2LA`, `2LB`).
 
 ---
 
-## 3. The Complete Working Example: CP End-of-Siding
+## 3. The Complete Working Example: A Single-Track Passing Siding
 
 Combining these rules gives the complete signaling diagram for a single-track passing siding:
 
@@ -151,7 +161,7 @@ Combining these rules gives the complete signaling diagram for a single-track pa
                                                       Signal 2LA
                                                          o-| (Dwarf)
   Main Track <==== 1SA ══════════][═════════════════\══════════════][════ 1NA ====>
-                  (Approach)          1T1 Island     \                  (Exit Block)
+                  (Approach)          1T1 OS section \
                                  |-oo                 \
                               Signal 2R                \
                              (Two Heads)                \
@@ -168,24 +178,24 @@ Combining these rules gives the complete signaling diagram for a single-track pa
 From this completed diagram, write down the three tables that FieldUnit requires:
 
 ### 1. Switches Table
-| Switch ID | Normal Path | Reverse Path | Island Track Circuit | Speed Limit |
+| Switch ID | Normal Path | Reverse Path | OS Track Circuit | Speed Limit |
 |---|---|---|---|---|
-| `SW1` | Straight to Main | Diverging to Siding | `1T1` | #10 Turnout (Slow / 15 mph) |
+| `1` | Straight to Main | Diverging to Siding | `1T1` | #10 Turnout (Slow / 15 mph) |
 
 ### 2. Track Circuits Table
 | Track Circuit ID | Role | Physical Location | Dropout Delay |
 |---|---|---|---|
-| `1T1` | Island / OS Block | Over Switch 1 points and frog | 2000 ms (Optical + DCCOD) |
-| `1SA` | Approach Circuit | Mainline west of Signal 2R | 0 ms (Current detection) |
-| `1NA` | Exit / Advance Block | Mainline east of Switch 1 | 0 ms (Current detection) |
-| `2NA` | Exit Block | Siding east of Switch 1 | 0 ms (Current detection) |
+| `1T1` | OS track circuit | Over Switch 1 points and frog | 2000 ms (Optical + DCCOD) |
+| `1SA` | Approach track circuit | Mainline west of Signal 2R | 0 ms (Current detection) |
+| `1NA` | Track circuit east of the OS section | Mainline east of Switch 1 | 0 ms (Current detection) |
+| `2NA` | Track circuit east of the OS section | Siding east of Switch 1 | 0 ms (Current detection) |
 
 ### 3. Signal Masts Table
-| Mast ID | Type | Facing Direction | Governing Authority | Heads |
+| Mast ID | Type | Facing Direction | Signal Control | Heads |
 |---|---|---|---|---|
-| `2R` | Two-Head Mast | Eastward (Right) | `SIG2` (Direction `RIGHT`) | Top: Main, Lower: Siding |
-| `2LA` | Dwarf Mast | Westward (Left) | `SIG2` (Direction `LEFT`) | Single Head: Main to Single |
-| `2LB` | Dwarf Mast | Westward (Left) | `SIG2` (Direction `LEFT`) | Single Head: Siding to Single |
+| `2R` | Two-Head Mast | Eastward (Right) | `2` (Direction `RIGHT`) | Top: Main, Lower: Siding |
+| `2LA` | Dwarf Mast | Westward (Left) | `2` (Direction `LEFT`) | Single Head: Main to Single |
+| `2LB` | Dwarf Mast | Westward (Left) | `2` (Direction `LEFT`) | Single Head: Siding to Single |
 
 ---
 
@@ -193,7 +203,7 @@ From this completed diagram, write down the three tables that FieldUnit requires
 
 With this data collection sheet completed:
 1. You know every track circuit and dropout delay to instantiate.
-2. You know which switch is detector-locked by which island block.
+2. You know which switch is detector-locked by which OS track circuit.
 3. You know the exact routes to write in your Interlocking Control Table.
 
 Proceed to **[Tutorial 2: Building Your First Control Point](02_building_your_first_cp.md)** to turn this plan into working C++ code.
