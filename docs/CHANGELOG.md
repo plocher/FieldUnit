@@ -5,6 +5,10 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- **Derail polarity now follows the prototype (breaking)**:
+  - Derail `NORMAL` is the derailing position (on the rail). `REVERSE` is clear. Derails rest in `NORMAL`.
+  - A dependent derail (`<switch>D`) takes the same position as its switch. The inverse pairing and `Switch::inversePosition` are removed.
+  - Routes through an independent derail must align it `REVERSE`. `NWS`/`RWS`/`NWK`/`RWK` token names are unchanged; their meaning for a derail is reversed, so retained derail indications are stale.
 - **Interlocking naming and case-insensitive station lookup**:
   - `spcoast_ctc` desk station `CP_Luchessa` is now `Luchessa` (the interlocking; `CP Luchessa`, `CP Gilroy` and `CP Carnadero` are its controlled points, one per column 5–7). MQTT topics become `ctc/SPCoast/codeline/Luchessa/...`. `tools/test_ctc_desk.py` follows.
   - `cTcMachine::addStation` / `findStation` compare names case-insensitively (`strcasecmp`). Only case is folded, so an interlocking and a CP with the same base name stay distinct. New test `testStationLookupFoldsCaseOnly`.
@@ -12,6 +16,7 @@ All notable changes to the FieldUnit library will be documented in this file.
   - `configureDesk()` Column 5-7 station now uses the appliance names compiled from the KiCad schematic (`profiles/spcoast_south/cps/generated/CP_Luchessa.json` in FieldUnit-Subdivision) instead of the placeholder legacy names: switches `1`/`3`/`5` -> `783`/`795`/`799`, signal `2` -> `784`, track lamps `1T1`/`3T1` -> `783T1`/`795T1`. Dependent derail `795D` has no independent lever (combined with switch `795`'s `KR`).
 
 ### Fixed
+- **Example sketches compile under arduino-cli again**: `CP_Corporal`, `CP_Christopher` and `FieldUnit_Tracer` now forward-declare every function ahead of any `#ifdef`. Arduino's prototype generator fails on functions defined inside conditionals.
 - **Stale names after the `ControlPoint` → `InterlockingPlant` rename and Luchessa cutover**:
   - Comments in `src/Switch.h` and tests now say `InterlockingPlant`.
   - `tools/test_ctc_desk.py` `--walk` uses the KiCad-derived CP_Luchessa tokens (`783`/`795`/`799`, signal `784`, `783T1K`/`795T1K`).

@@ -230,15 +230,15 @@ public:
      *
      * Naming rules:
      * - "5" (unique id) => dispatcher-controlled derail (CodeLine citizen).
-     * - "1D" when switch "1" already exists => dependent derail inverse-paired to "1",
+     * - "1D" when switch "1" already exists => dependent derail paired to "1" (same position),
      *   hidden from CodeLine as its own lever/indication step.
      * - "1D" when switch "1" does not exist => configuration error (nullptr).
      *   A *D name never falls through to an independent derail.
      *
      * Optional osTrackCircuitName creates/binds the derail island for detector lock.
      *
-     * Position vocabulary: NORMAL = clear/off-rail, REVERSE = on-rail/active.
-     * Independent and dependent derails rest fail-safe in REVERSE (on-rail).
+     * Position vocabulary (prototype): NORMAL = derailing (on the rail), REVERSE = clear.
+     * Independent and dependent derails rest fail-safe in NORMAL (derailing).
      */
     Switch* addDerail(const char* name, const char* osTrackCircuitName = nullptr) {
         if (!name || name[0] == '\0') return nullptr;

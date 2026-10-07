@@ -23,6 +23,15 @@
 
 using namespace FieldUnit;
 
+// Explicit forward declarations.
+// Arduino's automatic prototype generator fails when functions are defined
+// inside #ifdef blocks. Declare every function here, ahead of any #ifdef.
+void configurePlant();
+void executeCycle(CodeLine& line, uint32_t nowMs);
+void configureHardwareDrivers();
+void samplePhysicalInputs(IOBus& bus, uint32_t nowMs);
+void drivePhysicalOutputs(IOBus& bus, uint32_t nowMs);
+
 // Interlocking Plant Instance
 InterlockingPlant cp("CP_Corporal");
 AarTextCodec codec;
@@ -140,7 +149,7 @@ void executeCycle(CodeLine& line, uint32_t nowMs) {
         rxBuffer[bytesRead] = '\0';
         ControlTransaction ctl;
         if (codec.decodeControls(rxBuffer, ctl)) {
-            // Safety Derail Interlock: SW5 derail tracks SW1 inversely
+            // Safety Derail Interlock: SW5 derail follows SW1 (same position)
             if (ctl.switchDemands[0] == SwitchDemand::NORMAL) {
                 ctl.switchDemands[2] = SwitchDemand::NORMAL; // Derail is derailing (closed)
             } else if (ctl.switchDemands[0] == SwitchDemand::REVERSE) {
