@@ -76,6 +76,7 @@ A read-only dictionary of typed keys in namespaces. Static keys resolve, most sp
 |---|---|---|
 | `era.*`, `rulebook.*` | the era and rulebook represented; which aspect each signal indication takes (Approach yellow or lunar…) | layout, plant |
 | `timing.*` | flash period, searchlight step, servo speed, fade, detector hold | profile, layout, drawing |
+| `motion.*` | servo angles and speed, direction of travel (`NormalIs`) | drawing, some layout |
 | `color.*` | named colours to RGB (`amber`, `lunar`…), era-appropriate | profile, layout |
 | `light.*` | gamma, brightness, night dimming | layout |
 | `clock.*` | time of day, daylight | runtime |
