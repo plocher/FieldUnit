@@ -8,17 +8,75 @@
 Terms follow `docs/GLOSSARY.md`.
 
 ## Decisions requested
+- R0. The design pattern for Appliance Drivers needs to be architected and designed.  The following "R*" requests begin to give shape to this subsystem, but are presented from a bottom-up and somewhat disjointed perspective.  What follows here is high level guidance and commentary for what needs to be incorporated into an acceptable design:
+  - Drivers are, at their core, transformers.  They transform what I'll call **AAR Appliance** Vocabulary, Attributes and Actions into **some other domain**'s Vocabulary, Attributes and Actions.
+  - All interactions with the modeled appliance are handled by an instance of a driver.  We might talk about a `color-position-light signal head driver for local digital I/O` or a `color-position-light signal head driver for local 12-bit PWM I/O `  as well as instances of a driver for `Signal 2 Mast 2SAB Head A` and `Signal 2 Mast 2SAB Head B`. 
+  - While both of these example drivers present the same surface shape to the Field- or Office-Unit ecosystem, their internal details differ because they are translating for different output domains.
+  - In the same way, we might postulate others: `lamp driver for local digital I/O` and `lamp driver for local 12-bit PWM I/O`.  As with the signal heads above, they would expose a common lamp-style surface to the ecosystem.  They would ALSO **use** target shapes that were similar to those used by their domain-peer signal heads - the digital and PWM I/O surfaces would be common.
+  - Drivers follow certain shape-patterns related to their role and kind and to the domain they are translating to/from.  Lamps have a common shape, signal heads another.  These shapes can be codified and reused/applied across design families.
+  - These codified shapes can be described by enumerating the
+    - internal state that the driver instance needs to maintain
+    - commands that this shape needs to support
+    - notifications that this shape needs to expose
+  - Examples:
+    - Lamp Appliance for a digital I/O domain
+      - Commands
+        - on
+        - off
+        - flicker(level)
+        - flash(rate)
+      - Attributes
+        - boolean: isOn
+        - level: Flicker
+        - rate: FlashRate
+      - Notifications
+        - Fault
+  
+    - A Lamp Appliance for a PWM domain
+      - All the behavior of the above digital I/O Lamp, plus
+        - fade_on(duration)
+        - fade_off(duration)
+        - brightness(level)
+        - level: currentBrightness
+  - Drivers need an environment in which to operate.  This environment supplies contextual data, utility functions and lifecycle support.
 
-- R1. A driver renders the vital result for its own appliance, or reports a raw observation, and nothing else. It never reads interlocking state (routes, locks, other appliances). Default: yes.
-- R2. A driver has three inputs: params (a transition of its own appliance's vital value), the appliance context (this symbol instance), the layout context (settings shared by the layout). Default: yes.
-- R3. Params are always a transition, `{previous, current, sinceMs}`, of one value type per appliance family. Default: yes.
-- R4. The Kind's driver owns the meaning of every appliance setting, polarity and direction included. In `begin()` it configures its channels through the IOBus; afterwards it works in asserted / not-asserted terms. Default: yes.
-- R5. The IOBus offers capabilities and configuration: it applies a request in the chip where the chip can, in software where the operation is generic, and refuses what it cannot do. Default: yes.
-- R6. A pin's direction comes from the drawing: the device or panel pin's KiCad electrical type says what that symbol does to its wire, and a programmable expander pin is configured as its complement. Default: yes.
-- R7. The appliance identity (name and place, e.g. the middle head of a three-head mast) is opaque to drivers and only passed through to library calls. Default: yes.
-- R8. `getHeadAppearance` is a pure library function, one overload per head technology, returning that technology's own head appearance type (a head shows a head appearance; the aspect is all of a signal's heads together, glossary §8). Default: yes.
-- R9. The layout context is one namespaced dictionary of typed keys, resolved plant → layout → era profile → library default, plus runtime keys; its vocabulary is fixed now and the dictionary grows. Its registry lives in FieldUnit-Subdivision (`schemas/context/keys.toml`) until the data-model schema moves into FieldUnit. Default: yes.
-- R10. Lifecycle: `begin` (configure), `drive` / `sample` (execute), `end` (release). Before `end`, the field unit renders the appliance's restrictive state; the driver only renders it. Default: yes.
+  - R0.questions:
+    1. How does the existing Role/Kind taxonomy fit into this model?
+    2. How does the existing symbol library and symbol naming fit?
+    3. What are the appliance shapes? ... names?  The target domain shapes? ... names?
+    4. do we need to evolve our existing naming now that we've poked at it here?
+
+- R1. A driver converts the demand vocabulary of the Office/Field Unit to that of its connected electro-mechanical device's requirements and vice-versa.
+    NOTE: This is "Translator" above.
+  
+- R2. A driver runs in an environment that includes rich context:
+  - appliance identity,
+  - activity record (previous state...)
+  - desired action (desired state), 
+  - attributes from this appliance/symbol instance
+  - layout configuration settings.
+  
+  NOTE: This is the ecosystem above
+
+- R3. merged into R2
+  
+- R4. The driver is responsible for all behaviors impacted by the appliance context, such as polarity and direction, initialization, etc. In it's `begin()` it configures its channels through the IOBus; afterwards it works in asserted / not-asserted terms. 
+   
+   NOTE: This last makes no sense in the context of an IOBus with non-binary behavior.
+   NO DECISION
+
+- R5. The IOBus offers capabilities and configuration: it applies a request in the chip where the chip can, in software where the operation is generic, and refuses what it cannot do.
+
+  NOTE: Same as above - this statement doesn't have sufficient context or scope to have meaning...
+  NO DECISION
+
+- R6. A pin's direction comes from the drawing: the device or panel pin's KiCad electrical type says what that symbol does to its wire, and a programmable expander pin is configured as its complement. 
+
+- R7. The appliance's identity parameter is an opaque "handle" that can be passed to library calls that need to know implementation details of the device.  An example might be a `getHeadAppearance(appliance, indication) => head display details` library function that needs to know which head on which mast (top, middle, ...) as well as what type of device it is (color position, semaphore...)
+  
+- R9. The layout context contains layout configuration choices, such as grographic location, era, railroad details, etc. 
+  
+
 
 ## Context
 
