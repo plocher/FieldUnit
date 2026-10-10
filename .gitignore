@@ -32,3 +32,6 @@ test_runner
 # Credentials
 secrets.h
 *secrets.h
+
+# vim swap files
+*.swp
