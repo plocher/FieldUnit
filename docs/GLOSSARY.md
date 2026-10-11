@@ -284,7 +284,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - It has no lever and no tokens of its own. The switch's `NWK` and `RWK` require both machines in switch correspondence.
 - **electric lock** [Both]. A lock on a hand-operated switch. The dispatcher releases it by a control.
   - AAR56: `WL`, switch lock [AAR56 p. 35].
-  - FieldUnit: tokens `WLS` (release) and `WLK` (released). `SwitchLock::HAND_LOCKED`. The field unit releases the lock only when every signal is at stop and no time locking runs.
+  - FieldUnit: tokens `WLS` (release, control) and `WLK` (released, indication: asserted while the lock relay is energized and the switch is released; deasserted when locked, the fail-safe state, since the lock bar and the lock relay both drop on loss of power). `WLQK` is the crew's unlock request, non-vital (FieldUnit-Subdivision ADR 0004 D1). `SwitchLock::HAND_LOCKED`. The field unit releases the lock only when every signal is at stop and no time locking runs. The full exchange is in `AAR_SIGNALING_PRIMER.md` section 18.
   - An electric lock is not a dual-control switch.
   - SPCoast today: locks and switches carry the same tokens (`NWS`/`RWS`, `NWK`/`RWK`) for simplicity; the crew, dispatcher and field coordination of a real electric lock is deferred (FieldUnit-Subdivision ADR 0002 D14).
 - **fouling point** [Prototype]. The point beyond which a car on one track can be struck by a movement on another track.
@@ -411,10 +411,12 @@ FieldUnit tokens by appliance:
 | switch | `NWS`, `RWS` | `NWK`, `RWK` (asserted only in switch correspondence) |
 | signal | `NGS` (LEFT), `SGS` (RIGHT), `HS` (stop) | `NGK` (LEFT), `SGK` (RIGHT), `TEK` (time locking runs) |
 | track circuit | none | `<name>K` (asserted = occupied) |
-| electric lock | `WLS` (release) | `WLK` (released) |
+| electric lock | `WLS` (release) | `WLK` (asserted = released; deasserted = locked, fail-safe), `WLQK` (asserted = crew requests release; non-vital) |
 | maintainer call | `MC<n>S` | `MC<n>K` |
 
 On the AAR text code line, an asserted token is written `TOKEN`. A dropped token is written `(TOKEN)`.
+
+Some references describe the lock indication as "locked when 0" and others as "unlocked when active"; both describe the same fail-safe relay, energized to unlock. This glossary says only asserted and deasserted, and names what the asserted state means, as in the table above.
 
 ### 10.4 Contacts and circuits [Both]
 

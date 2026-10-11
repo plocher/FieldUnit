@@ -849,9 +849,11 @@ In snow country, switch points freeze solid without heaters.
 For industrial spurs or hand-operated crossovers:
 - Mount a miniature toggle switch and a bi-color LED (Red/Green) on the layout fascia.
 - The train crew cannot throw the switch stand until they radio the dispatcher for a release.
-- The dispatcher codes `7WLS` (release).
-- The field unit releases the lock only when every signal is at Stop and no time locking runs. It then reports `7WLK` (released), and `7WLR` can pick up.
-- The fascia LED turns green, and the crew flips the fascia toggle to throw the switch.
+- The crew turns the fascia key: the field unit raises the request indication `7WLQK`, and the dispatcher's lock lever plate starts to blink.
+- The dispatcher moves the lock lever to R and codes `7WLS` (release).
+- The field unit releases the lock only when every signal is at Stop and no time locking runs. It then asserts `7WLK` (released), and `7WLR` can pick up.
+- The fascia's green locked lamp goes dark, the red request lamp stops blinking and stays lit, and the crew throws the switch stand.
+- The whole exchange, lamp by lamp, is in section 18.
 
 ### 14. Maintainer Call (`MC`) and Wayside Telephones
 On the prototype, the maintainer call did what its name says: it called the signal maintainer to a location. A 1959 CTC machine had a "maintainer's call" control, with a maintainers' call lamp at each location.
@@ -875,6 +877,40 @@ Main line railroads install automated defect detectors at intervals along the li
 - An Arduino or audio module (e.g. DFPlayer) counts axles as the train rolls overhead.
 - Once the train passes, the module plays an automated radio voice message through a layout speaker:
   *"SP Detector, Milepost 81.2. No defects. Total axles: 48. Temperature: 68 degrees. Detector out."*
+
+### 17. Semaphores, Quadrants and Eras (What a Route Can Show)
+A semaphore arm says what the signal means, and which arm you have depends on the year.
+- **Lower-quadrant semaphores** are the original design: the arm drops from horizontal. Two positions. Horizontal is Stop; angled down (usually 45 or 60 degrees) is Clear.
+- **Upper-quadrant semaphores** arrived around 1903 and became the North American standard: the arm rises from horizontal. Three positions. Horizontal is Stop; diagonal (about 45 degrees) is Approach; vertical is Clear.
+- **The timeline**: before 1903 only lower quadrants existed, so a route could show Stop or Clear and nothing else; there was no Approach. From 1903 to about 1908 both were in use. Through the WWI years upper quadrants replaced lowers on busy routes. By the 1940s colour-light and colour-position-light signals were replacing semaphores on main lines.
+- **In FieldUnit**: the era decides the aspect set, so the era's indication tables (the route indication tables) carry it, with this history beside them so the limit is obvious. A pre-1903 route shows Stop and Clear, never Approach. A two-position head on a route whose era table asks for Approach is an era error, not a wiring error: either the head is the wrong quadrant for the year, or the table is the wrong year for the head.
+- **On the Model**: a servo moves the arm. Declare the head's quadrant with the head (two positions or three) so the generator can hold it against the era table, and give each position its own angle so a lower quadrant drops and an upper quadrant rises.
+
+### 18. The Electric Lock, Step by Step (Crew, Dispatcher, Field)
+Section 13 shows the fascia. This is the whole exchange, with every lamp.
+
+**The three tokens.** `WLS` is the control (dispatcher to field). `WLK` is the lock indication (field to dispatcher): asserted means the electric lock has energized, withdrawn its plunger, and the switch is released; deasserted means the switch is locked and secured for track speed. `WLQK` is the crew's unlock request (field to dispatcher), non-vital; the name is FieldUnit's, not AAR's.
+
+**Why released is the asserted state: fail-safe.** The lock is gravity-based: when power fails, the lock bar drops and the switch is locked. The lock relay is fail-safe too: it drops when power fails, into the locked state. So the relay is energized to unlock, and the indication follows the relay. That is why some references say "locked when 0" and others "unlocked when active": both describe the same relay. FieldUnit says only asserted and deasserted, and names what the asserted state means: `WLK` asserted is released.
+
+**The lever plate.** The dispatcher's lock lever has two lamps: a green locked lamp (lit while `WLK` is deasserted) and a red request lamp (driven by `WLQK`). The fascia plate has the same two lamps and the crew's key.
+
+**The exchange.** Start: `WLK` deasserted (locked), `WLQK` deasserted (no request); green lit, red dark.
+1. The crew turns the fascia key to ask for a release. The field unit asserts `WLQK`.
+2. At the office, the red lamp goes from dark to blinking: the dispatcher sees a request.
+3. The dispatcher moves the lock lever from N to R (released) and codes it. The office sends `WLS`.
+4. While `WLS` is out and `WLK` has not yet arrived, the office extinguishes the green lamp and keeps the red one blinking: the release is pending.
+5. The field unit checks that every signal is at Stop and no time locking runs (a time-element relay may run a countdown first), then energizes the lock relay, releases the lock and asserts `WLK`.
+6. The office stops the blink and leaves the red lamp lit: unlocked, crew at work.
+7. The crew throws the switch as needed. No switch position goes to the dispatcher; it is not needed.
+8. When the crew is done, they use the key to re-lock. The field unit deasserts `WLQK`.
+9. The office extinguishes the red lamp.
+10. The field unit normalizes the switch, re-locks (a simulated lock on the model), drops the lock relay and deasserts `WLK`.
+11. The office lights the green lamp. Back to the start.
+
+**AAR definitions, for the record.**
+- Control `WLS` (switch lock, `WL`): sent from the dispatching office to the field. It starts the unlock sequence. Depending on local track occupancy it either drops the locking circuit at once (short time) or starts a time-element relay (`TE`) that counts down a safety timer (long time) before the switch is released.
+- Indication `WLK` (switch lock indication): deasserted, the switch is physically locked and secured for main-line track speed, the fail-safe state; asserted, the electric lock has energized, released its plunger, and the switch is unlocked.
 
 ---
 
