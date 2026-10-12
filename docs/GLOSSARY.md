@@ -282,6 +282,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - Name: a derail symbol whose gang id (the Value minus its trailing letter) matches a switch or lock gang of the same interlocking. Convention: the letter D, for example `795D`. The symbol kind and the name relation decide dependence, not the letter D. Values are unique across switches, locks and derails (FieldUnit-Subdivision ADR 0003 D8, proposed).
   - Code today: `addDerail("795D")` parses the trailing D and requires switch `795` to exist; it is to take the base from the model (`controllingSwitch`).
   - It has no lever and no tokens of its own. The switch's `NWK` and `RWK` require both machines in switch correspondence.
+- **color light signal** [Both]. A signal whose heads show aspects with fixed-color lamps, one lamp per color (red, yellow, green, lunar), lit one at a time. The KiCad Style word on a head is `CL`. The model realises a color light head with one lamp per color, with a multiplexed pair of select lines, or with one RGB pixel; which one is the device symbol's business, not the plant's (FieldUnit-Subdivision checkpoint 2026-10-10, E47, I8).
 - **electric lock** [Both]. A lock on a hand-operated switch. The dispatcher releases it by a control.
   - AAR56: `WL`, switch lock [AAR56 p. 35].
   - FieldUnit: tokens `WLS` (release, control) and `WLK` (released, indication: asserted while the lock relay is energized and the switch is released; deasserted when locked, the fail-safe state, since the lock bar and the lock relay both drop on loss of power). `WLQK` is the crew's unlock request, non-vital (FieldUnit-Subdivision ADR 0004 D1). `SwitchLock::HAND_LOCKED`. The field unit releases the lock only when every signal is at stop and no time locking runs. The full exchange is in `AAR_SIGNALING_PRIMER.md` section 18.
@@ -296,6 +297,11 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **OS section** [Both]. The track between opposing signals in a control point, treated as one block. It is usually one track circuit over the switches. It can be several (see block, aggregation).
   - "OS" means "on sheet": the dispatcher's record of a train that passes a location. The BNSF source gives both meanings (paraphrase) [BNSF].
   - FieldUnit: the OS track circuit detector-locks its switch. Declare it with `addSwitch(id, osName)` or `addDerail(id, osName)`.
+- **searchlight signal** [Both]. A signal whose head is one lamp behind a moving colored roundel (the vane), so that each head shows one color at a time and changes color by moving the roundel. Style word `searchlight`. The model realises it as one RGB LED and renders the vane's movement as a timed transition; the vane is rendering, not signature (E47).
+- **semaphore signal** [Both]. A signal whose head is a pivoted arm (the blade); the arm's position is the aspect by day, and a lamp behind colored roundels repeats it by night. Two Style words, by quadrant, because the quadrant fixes the aspect set:
+  - `semaphore_lq`, lower quadrant: two positions, horizontal STOP and inclined down CLEAR. The only form before 1903.
+  - `semaphore_uq`, upper quadrant: three positions, horizontal STOP, inclined up APPROACH, vertical CLEAR. Introduced from 1903, universal on new work by the First World War.
+  - The aspect set a route needs is an era fact in the era indication tables, so a two-position head on a route whose table asks for APPROACH is an era error, never a wiring or link error (E48). `AAR_SIGNALING_PRIMER.md` section 17.
 - **signal** [Both]. An appliance that shows an aspect to govern a train movement. One signal can use heads on one or more masts.
   - AAR56 names functions of one lever position with A, B, C. Fig. 26 uses them for separate signals and for two arms on one mast [AAR56 pp. 33–34].
   - FieldUnit separates the control of a signal (`SignalControl`, one for each signal lever) from its display (`SignalMast`).
