@@ -113,21 +113,25 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
 ## 3. Roles, organization and equipment
 
 - **appliance** [Both]. A device in the field that the field unit operates or reads. Examples: switch, derail, signal, track circuit, electric lock.
-- **bungalow** [Both]. A trackside enclosure for field equipment, of any size. It holds the relays or the field processor, batteries and wiring. Each control point has one. On a KiCad schematic the symbol `MAIN HOUSE` places it and declares its control point.
-- **code line** [Both]. The communication path between the CTC machine and the field units. It carries controls to the field and office indications to the office.
+- **bungalow** [Both]. The prototype's word for a walk-in house (see house). It holds the relays or the field processor, batteries and wiring. Each control point has one house; on a KiCad schematic the `House` symbol declares it.
+- **bus, IOBus** [FieldUnit]. A processor's device interface, or a CMRInet Node's: what drivers attach to with their address. Code names: `IOBus`, `CmriIOBus`, `MqttApplianceBus`.
+- **CMRInet Node** [Both]. A driver on a CMRInet line, addressed by its UA, declaring its input and output byte arrays and providing a bus for its bits. Not a processor. The general sense of node (a computer) is retired; the processor that anchors the line is its CMRInet Host.
+- **code line** [Both]. The communication path between the CTC machine and the field units. It carries controls to the field and office indications to the office. As an entity of the layout model: a code line encoding on a transport, the thing FieldUnits and the OfficeUnit attach to; one per FieldUnit (FieldUnit-Subdivision ADR 0009).
   - FieldUnit: the class `CodeLine` is the transport (`MqttCodeLine`, `StreamCodeLine`, `MockCodeLine`). `AarTextCodec` writes functions as tokens.
   - History: one account of the first CTC installation (NYC, 1927, GRS) describes one wire to each switch plus a common return [EKEVING]. This is one secondary source.
   - History: a 1937 article describes a "Union time-code C.T.C. system" on a "single series circuit of two wires" [RS1937].
 - **code line type** [FieldUnit]. The definition of how one kind of code line carries functions: addressing, capacity, encoding and timing. A code line type is one encoding on one transport (`FieldUnit-Subdivision/docs/adr/0001-code-line-type-contract.md`). Examples: AAR tokens over MQTT; US&S 506 over a relay line. The AAR token encoding has no capacity limit.
 - **CTC machine** [Both]. The equipment at the office from which the dispatcher sends controls and reads office indications. It has levers, code buttons and lamps.
   - US&S wrote "C.T.C. control machine" in 1949 [USS1949].
-  - FieldUnit: `cTcMachine` is a code name. The aliases `CtcMachine` and `OfficeUnit` exist. Prose uses "CTC machine".
+  - FieldUnit: `cTcMachine` is a code name. The aliases `CtcMachine` and `OfficeUnit` exist. Prose says CTC machine for the equipment; the office logic entity that runs it, drawn and keyed in the layout model, is the OfficeUnit (the owner, 2026-10-23: OfficeUnit, not machine).
   - The SPCoast machine is "the SPCoast CTC machine (US&S style)". It has no model number.
 - **device interface** [FieldUnit]. The boundary between the field unit and the hardware of its appliances. Code names: `IOBus`, `CmriIOBus`, `MqttApplianceBus`.
 - **dispatcher** [Both]. The operator role that controls trains at a distance. The dispatcher uses a CTC machine, a code line and the distributed handshake of control and office indication. This is the only operator role that the model covers today. Compare tower operator and maintainer.
+- **driver** [FieldUnit]. A chip or object with an address on a bus, declaring device pins: an I2C expander, a GPIO pin or pixel chain, a JMRI object (keyed by its object class and the device it serves), a CMRInet Node or one of its bits. Prose says driver, not chip.
+- **encoding** [FieldUnit]. What rides a transport. A code line encoding (AAR tokens, US&S 506, bit packing) provides a code line; an I/O encoding (JMRI over MQTT, CMRInet polling) provides remote I/O for the processor that anchors its transport instance.
 - **field** [Both]. All places and equipment outside the office.
 - **field processor** [FieldUnit]. The microcontroller, computer or process that runs one or more field units. It exists when it is installed or started.
-- **field station** [FieldUnit]. One address on a code line, and the set of controls and office indications carried under that address.
+- **field station** [FieldUnit]. One address on a code line, and the set of controls and office indications carried under that address. Derived, never written: one per interlocking on an AAR line, one per house on a US&S 506 line (FieldUnit-Subdivision ADR 0009 §3.8).
   - A field station has no behavior. It is how one code line type lets the office reach a field unit.
   - A field station is the abstraction that the interlocking presents to the dispatcher. It carries the functions of the levers and lamps in its panel column. Routes, masts and aspects are not code line functions; the interlocking handles them in the field.
   - The code line type assigns field stations. On a 506 line a field unit can answer at several. On an MQTT line it answers at one.
@@ -136,16 +140,23 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
   - The address of a field station on a 506 line is authored. The tooling does not allocate it.
   - Prototype note: [RRS506] uses "field station" and "field location" for the places on a 506 line.
   - FieldUnit: the class `CtcStation` is the office-side record of one field station.
-- **field unit** [FieldUnit]. An interlocking application running on a field processor. It reads the appliances, enforces the locking, drives the switches and signals, and answers the code line. `FieldUnit` is also the name of the C++ library.
+- **field unit** [FieldUnit]. An interlocking application running on a field processor. It reads the appliances, enforces the locking, drives the switches and signals, and answers the code line. `FieldUnit` is also the name of the C++ library, and the spelling of the entity in the layout model and its seam vocabulary (the owner, 2026-10-23: FieldUnit and OfficeUnit, never "unit" alone; a unit is a KiCad symbol unit).
+- **head device** [FieldUnit]. The hardware that renders a head's aspects: aspect to I/O, with the style fixed per symbol. The trackplan head owns indication to aspect. Prose says head device, not cast.
+- **house** [Both]. Instrument house: the structure at a control point that holds its field equipment; the KiCad `House` symbol declares the control point. Bungalow is the prototype's word for a walk-in house; case for a cabinet.
 - **interlocking application** [FieldUnit]. The interlocking logic combined with one interlocking model. Today it is not a file. `spcoast_virtual_plant` builds it at start.
   - The signalling industry uses "application" for logic configured with the data of one site. Example: the US&S "Microlok II System Application Logic Programming Guide" [ARTC23].
 - **interlocking logic** [FieldUnit]. The generic logic of interlocking, in software. It is the same for every interlocking plant. Code name today: `InterlockingPlant`. A rename to `Interlocking` is planned.
 - **interlocking model** [FieldUnit]. The data that describes one interlocking plant. Examples: the KiCad schematic, the FieldUnit JSON (`generated/<Interlocking>.json`) and the portable model (`InterlockingPlantModel`).
 - **interlocking plant** [Both]. The real track, switches, derails, signals and track circuits that one interlocking controls. It can contain more than one control point. One field unit solves one interlocking plant.
+- **local I/O, remote I/O** [FieldUnit]. Drivers on a processor's own bus; drivers reached through an encoding on a transport (JMRI) or through a CMRInet Node on a line.
 - **maintainer** [Both]. The operator role that works at a location in maintenance or debug mode, without the interlocking. Compare dispatcher and tower operator. Not yet covered by the model. The maintainer call (section 5) calls the signal maintainer to a location.
 - **office** [Both]. The place where the dispatcher and the CTC machine are.
 - **panel column** [FieldUnit]. One vertical part of the CTC machine face. It holds levers, lamps and a code button. Code names: KiCad `PanelColumn`, C++ `PanelColumn`. A `CtcStation` can span up to four panel columns (`MAX_COLUMNS_PER_STATION`).
+- **port** [FieldUnit]. A FieldUnit or OfficeUnit sheet's connection to the layout: Codeline, Processor, IOBus, PanelIOBus.
+- **processor** [FieldUnit]. The thing logic runs on and connections are anchored on: a field processor, the OfficeUnit's processor, or a virtual host application. A FieldUnit or OfficeUnit runs on exactly one.
+- **seam** [FieldUnit]. After FieldUnit ADR 0005: Seam 1, the code line between office and field logic; Seam 2, hardware I/O, local or remote, on the panel side and the field side.
 - **subdivision** [FieldUnit]. The set of control points, code lines and CTC machines that the subdivision linker joins into one model. Example: SPCoast South.
+- **transport** [FieldUnit]. A mechanism that carries encodings: an MQTT broker, a CMRInet serial line, a US&S time-code line, LocoNet. Declared once; placed once per processor that runs an encoding on it. A FieldUnit reaches its code line's transport through the code line, so no instance is drawn per field processor (the owner, 2026-10-24).
 
 ## 4. Control point, interlocking, CTC and limits
 
@@ -611,10 +622,13 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | distant (as the meaning of D), Distant Relay | D: proceed indication, detector, decoding |
 | Exit Block | track circuit |
 | field controller | field unit |
-| Field Unit (capitalized, for the role) | field unit |
+| unit (alone, for a FieldUnit or an OfficeUnit) | FieldUnit, OfficeUnit; a unit is a KiCad symbol unit |
 | Form 504, Form 506, Form 508, Form 510, Type L | US&S 506 time code; the others are not sourced |
-| host, plant host, node (for a computer that runs field units) | field processor |
-| house, relay house, shelter, instrument case | bungalow |
+| host, plant host (for what runs a FieldUnit or OfficeUnit) | processor; for the CMRInet master, the processor that anchors the line (CMRInet Host) |
+| node (alone, for a computer) | processor; node (CMRInet) is CMRInet Node |
+| chip (for a driver) | driver |
+| cast (for a head device) | head device |
+| relay house, shelter, instrument case | house; bungalow for a walk-in house, case for a cabinet |
 | indication (alone) | signal indication or office indication |
 | indication snapshot | indication vector |
 | Indications-as-Truth | office indication |
