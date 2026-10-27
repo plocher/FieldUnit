@@ -168,6 +168,7 @@ writes the file is one writer among others.
 - **CTC machine** [Both]. The equipment at the office from which the dispatcher sends controls and reads office indications. It has levers, code buttons and lamps.
   - US&S wrote "C.T.C. control machine" in 1949 [USS1949].
   - FieldUnit: `cTcMachine` is a code name. The aliases `CtcMachine` and `OfficeUnit` exist. Prose says CTC machine for the equipment; the office logic entity that runs it, drawn and keyed in the layout model, is the OfficeUnit (the owner, 2026-10-23: OfficeUnit, not machine).
+  - "Desk" is fine in general prose (the owner, 2026-10-26). Where precision is needed, the office side is the OfficeUnit, the peer of the FieldUnit.
   - The SPCoast machine is "the SPCoast CTC machine (US&S style)". It has no model number.
 - **device interface** [FieldUnit]. The boundary between the field unit and the hardware of its appliances. Code names: `IOBus`, `CmriIOBus`, `MqttApplianceBus`.
 - **dispatcher** [Both]. The operator role that controls trains at a distance. The dispatcher uses a CTC machine, a code line and the distributed handshake of control and office indication. This is the only operator role that the model covers today. Compare tower operator and maintainer.
@@ -662,7 +663,6 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | CP Boundary, control point limits | interlocking limits (a control point has no limits of its own) |
 | cTc, cTc machine (in prose) | CTC machine |
 | demand (for a control) | control |
-| desk | CTC machine |
 | detection block | track circuit |
 | distant (as the meaning of D), Distant Relay | D: proceed indication, detector, decoding |
 | Exit Block | track circuit |
