@@ -110,6 +110,50 @@ field unit = (interlocking logic + interlocking model) on a field processor = in
 - An interlocking that answers on two code lines is two interlocking applications, so two field units. A field processor runs one or more interlocking applications.
 - A microcontroller in a bungalow is a field processor with one field unit. The simulator `spcoast_virtual_plant` is a field processor with seven.
 
+### 2.6 The Layout Data Model File and its writers [FieldUnit]
+
+After FieldUnit-Subdivision ADR 0008 and ADR 0011. The file, its policies and its derivation rules last; a tool that
+writes the file is one writer among others.
+
+- **conformance suite** [FieldUnit]. The derivation rules' test cases, as data. Each case gives `given` and
+  `relations` and expects a `derived` and a list of diagnostics, by code and symbol. A derivation conforms when it
+  passes every case of the rules version it stamps.
+- **derivation rules** [FieldUnit]. The normative statement of what `derived` holds, computed from `given` and
+  `relations`: the relation table of ADR 0009 §3.12, circuits and their names, control point propagation, ports and
+  links, a mast's heads. Versioned by date, with the conformance suite and the reference derivation, as one version.
+- **derived** [FieldUnit]. The map of what the derivation rules compute, on every entity and row: every resolved
+  relation, whether it came from a wire, a field or a chain, and every fact the drawing does not state. Complete for
+  what the rules can reach, never a copy of a stated value, never written by hand, stamped with `provenance.rules`.
+  Effectively a cache: a reader that does not hold its rules version rebuilds it.
+- **given** [FieldUnit]. The map of the fields a person stated on a symbol, keyed as drawn, every value a string.
+  KiCad's housekeeping fields and the key field are left out; nothing else is.
+- **incomplete, in error** [FieldUnit]. Incomplete: a fact is not stated, and what depends on it is absent from
+  `derived`. In error: stated facts contradict each other, and the facts in conflict derive nothing. Whether a file in
+  error is saved is the writer's policy.
+- **KiCad importer** [FieldUnit]. The writer that reads the KiCad project (netlist, sheets, symbol libraries) and
+  writes the Layout Data Model File: the key field, `given`, each wire as a named relation, macros expanded; it calls
+  the reference derivation for `derived`. Transient: it retires when Studio exists, or stays as an import path. It
+  writes no file from a drawing in error. Code names today: `tools/layout_compiler`, `compile_layout.py`.
+- **Layout Data Model File** [FieldUnit]. The public interface between the drawing and every consumer: one JSON file
+  for a layout, under the schema `schemas/layout-model/`. Every entity and row holds the maps `given`, `relations`
+  and `derived`.
+- **proof-of-concept compilers** [FieldUnit]. The plant compiler (`tools/plant_graph`) and the controller compiler
+  (`tools/controller_graph`). They read the archived per-project drawings directly and are kept to check the unified
+  project against the archive, not to compile it. "Plant compiler" and "controller compiler" name these tools only.
+- **reader policy** [FieldUnit]. For the meaning of a name, a reader looks in `derived`, then `relations`, then
+  `given`; the first hit wins. A key the reader does not know is skipped and reported.
+- **reference derivation** [FieldUnit]. The implementation of the derivation rules that every writer may call:
+  `tools/layout_model/derive.py` (planned). It is one conforming derivation; the rules and the suite are the
+  definition.
+- **relations** [FieldUnit]. The map of the connections a person stated, each written as the name it reaches: a wire
+  to a processor, a transport, a bus, a column or a house, and the trackplan's wires. A relation implied only by sheet
+  hierarchy is not stated; it is resolved into `derived`.
+- **Studio** [FieldUnit]. The planned layout editor whose native format is the Layout Data Model File. A writer; it
+  may save work in progress, in error included.
+- **writer policy** [FieldUnit]. `given` and `relations` hold exactly what was stated; `derived` holds everything the
+  rules derive from them, by a conforming derivation, stamped; any change to `given` or `relations` re-derives it
+  before the file is saved.
+
 ## 3. Roles, organization and equipment
 
 - **appliance** [Both]. A device in the field that the field unit operates or reads. Examples: switch, derail, signal, track circuit, electric lock.
@@ -303,10 +347,10 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - An electric lock is not a dual-control switch.
   - SPCoast today: locks and switches carry the same tokens (`NWS`/`RWS`, `NWK`/`RWK`) for simplicity; the crew, dispatcher and field coordination of a real electric lock is deferred (FieldUnit-Subdivision ADR 0002 D14).
 - **fouling point** [Prototype]. The point beyond which a car on one track can be struck by a movement on another track.
-- **head** [Both]. One unit of lamps on a mast. It shows one part of an aspect. KiCad head Value: one letter. The compiler accepts A to E today; ADR 0003 D9 allows any letter A to Z.
+- **head** [Both]. One unit of lamps on a mast. It shows one part of an aspect. KiCad head Value: one letter. The proof-of-concept plant compiler accepts A to E today; ADR 0003 D9 allows any letter A to Z.
 - **independent derail** [FieldUnit]. A derail with its own lever and its own tokens. Example: Corporal derail `5` in the legacy profile.
   - Name: a derail symbol whose gang id matches no switch or lock gang. The letter is optional; convention: none or D (ADR 0003 D8, proposed).
-- **LEFT, RIGHT** [FieldUnit]. The two directions of a signal lever and of a route. Code names: `DirectionAuthority::LEFT`, `DirectionAuthority::RIGHT`. Today the KiCad compiler (`tools/plant_graph`) maps mast letters N and W to LEFT, and S and E to RIGHT.
+- **LEFT, RIGHT** [FieldUnit]. The two directions of a signal lever and of a route. Code names: `DirectionAuthority::LEFT`, `DirectionAuthority::RIGHT`. Today the proof-of-concept plant compiler (`tools/plant_graph`) maps mast letters N and W to LEFT, and S and E to RIGHT.
 - **mast** [Both]. The structure that carries one or more heads. KiCad mast Value today: `^\d+[NSEW][A-E]+$`, for example `784EAB`; ADR 0003 D9 widens the head letters to A to Z.
 - **OS section** [Both]. The track between opposing signals in a control point, treated as one block. It is usually one track circuit over the switches. It can be several (see block, aggregation).
   - "OS" means "on sheet": the dispatcher's record of a train that passes a location. The BNSF source gives both meanings (paraphrase) [BNSF].
@@ -604,6 +648,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | code station | field station |
 | CodeLine (in prose) | code line |
 | command (for a control) | control |
+| compiler (alone), Data Model compiler, layout compiler, milestone D compiler, seam reader | KiCad importer (what reads the drawing), reference derivation (what computes `derived`), or plant compiler and controller compiler (the proof-of-concept tools). The code names `tools/layout_compiler` and `compile_layout.py` keep their spelling. |
 | console | CTC machine |
 | control machine | CTC machine |
 | Control Point Engine | interlocking logic |
@@ -648,6 +693,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | panel (for the whole machine) | CTC machine |
 | plant (alone) | interlocking plant, interlocking model or interlocking logic |
 | Send (for S) | control (FieldUnit final S) or stick (AAR S) |
+| settings (for the fields stated on a symbol) | given |
 | station (for a code line address) | field station |
 | TCS | CTC ("traffic control system" is the name in 49 CFR 236) |
 | territory | subdivision |
