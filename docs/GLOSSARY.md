@@ -245,10 +245,10 @@ writes the file is one writer among others.
   - A switch lever has the positions N and R. A signal lever has the positions L, N and R.
   - FieldUnit: `PanelInput::SW_NORMAL`, `SW_REVERSE`, `SIG_LEFT`, `SIG_STOP`, `SIG_RIGHT`. A switch lever with neither contact closed sends no switch control.
 - **maintainer call** [Both]. A control and lamp that call the signal maintainer to a location. A 1959 machine had a "maintainer's call" control and a "maintainers' call lamp" [RS1959]. No source says that train crews used it.
-  - FieldUnit: tokens `MC<n>S` and `MC<n>K`. It is a non-vital control. `MC` is the AAR abbreviation per the owner (AAR Signal Manual Parts 33 and 91, tokens `MCS`, `MCK`; unverified, ADR 0003 D12). FieldUnit adds the instance number `<n>`.
+  - FieldUnit: tokens `<n>MCS` and `<n>MCK`, from the name `<n>MC` (`1MC`: `1MCS`, `1MCK`). It is a non-vital control. `MC` is the AAR abbreviation per the owner (AAR Signal Manual Parts 33 and 91, tokens `MCS`, `MCK`; unverified, ADR 0003 D12). The number prefix is FieldUnit (section 10.2).
 - **non-vital control** [FieldUnit]. A control that cannot affect a safety protection. The interlocking logic does not check it against the locking.
   - Processing: when a transaction is malformed, the field unit ignores it with the rest of the transaction. When a valid transaction is unsafe, the field unit still processes every non-vital control.
-  - Examples: maintainer call `MC<n>S`.
+  - Examples: maintainer call `<n>MCS` (`1MCS`).
   - The code line that carries a non-vital control is not vital. The class describes how the field unit processes the control.
 - **office correspondence** [Both]. Agreement between a lever and the office indication of its appliance.
   - Out of office correspondence: the lever and the office indication disagree. This is how the office knows that the field unit did not act.
@@ -435,6 +435,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - Odd switch levers and even signal levers are a common convention that goes back to lever-and-pipe interlocking plants (owner's knowledge; unverified). They are not an AAR rule.
 - A dependent derail is a derail whose gang id matches a switch or lock gang; by convention `<id>D` (ADR 0003 D8, proposed).
 - The default OS track circuit name is `<switch>T1`. A `TC` field overrides it. AAR56 uses `<number>T`.
+- A maintainer call is named with its number as a prefix, AAR style: `1MC`, with tokens `1MCS` and `1MCK`. The number comes first, as for any AAR name (section 10.1) and for a gang (`3`, `3A`). AAR's own tokens carry no number. The library symbols build the name with the macro `Name=${Value}MC` and the tokens with `Control.MCS` and `Indication.MCK`. A user may change the macro or those fields to name it another way.
 - Names are produced with case preserved and compared without case.
 - One grammar for all names is proposed in `FieldUnit-Subdivision/docs/adr/0003-name-grammar.md`. It is not adopted.
 
@@ -470,7 +471,7 @@ FieldUnit token letters. The rows marked "FieldUnit" are FieldUnit dialect, not 
 | `HS` | control: put the signal at stop | FieldUnit. AAR56: HS is the positive control of the home stick relay (`HSR`) [AAR56 p. 37]. |
 | `TE` in `TEK` | time locking runs | FieldUnit. TE is not on the AAR list. |
 | `WL` in `WLS`, `WLK` | electric lock | AAR56: WL is switch lock (p. 35). |
-| `MC` | maintainer call | AAR Signal Manual Parts 33 and 91 per the owner (unverified; ADR 0003 D12). The instance number in `MC<n>` is FieldUnit. |
+| `MC` | maintainer call | AAR Signal Manual Parts 33 and 91 per the owner (unverified; ADR 0003 D12). The instance number in front, `<n>MC`, is FieldUnit. |
 
 FieldUnit tokens by appliance:
 
@@ -480,7 +481,7 @@ FieldUnit tokens by appliance:
 | signal | `NGS` (LEFT), `SGS` (RIGHT), `HS` (stop) | `NGK` (LEFT), `SGK` (RIGHT), `TEK` (time locking runs) |
 | track circuit | none | `<name>K` (asserted = occupied) |
 | electric lock | `WLS` (release) | `WLK` (asserted = released; deasserted = locked, fail-safe), `WLQK` (asserted = crew requests release; non-vital) |
-| maintainer call | `MC<n>S` | `MC<n>K` |
+| maintainer call | `<n>MCS` | `<n>MCK` |
 
 On the AAR text code line, an asserted token is written `TOKEN`. A dropped token is written `(TOKEN)`.
 
