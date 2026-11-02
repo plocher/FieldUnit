@@ -506,7 +506,7 @@ The sketches below are illustrative. They are not prototype circuit plans.
 bool plantFree = sig.ASR(); // false while the time-locking timer runs
 ```
 
-- **`ESR`, `WSR`** [Prototype]. East and west stick relays; likewise north and south [AAR56 p. 34]. They are directional stick relays [RS1927, RS1944]. FieldUnit has no object for them.
+- **`ESR`, `WSR`** [Prototype]. East and west stick relays; likewise north and south [AAR56 p. 34]. They are directional stick relays [RS1927, RS1944]. FieldUnit-Subdivision ADR 0013 writes the automatic signal location's directional stick as `SR`. FieldUnit has no object for them; FieldUnit ADR 0007 D3 puts it in the automatic signal location class.
 - **`FSR`** [FieldUnit]. Fleet stick relay. FieldUnit name. `SignalControl::FSR()` is true while fleeting is on. The signal then clears again when the route is clear, without a new control.
 - **`HR`, `DR`** [Both]. Relay names with H (home, approach indication) and D (proceed indication). D does not mean "distant" on the AAR list. FieldUnit has no `HR` or `DR` object; section 10.6 gives the circuits that its logic follows.
 
@@ -599,6 +599,8 @@ bool canThrow = sw.WLR(); // true when no lock is active
 FieldUnit's interlocking logic is designed from relay circuits. The circuits below state the principle.
 The code is correct when it behaves as the circuit does. A difference between the code and a circuit
 is a defect in the code. It is not a reason to change the circuit. Known differences are listed with each circuit.
+
+This section stops at the interlocking–block seam (FieldUnit-Subdivision ADR 0013 §13). The seam ports map onto these relays as follows (FieldUnit ADR 0007): `requested` is the control as held; `cleared` is the leaving signal's `HR` front; `in_time` is its `ASR` back; `home_proceed` is the `HR` front of the home signal facing the block; `segment_clear` (`H`) feeds the leaving signal's `HR`; `next_proceed` (`D`) feeds its `DR`; `traffic_free` (`F`) is a further `HR` term that no directional stick bypasses. Between plants, ADR 0013 Part 2 governs.
 
 - **`HR`** (home relay). It picks up when the signal control has the direction, every route switch is in switch correspondence, every route track circuit is clear, and the opposing signals are held at stop. With `HR` up the signal can show at least Approach.
 - **`DR`**. It picks up when `HR` is up, the block beyond is clear and the next signal is not at stop. With `DR` up the signal shows Clear. (The AAR list reads D as "proceed indication", not "distant".)
