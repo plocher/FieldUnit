@@ -1,6 +1,6 @@
 # 0007. The interlocking–block seam in the field unit
 
-- Status: proposed (shaped with the owner, 2026-11-02; D1 to D3 agreed by the owner 2026-11-02)
+- Status: accepted (shaped with the owner, 2026-11-02; D1 to D5 agreed by the owner 2026-11-02)
 - Date: 2026-11-02
 - Builds on: FieldUnit-Subdivision ADR 0013 rev 4 (§13 the functional seam, §14.1 invariants `I1` to `I4`, §14.2 the `blockRules` profiles, §15.4 the control point at the seam, §18 carriers); the handoff note `FieldUnit-Subdivision/docs/review/handoff-fieldunit-line-signals-2026-10-31.md` (rev 4, "Asked back (seam checklist)"); `docs/GLOSSARY.md` sections 10.5 and 10.6.
 - Order of authority: the relay model and AAR practice govern, in two documents by scope. Inside an interlocking plant: `docs/GLOSSARY.md` section 10.6. Between interlocking plants: FieldUnit-Subdivision ADR 0013 Part 2. The seam of ADR 0013 §13 is the boundary. Where `src/` differs from either, the code has a defect.
@@ -13,8 +13,8 @@ Terms follow `docs/GLOSSARY.md`. The seven seam port names (`requested`, `cleare
 - D1. `requested` is the control as held by the field unit, `SignalControl::commandedDirection()`, not the `HSR`. The `HSR` (`activeDirection()`) drops at the entrance shunt; the CB&Q `RGZ` that ADR 0013 names is the control. Default: held control. **Agreed 2026-11-02.**
 - D2. The inbound ports `segment_clear`, `traffic_free` and `next_proceed` enter the route evaluation as a new kind of route input, a line input, not as virtual track circuits. A track circuit fed from the line is allowed as a stopgap on the Sargent bench only. Default: new input kind. **Agreed 2026-11-02.**
 - D3. The automatic signal location (an intermediate mast with its `SR` stick, reading `H` and `D` from ahead and producing them for the location in rear) is a class in this library beside `InterlockingPlant`, not generated code. Default: library class. **Agreed 2026-11-02.**
-- D4. The fixed capacity `MAX_APPLIANCES` (16 per kind) becomes a per-plant size before any multi-control-point layout is generated. Default: a compile-time parameter per sketch; the type stays a fixed array (no heap after startup). Open.
-- D5. ADR numbers collide across the two repositories from 0007 on. Default: keep each repository's own sequence and always cite with the repository name, as this file does. Open.
+- D4. The fixed capacity `MAX_APPLIANCES` (16 per kind) becomes a per-plant size before any multi-control-point layout is generated. Default: a compile-time parameter per sketch; the type stays a fixed array (no heap after startup). **Agreed 2026-11-02.**
+- D5. ADR numbers collide across the two repositories from 0007 on. Default: keep each repository's own sequence and always cite with the repository name, as this file does. **Agreed 2026-11-02.**
 
 ## Context
 
@@ -64,8 +64,8 @@ Three items outside the seven ports decide whether the seam can be wired at all.
 - Issues to file in this repository, one each: the line-input route kind (D2); the `DR` as a second reduction trigger (the glossary's open defect; relate to #19); the automatic signal location class (D3); the evaluation order of locations before the route engine; the per-plant capacity (D4). The `WireCodec` defect that writes only `NGS`/`SGS` and `NGK`/`SGK` direction letters is related (leaving signals on an E/W railroad) but not a seam port.
 - `docs/GLOSSARY.md` section 10.6 gains one line mapping the seam ports onto its relays (`requested` = control held, `cleared` = `HR` front, `in_time` = `ASR` back, `home_proceed` = `HR` front of the home signal, `segment_clear` = `H` into `HR`, `next_proceed` = `D` into `DR`, `traffic_free` = `F`), and section 10.5, which names the directional stick relays `ESR` and `WSR` (likewise north and south), gains a note that ADR 0013 writes the automatic signal location's stick as `SR`.
 - The handoff's "asked back" list is answered by this file. FieldUnit-Subdivision's handoff note should point here.
-- Open: D4 and D5.
+- No decision is open.
 
 ## Record
 
-- 2026-11-02: cross-repo review of ADR 0013 rev 3 found §16.1 assumed the plant rejects a signal control whose route is occupied; the plant stores it (`InterlockingPlant.h:422`, `SignalControl::updateCommand`). Rev 4 bounded Part 2 at the seam and added the invariants and profiles. The owner agreed D1 to D3 the same day. This file is the reply to the rev 4 handoff.
+- 2026-11-02: cross-repo review of ADR 0013 rev 3 found §16.1 assumed the plant rejects a signal control whose route is occupied; the plant stores it (`InterlockingPlant.h:422`, `SignalControl::updateCommand`). Rev 4 bounded Part 2 at the seam and added the invariants and profiles. The owner agreed D1 to D3 the same day, then D4 and D5 after the pull request was opened. This file is the reply to the rev 4 handoff.
