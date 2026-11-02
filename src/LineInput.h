@@ -31,11 +31,17 @@ public:
  * (FieldUnit-Subdivision ADR 0013 section 13: segment_clear, next_proceed,
  * traffic_free). Energized is asserted.
  *
+ * State and liveness are two things:
+ * - update(value, nowMs): the state changed (and the source is alive);
+ * - touch(nowMs): the source is alive and reports no change. Inert before
+ *   the first update(), since a heartbeat from a source that has never
+ *   reported a state still means "no clue".
+ *
  * Fail-safe, as for a remote TrackCircuit:
  * - released until the first update();
- * - released again when no update() arrives within the staleness
- *   timeout (default 5000 ms). A timeout of 0 disables staleness, for a
- *   fact that lives in the same processor's memory.
+ * - released again when neither update() nor touch() arrives within the
+ *   staleness timeout (default 5000 ms). A timeout of 0 disables
+ *   staleness, for a fact that lives in the same processor's memory.
  */
 class LineInput : public Fact {
 public:
@@ -69,10 +75,16 @@ public:
     bool isStale() const { return everUpdated_ && stale_; }
     bool everUpdated() const { return everUpdated_; }
 
-    // Update from a wire, a topic, or a decoded neighbour indication.
+    // State: update from a wire, a topic, or a decoded neighbour indication.
     void update(bool energized, uint32_t nowMs) {
         energized_ = energized;
         everUpdated_ = true;
+        touch(nowMs);
+    }
+
+    // Liveness: the source is still watching and reports no change.
+    void touch(uint32_t nowMs) {
+        if (!everUpdated_) return;
         stale_ = false;
         lastUpdateMs_ = nowMs;
     }

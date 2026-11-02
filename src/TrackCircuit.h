@@ -54,7 +54,19 @@ public:
     // Direct access to qualified state
     const Qualified<Occupancy>& state() const { return state_; }
 
-    // Update from local sensor driver or network packet
+    // Liveness without a state change: the source is still watching and
+    // reports no change. Refreshes the staleness clock and clears LOST_COMMS.
+    // Inert before the first update(): a heartbeat from a source that has
+    // never reported a state still means "no clue".
+    void touch(uint32_t nowMs) {
+        if (lastUpdateMs_ == 0) return;
+        lastUpdateMs_ = nowMs;
+        if (state_.quality == Quality::LOST_COMMS) {
+            state_.quality = Quality::GOOD;
+        }
+    }
+
+    // State: update from local sensor driver or network packet
     // Shunting to OCCUPIED happens immediately.
     // Clearing to VACANT applies dropoutDelayMs to bridge inter-car optical sensor gaps.
     void update(Occupancy occ, Quality quality = Quality::GOOD, uint32_t nowMs = 0) {

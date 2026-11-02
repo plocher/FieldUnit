@@ -160,6 +160,39 @@ void runLineInputTests() {
     printf("   PASS\n\n");
 
     // ---------------------------------------------------------
+    printf("[TEST 7b] touch() keeps a line input alive without changing its state\n");
+    {
+        LineInput li("HB");
+        li.touch(100);                                  // inert before the first update
+        li.tick(100);
+        assert(!li.asserted());
+        li.update(true, 1000);
+        li.touch(5500);                                 // heartbeat, no change
+        li.tick(5500);
+        assert(li.asserted());
+        li.tick(10000);                                 // 4500 ms since the touch
+        assert(li.asserted());
+        li.tick(11000);                                 // 5500 ms since the touch: stale
+        assert(!li.asserted());
+        li.touch(11000);                                // the source comes back
+        li.tick(11000);
+        assert(li.asserted());
+
+        TrackCircuit tc("HBT");
+        tc.touch(100);                                  // inert before the first update
+        tc.update(Occupancy::VACANT, Quality::GOOD, 1000);
+        tc.touch(5500);
+        tc.tick(10000);
+        assert(tc.isClear());
+        tc.tick(11000);
+        assert(!tc.isClear());                          // LOST_COMMS
+        tc.touch(11000);
+        tc.tick(11000);
+        assert(tc.isClear());                           // alive again, state unchanged
+    }
+    printf("   PASS\n\n");
+
+    // ---------------------------------------------------------
     printf("[TEST 8] PlantSerializer carries lineInputs, home and proceed\n");
     {
         static char json[8192];
