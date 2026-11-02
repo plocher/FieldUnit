@@ -12,6 +12,7 @@
 #include "SignalMast.h"
 #include "ControlTable.h"
 #include "AutomaticSignal.h"
+#include "ControlPointLine.h"
 #include "InterlockingPlant.h"
 #include "PlantSerializer.h"
 #include "WireCodec.h"

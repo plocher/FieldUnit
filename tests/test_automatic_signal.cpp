@@ -13,6 +13,7 @@ using namespace FieldUnit;
 // Part D  PlantSerializer round trip
 // Part E  FieldUnit-Subdivision ADR 0013 section 16 trace on the Corporal-Sargent
 //         block, with invariants I1, I2, I4 asserted at each row, and an I3 scenario.
+// Part F  ControlPointLine: the control point's line at the seam (ADR 0008 D5)
 
 static bool isProceed(const SignalMast* m) {
     return Route::permissivenessRank(m->currentIndication()) > 1;
@@ -296,19 +297,16 @@ static void partD() {
 // ---------------------------------------------------------------------------
 // Part E: the Corporal-Sargent block of ADR 0013 section 16, in one plant
 // (carrier variation C, in-memory). Southbound runs Corporal -> 832T -> 834T
-// -> 836T -> Sargent. Locations 832 and 834 are automatic. The two control
-// points are in the same plant as a leaving signal each; their lines out are
-// driven by hand from section 15.4 under SP_1942 (tumbleDownTrigger
-// "cleared", trafficMechanism "hd_chain": traffic_free = segment_clear), one
-// scan behind the plant like a wire. ControlPointLine (ADR 0008 D5) replaces
-// the hand-driven part.
+// -> 836T -> Sargent. Locations 832 and 834 are automatic. Each control point
+// is in the same plant as a leaving signal, a home signal and a
+// ControlPointLine (ADR 0008 D5) under SP_1942 (tumbleDownTrigger "cleared",
+// trafficMechanism "hd_chain": traffic_free = segment_clear).
 struct Block {
     InterlockingPlant cp;
     TrackCircuit *corpOs, *t832, *t834, *t836, *sargOs;
-    LineInput *corpH, *corpD;      // Corporal's line to 832NA (named 830NAB)
-    LineInput *sargH, *sargD;      // Sargent's line to 834SA (named 836SA)
+    ControlPointLine *corpLine, *sargLine;   // 830NAB to 832NA; 836SA to 834SA
     AutomaticSignal *s832SA, *s834SA, *s832NA, *s834NA;
-    SignalMast *m830SAB, *m836NAB;
+    SignalMast *m830SAB, *m836NAB, *m830NAB, *m836SA;
     SignalControl *c830, *c836;
     uint32_t now;
 
@@ -318,10 +316,28 @@ struct Block {
         t834 = cp.addTrackCircuit("834T");
         t836 = cp.addTrackCircuit("836T");
         sargOs = cp.addTrackCircuit("836T1");
-        corpH = cp.addLineInput("830NABH");
-        corpD = cp.addLineInput("830NABD");
-        sargH = cp.addLineInput("836SAH");
-        sargD = cp.addLineInput("836SAD");
+        c830 = cp.addSignalControl("830");        // lever 830: RIGHT leaves southbound, LEFT is the home
+        c836 = cp.addSignalControl("836");        // lever 836: LEFT leaves northbound, RIGHT is the home
+        m830SAB = cp.addSignalMast("830SAB", MastType::TWO_HEAD);
+        m830NAB = cp.addSignalMast("830NAB", MastType::TWO_HEAD);
+        m836NAB = cp.addSignalMast("836NAB", MastType::TWO_HEAD);
+        m836SA  = cp.addSignalMast("836SA",  MastType::ONE_HEAD);
+        cp.route("830NAB-HOME")
+          .governedBy("830", DirectionAuthority::LEFT)
+          .displays("830NAB", Indication::CLEAR)
+          .clears({ "830T1" })
+          .entrance("830T1");
+        cp.route("836SA-HOME")
+          .governedBy("836", DirectionAuthority::RIGHT)
+          .displays("836SA", Indication::CLEAR)
+          .clears({ "836T1" })
+          .entrance("836T1");
+        corpLine = &cp.addControlPointLine("830NAB");
+        corpLine->governs({ "832T" }).block({ "832T", "834T", "836T" }).leaving({ "830SAB" })
+                 .tumbleDown(TumbleDownTrigger::CLEARED).traffic(TrafficMechanism::HD_CHAIN);
+        sargLine = &cp.addControlPointLine("836SA");
+        sargLine->governs({ "836T" }).block({ "832T", "834T", "836T" }).leaving({ "836NAB" })
+                 .tumbleDown(TumbleDownTrigger::CLEARED).traffic(TrafficMechanism::HD_CHAIN);
         s832SA = &cp.addAutomaticSignal("832SA", MastType::ONE_HEAD);
         s834SA = &cp.addAutomaticSignal("834SA", MastType::ONE_HEAD);
         s832NA = &cp.addAutomaticSignal("832NA", MastType::ONE_HEAD);
@@ -330,10 +346,6 @@ struct Block {
         s832SA->governs({ "834T" }).approach({ "832T" }).reads("834SAH", "834SAD");
         s832NA->governs({ "832T" }).approach({ "834T" }).reads("830NABH", "830NABD");
         s834NA->governs({ "834T" }).approach({ "836T" }).reads("832NAH", "832NAD");
-        c830 = cp.addSignalControl("830");
-        c836 = cp.addSignalControl("836");
-        m830SAB = cp.addSignalMast("830SAB", MastType::TWO_HEAD);
-        m836NAB = cp.addSignalMast("836NAB", MastType::TWO_HEAD);
         cp.route("830SAB-LEAVING")
           .governedBy("830", DirectionAuthority::RIGHT)
           .displays("830SAB", Indication::CLEAR)
@@ -349,26 +361,11 @@ struct Block {
           .proceed("834NAD")
           .entrance("836T1");
         vacant(corpOs, now); vacant(t832, now); vacant(t834, now); vacant(t836, now); vacant(sargOs, now);
-        driveEnds();
         cp.tick(now);
-        driveEnds();
         cp.tick(now);
     }
 
-    // ADR 0013 section 15.4 under SP_1942, from the previous scan's state.
-    void driveEnds() {
-        bool corpCleared = isProceed(m830SAB);
-        corpH->update(t832->isClear() && !c830->isTimeLocked() && !corpCleared, now);
-        corpD->update(true, now);                    // Corporal's home signal 830NAB at Clear
-        bool sargCleared = isProceed(m836NAB);
-        sargH->update(t836->isClear() && !c836->isTimeLocked() && !sargCleared, now);
-        sargD->update(true, now);
-    }
-
-    void scan() {
-        driveEnds();
-        cp.tick(now);
-    }
+    void scan() { cp.tick(now); }
 
     void request(SignalControl* c, DirectionAuthority dir) {
         ControlTransaction ctl;
@@ -411,12 +408,15 @@ struct Block {
 static void partE() {
     printf("[PART E] ADR 0013 section 16 trace, Corporal -> Sargent, SP_1942\n");
     Block b;
-    // Idle block: both intermediates clear both ways (intermediatesAtRest "clear")
+    // Idle block: both intermediates show proceed both ways (intermediatesAtRest
+    // "clear"); the one facing each control point shows Approach, since the home
+    // signal there is at Stop
     assert(b.s832SA->mast()->currentIndication() == Indication::CLEAR);
-    assert(b.s834SA->mast()->currentIndication() == Indication::CLEAR);
-    assert(b.s832NA->mast()->currentIndication() == Indication::CLEAR);
+    assert(b.s834SA->mast()->currentIndication() == Indication::APPROACH);
+    assert(b.s832NA->mast()->currentIndication() == Indication::APPROACH);
     assert(b.s834NA->mast()->currentIndication() == Indication::CLEAR);
     assert(b.corpSegmentClear() && b.sargSegmentClear());
+    assert(!b.corpLine->producesF() && b.cp.findFact("830NABF") == nullptr);
     b.invariants("idle");
 
     // Row 1: at Corporal, 830SAB cleared: tumble-down northbound, Sargent locked out
@@ -480,10 +480,20 @@ static void partE() {
     assert(!b.s834SA->SR());
     assert(b.corpSegmentClear() && b.sargSegmentClear());
     assert(b.s832SA->mast()->currentIndication() == Indication::CLEAR);
-    assert(b.s834SA->mast()->currentIndication() == Indication::CLEAR);
-    assert(b.s832NA->mast()->currentIndication() == Indication::CLEAR);
+    assert(b.s834SA->mast()->currentIndication() == Indication::APPROACH);
+    assert(b.s832NA->mast()->currentIndication() == Indication::APPROACH);
     assert(b.s834NA->mast()->currentIndication() == Indication::CLEAR);
     b.invariants("row 5 block idle");
+
+    // Sargent lines its home signal: 834SA goes to Clear through the line's D
+    b.request(b.c836, DirectionAuthority::RIGHT);
+    b.scan(); b.scan();
+    assert(b.m836SA->currentIndication() == Indication::CLEAR);
+    assert(b.s834SA->mast()->currentIndication() == Indication::CLEAR);
+    b.request(b.c836, DirectionAuthority::STOP);
+    b.scan(); b.scan();
+    assert(b.s834SA->mast()->currentIndication() == Indication::APPROACH);
+    printf("   home signal lined: D from the control point upgrades 834SA to CLEAR\n");
 
     // I3 scenario: a northbound train T2 from Sargent sets the receding sticks on 834NA and
     // 832NA; Corporal requests southbound while T2 is still in 832T. When T2 clears into
@@ -518,7 +528,7 @@ static void partE() {
         // (SP_1942 "holds I3 by trace"). The sticks release as Corporal's H out returns, but
         // the release travels down the chain one location per scan while Corporal clears in
         // the first scan, so both ends see permission for the chain's propagation time. With
-        // the ends one scan behind the plant, that is this many scans:
+        // cleared held as a relay state, that is this many scans:
         printf("   I3 FINDING under SP_1942 (hd_chain, H out = T clear AND !in_time AND !cleared):\n");
         printf("     sticks released, but Corporal was cleared while Sargent's segment_clear was\n");
         printf("     still asserted for %d scan(s): the chain's propagation delay, not a stuck stick.\n", overlapScans);
@@ -526,6 +536,137 @@ static void partE() {
         printf("   I3 holds with no overlap\n");
     }
     printf("\n");
+}
+
+// ---------------------------------------------------------------------------
+static void partF() {
+    printf("[PART F] ControlPointLine at the seam (ADR 0008 D5)\n");
+    uint32_t now = 1000;
+    InterlockingPlant cp("CORPORAL");
+    TrackCircuit* os = cp.addTrackCircuit("830T1");
+    TrackCircuit* t832 = cp.addTrackCircuit("832T");
+    TrackCircuit* t834 = cp.addTrackCircuit("834T");
+    LineInput* h832 = cp.addLineInput("832SAH");     // the block's line into Corporal
+    LineInput* d832 = cp.addLineInput("832SAD");
+    SignalControl* c830 = cp.addSignalControl("830");
+    SignalMast* leaving = cp.addSignalMast("830SAB", MastType::TWO_HEAD);
+    SignalMast* home = cp.addSignalMast("830NAB", MastType::TWO_HEAD);
+    cp.route("LEAVING").governedBy("830", DirectionAuthority::RIGHT).displays("830SAB", Indication::CLEAR)
+      .clears({ "830T1" }).home({ "832SAH" }).proceed("832SAD").entrance("830T1");
+    cp.route("HOME").governedBy("830", DirectionAuthority::LEFT).displays("830NAB", Indication::CLEAR)
+      .clears({ "830T1" }).entrance("830T1");
+    ControlPointLine& line = cp.addControlPointLine("830NAB");
+    line.governs({ "832T" }).block({ "832T", "834T" }).leaving({ "830SAB" });
+    const Fact* H = cp.findFact("830NABH");
+    const Fact* D = cp.findFact("830NABD");
+    assert(H && D && H == line.hOut() && D == line.dOut());
+    assert(line.homeMast() == home && line.leavingMast(0) == leaving);
+    assert(!line.producesF() && cp.findFact("830NABF") == nullptr);
+
+    auto request = [&](DirectionAuthority dir) {
+        ControlTransaction ctl;
+        ctl.signalDemands[c830->index()] = (dir == DirectionAuthority::RIGHT) ? SignalDemand::RIGHT
+                                         : (dir == DirectionAuthority::LEFT)  ? SignalDemand::LEFT
+                                                                              : SignalDemand::STOP;
+        cp.applyControlTransaction(ctl, now);
+    };
+
+    vacant(os, now); vacant(t832, now); vacant(t834, now);
+    h832->update(true, now); d832->update(true, now);
+    cp.tick(now);
+    assert(H->asserted() && !D->asserted());
+    assert(!line.requested() && !line.cleared() && !line.inTime());
+    printf("   F1 idle: H out asserted, D out released, no F under hd_chain\n");
+
+    // F2: a leaving signal cleared cuts H out (tumbleDownTrigger cleared), one scan after it clears
+    request(DirectionAuthority::RIGHT);
+    cp.tick(now);
+    assert(leaving->currentIndication() == Indication::CLEAR);
+    assert(line.requested());
+    assert(line.cleared());                 // latched at the end of that scan
+    assert(!H->asserted());
+    printf("   F2 leaving signal cleared: H out released\n");
+
+    // F3: the adjacent circuit occupied cuts H out whatever the signals do
+    request(DirectionAuthority::STOP);
+    cp.tick(now); cp.tick(now);
+    assert(H->asserted());
+    occupied(t832, now);
+    cp.tick(now);
+    assert(!H->asserted());
+    vacant(t832, now);
+    cp.tick(now);
+    assert(H->asserted());
+    printf("   F3 adjacent circuit occupied: H out released\n");
+
+    // F4: under tumbleDownTrigger requested, the held control cuts H out even while the
+    // signal cannot clear
+    line.tumbleDown(TumbleDownTrigger::REQUESTED);
+    h832->update(false, now);               // the block refuses: leaving signal stays at Stop
+    request(DirectionAuthority::RIGHT);
+    cp.tick(now);
+    assert(leaving->currentIndication() == Indication::STOP);
+    assert(line.requested() && !line.cleared());
+    assert(!H->asserted());
+    line.tumbleDown(TumbleDownTrigger::CLEARED);
+    assert(H->asserted());                  // under cleared, a refused request does not cut H
+    request(DirectionAuthority::STOP);
+    h832->update(true, now);
+    cp.tick(now); cp.tick(now);
+    printf("   F4 tumbleDown requested vs cleared\n");
+
+    // F5: D out is the home signal's HR, held one scan
+    request(DirectionAuthority::LEFT);
+    cp.tick(now);
+    assert(home->currentIndication() == Indication::CLEAR);
+    assert(D->asserted());
+    request(DirectionAuthority::STOP);
+    cp.tick(now);
+    assert(!D->asserted());
+    printf("   F5 D out follows the home signal\n");
+
+    // F6: F out under field_fr: released on request, held released while the block is
+    // occupied even after the control is normal, released when the block is clear and
+    // the release terms are met
+    line.traffic(TrafficMechanism::FIELD_FR).trafficRelease(TrafficRelease::REQUEST_NORMAL_AND_BLOCK_CLEAR);
+    const Fact* F = cp.findFact("830NABF");
+    assert(F && line.producesF());
+    cp.tick(now);
+    assert(F->asserted());
+    request(DirectionAuthority::RIGHT);
+    cp.tick(now);
+    assert(!F->asserted() && line.trafficDropped());
+    occupied(os, now);                      // train accepts the signal
+    cp.tick(now);
+    vacant(os, now); occupied(t832, now);
+    cp.tick(now);
+    request(DirectionAuthority::STOP);      // control normal while the train is in the block
+    cp.tick(now);
+    assert(!line.requested() && !line.cleared());
+    assert(!F->asserted() && line.trafficDropped());   // held: block occupied
+    vacant(t832, now); occupied(t834, now);
+    cp.tick(now);
+    assert(!F->asserted());
+    vacant(t834, now);
+    cp.tick(now);                           // block clear, control normal: release
+    assert(!line.trafficDropped());
+    assert(F->asserted());
+    printf("   F6 F out: drops on request, held until the traffic release\n");
+
+    // F7: serializer round trip
+    static char json[12288];
+    assert(cp.serialize(json, sizeof(json), true));
+    assert(strstr(json, "\"controlPointLines\"") != nullptr);
+    assert(strstr(json, "\"leaving\": [\"830SAB\"], \"tumbleDown\": \"cleared\", \"traffic\": \"field_fr\", \"trafficRelease\": \"request_normal_and_block_clear\"") != nullptr);
+    InterlockingPlant twin("TWIN");
+    assert(twin.deserialize(json));
+    const ControlPointLine* tl = twin.findControlPointLine("830NAB");
+    assert(tl && tl->homeMast() == twin.findSignalMast("830NAB"));
+    assert(tl->leavingCount() == 1 && tl->leavingMast(0) == twin.findSignalMast("830SAB"));
+    assert(tl->governedCount() == 1 && tl->blockCount() == 2);
+    assert(tl->traffic() == TrafficMechanism::FIELD_FR && tl->trafficRelease() == TrafficRelease::REQUEST_NORMAL_AND_BLOCK_CLEAR);
+    assert(twin.findFact("830NABF") == tl->fOut());
+    printf("   F7 round trip\n\n");
 }
 
 int main() {
@@ -538,6 +679,7 @@ int main() {
     partC();
     partD();
     partE();
+    partF();
     printf("====================================================\n");
     printf("   ALL AUTOMATIC SIGNAL TESTS PASSED                \n");
     printf("====================================================\n");

@@ -13,8 +13,6 @@ namespace FieldUnit {
 
 class InterlockingPlant;
 
-static constexpr uint8_t MAX_BLOCK_FACTS = 4;
-
 /**
  * AutomaticSignal: one signal location, one mast, one direction.
  *

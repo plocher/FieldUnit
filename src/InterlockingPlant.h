@@ -10,6 +10,7 @@
 #include "SignalControl.h"
 #include "ControlTable.h"
 #include "AutomaticSignal.h"
+#include "ControlPointLine.h"
 
 namespace FieldUnit {
 
@@ -116,7 +117,8 @@ public:
           mastCount_(0),
           crossoverCount_(0),
           detectorLockCouplingCount_(0),
-          automaticSignalCount_(0) {
+          automaticSignalCount_(0),
+          controlPointLineCount_(0) {
         setName(name);
         for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
             maintainerCalls_[i] = false;
@@ -135,6 +137,7 @@ public:
         trackCircuitCount_ = 0;
         lineInputCount_ = 0;
         automaticSignalCount_ = 0;
+        controlPointLineCount_ = 0;
         switchCount_ = 0;
         crossoverCount_ = 0;
         authorityCount_ = 0;
@@ -379,8 +382,38 @@ public:
             if (strcmp(automaticSignals_[i].hOut()->name(), name) == 0) return automaticSignals_[i].hOut();
             if (strcmp(automaticSignals_[i].dOut()->name(), name) == 0) return automaticSignals_[i].dOut();
         }
+        for (uint8_t i = 0; i < controlPointLineCount_; ++i) {
+            const ControlPointLine& l = controlPointLines_[i];
+            if (strcmp(l.hOut()->name(), name) == 0) return l.hOut();
+            if (strcmp(l.dOut()->name(), name) == 0) return l.dOut();
+            if (l.producesF() && strcmp(l.fOut()->name(), name) == 0) return l.fOut();
+        }
         return findTrackCircuit(name);
     }
+
+    // Control point line (FieldUnit ADR 0008 D5): what this plant produces at
+    // the seam with one block, named for the home mast facing the block.
+    ControlPointLine& addControlPointLine(const char* name) {
+        if (controlPointLineCount_ >= MAX_APPLIANCES) {
+            static ControlPointLine overflow;
+            return overflow;
+        }
+        ControlPointLine& l = controlPointLines_[controlPointLineCount_++];
+        l.bind(name, this, &engine_);
+        l.home(findSignalMast(name));
+        return l;
+    }
+
+    ControlPointLine* findControlPointLine(const char* name) {
+        if (!name) return nullptr;
+        for (uint8_t i = 0; i < controlPointLineCount_; ++i) {
+            if (strcmp(controlPointLines_[i].name(), name) == 0) return &controlPointLines_[i];
+        }
+        return nullptr;
+    }
+
+    uint8_t controlPointLineCount() const { return controlPointLineCount_; }
+    const ControlPointLine* controlPointLine(uint8_t idx) const { return (idx < controlPointLineCount_) ? &controlPointLines_[idx] : nullptr; }
 
     // Automatic signal (FieldUnit ADR 0008 D1): one mast, one direction,
     // its own route with no signal control, its stick and its HD line out.
@@ -643,9 +676,13 @@ public:
         // E. Interlocking Control Table vital route evaluation
         engine_.evaluate();
 
-        // F. Remember this scan's HR for the next scan's stick
+        // F. Remember this scan's HR for the next scan's stick; latch the
+        //    control point lines' traffic sticks on this scan's ports
         for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
             automaticSignals_[i].latchHR();
+        }
+        for (uint8_t i = 0; i < controlPointLineCount_; ++i) {
+            controlPointLines_[i].latch();
         }
     }
 
@@ -745,6 +782,9 @@ private:
 
     AutomaticSignal automaticSignals_[MAX_APPLIANCES];
     uint8_t automaticSignalCount_;
+
+    ControlPointLine controlPointLines_[MAX_APPLIANCES];
+    uint8_t controlPointLineCount_;
 
     InterlockingEngine engine_;
 };
@@ -882,6 +922,29 @@ inline AutomaticSignal& AutomaticSignal::reads(const char* hName, const char* dN
 
 inline AutomaticSignal& AutomaticSignal::opposing(const char* mastName) {
     return opposing(cp_ ? cp_->findAutomaticSignal(mastName) : nullptr);
+}
+
+// -------------------------------------------------------------
+// ControlPointLine String-Based Configuration Implementations
+// -------------------------------------------------------------
+
+inline ControlPointLine& ControlPointLine::governs(std::initializer_list<const char*> names) {
+    for (const char* n : names) governs(cp_ ? cp_->findFact(n) : nullptr);
+    return *this;
+}
+
+inline ControlPointLine& ControlPointLine::block(std::initializer_list<const char*> names) {
+    for (const char* n : names) block(cp_ ? cp_->findFact(n) : nullptr);
+    return *this;
+}
+
+inline ControlPointLine& ControlPointLine::leaving(std::initializer_list<const char*> mastNames) {
+    for (const char* n : mastNames) leaving(cp_ ? cp_->findSignalMast(n) : nullptr);
+    return *this;
+}
+
+inline ControlPointLine& ControlPointLine::home(const char* mastName) {
+    return home(cp_ ? cp_->findSignalMast(mastName) : nullptr);
 }
 
 inline Route& Route::engineReturn(const char* standingCarsName, const char* islandName) {

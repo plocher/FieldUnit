@@ -16,6 +16,7 @@ class InterlockingPlant;
 static constexpr uint8_t MAX_ROUTE_SWITCHES = 8;
 static constexpr uint8_t MAX_ROUTE_BLOCKS   = 8;
 static constexpr uint8_t MAX_ROUTE_FACTS    = 8;
+static constexpr uint8_t MAX_BLOCK_FACTS    = 4;
 static constexpr uint8_t MAX_ROUTES         = 32;
 
 enum class RouteState : uint8_t {
@@ -485,6 +486,25 @@ public:
     // only; writes nothing.
     Indication evaluateRouteIndication(const Route& r) const {
         return evaluateIndication(r);
+    }
+
+    // A mast's indication as a function of its routes' data: the most
+    // permissive of the routes that display it, each gated as evaluate()
+    // gates it (control held in the route's direction, entrance clear).
+    // For the seam's cleared and home_proceed ports (FieldUnit ADR 0008 D5).
+    Indication evaluateMastIndication(const SignalMast* mast) const {
+        Indication best = Indication::STOP;
+        if (mast == nullptr) return best;
+        for (uint8_t i = 0; i < routeCount_; ++i) {
+            const Route& r = routes_[i];
+            if (r.mast() != mast || r.isEngineReturn()) continue;
+            if (!r.isAutomatic() &&
+                (r.authority() == nullptr || r.authority()->activeDirection() != r.direction())) continue;
+            TrackCircuit* ent = r.entranceBlock();
+            if (ent != nullptr && !ent->isClear()) continue;
+            best = Route::mostPermissive(best, evaluateIndication(r));
+        }
+        return best;
     }
 
     const Route* activeRouteForAuthority(const SignalControl* auth) const {

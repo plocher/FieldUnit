@@ -43,6 +43,32 @@ inline AspectResolver nameToPolicy(const char* name) {
     return AspectPolicies::defaultRoute;
 }
 
+inline const char* tumbleDownToName(TumbleDownTrigger t) {
+    return t == TumbleDownTrigger::REQUESTED ? "requested" : "cleared";
+}
+inline TumbleDownTrigger nameToTumbleDown(const char* n) {
+    return (n && strcmp(n, "requested") == 0) ? TumbleDownTrigger::REQUESTED : TumbleDownTrigger::CLEARED;
+}
+inline const char* trafficToName(TrafficMechanism m) {
+    switch (m) {
+        case TrafficMechanism::FIELD_FR: return "field_fr";
+        case TrafficMechanism::TRAFFIC_LINE: return "traffic_line";
+        default: return "hd_chain";
+    }
+}
+inline TrafficMechanism nameToTraffic(const char* n) {
+    if (n && strcmp(n, "field_fr") == 0) return TrafficMechanism::FIELD_FR;
+    if (n && strcmp(n, "traffic_line") == 0) return TrafficMechanism::TRAFFIC_LINE;
+    return TrafficMechanism::HD_CHAIN;
+}
+inline const char* trafficReleaseToName(TrafficRelease r) {
+    return r == TrafficRelease::REQUEST_NORMAL_AND_BLOCK_CLEAR ? "request_normal_and_block_clear" : "block_clear";
+}
+inline TrafficRelease nameToTrafficRelease(const char* n) {
+    return (n && strcmp(n, "request_normal_and_block_clear") == 0)
+        ? TrafficRelease::REQUEST_NORMAL_AND_BLOCK_CLEAR : TrafficRelease::BLOCK_CLEAR;
+}
+
 inline const char* mastTypeToName(MastType t) {
     switch (t) {
         case MastType::ONE_HEAD: return "ONE_HEAD";
@@ -460,6 +486,40 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
                 if (!append(line)) return false;
             }
             snprintf(line, sizeof(line), "}%s%s", (i + 1 < cp.automaticSignalCount()) ? "," : "", nl);
+            if (!append(line)) return false;
+        }
+        snprintf(line, sizeof(line), "%s],%s", sp, nl);
+        if (!append(line)) return false;
+    }
+
+    // 5c. Control point lines (FieldUnit ADR 0008 D5)
+    if (cp.controlPointLineCount() > 0) {
+        snprintf(line, sizeof(line), "%s\"controlPointLines\": [%s", sp, nl);
+        if (!append(line)) return false;
+        for (uint8_t i = 0; i < cp.controlPointLineCount(); ++i) {
+            const ControlPointLine* l = cp.controlPointLine(i);
+            snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"home\": \"%s\", ",
+                     sp2, l->name(), l->homeMast() ? l->homeMast()->name() : "");
+            if (!append(line)) return false;
+            if (!append("\"governs\": [")) return false;
+            for (uint8_t g = 0; g < l->governedCount(); ++g) {
+                snprintf(line, sizeof(line), "\"%s\"%s", l->governed(g)->name(), (g + 1 < l->governedCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            if (!append("], \"block\": [")) return false;
+            for (uint8_t g = 0; g < l->blockCount(); ++g) {
+                snprintf(line, sizeof(line), "\"%s\"%s", l->blockFact(g)->name(), (g + 1 < l->blockCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            if (!append("], \"leaving\": [")) return false;
+            for (uint8_t g = 0; g < l->leavingCount(); ++g) {
+                snprintf(line, sizeof(line), "\"%s\"%s", l->leavingMast(g)->name(), (g + 1 < l->leavingCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            snprintf(line, sizeof(line), "], \"tumbleDown\": \"%s\", \"traffic\": \"%s\", \"trafficRelease\": \"%s\"}%s%s",
+                     tumbleDownToName(l->tumbleDown()), trafficToName(l->traffic()),
+                     trafficReleaseToName(l->trafficRelease()),
+                     (i + 1 < cp.controlPointLineCount()) ? "," : "", nl);
             if (!append(line)) return false;
         }
         snprintf(line, sizeof(line), "%s],%s", sp, nl);
@@ -959,6 +1019,68 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
             }
             skipWhitespace(val);
             if (*val == ',') val++;
+        }
+    }
+
+    // 6c. Control point lines (FieldUnit ADR 0008 D5)
+    if (findKey(json, "controlPointLines", val)) {
+        skipWhitespace(val);
+        if (*val == '[') {
+            val++;
+            while (*val && *val != ']') {
+                skipWhitespace(val);
+                if (*val == '{') {
+                    const char* itemStart = val;
+                    const char* lVal = nullptr;
+                    char name[32] = "";
+                    if (findKey(itemStart, "name", lVal)) {
+                        parseString(lVal, name, sizeof(name));
+                    }
+                    if (name[0] != '\0') {
+                        ControlPointLine& l = cp.addControlPointLine(name);
+                        char str[40] = "";
+                        if (findKey(itemStart, "home", lVal) && parseString(lVal, str, sizeof(str)) && str[0]) {
+                            l.home(str);
+                        }
+                        const char* listKeys[3] = { "governs", "block", "leaving" };
+                        for (int k = 0; k < 3; ++k) {
+                            if (!findKey(itemStart, listKeys[k], lVal)) continue;
+                            skipWhitespace(lVal);
+                            if (*lVal != '[') continue;
+                            lVal++;
+                            while (*lVal && *lVal != ']') {
+                                skipWhitespace(lVal);
+                                if (*lVal == '"') {
+                                    char fname[32] = "";
+                                    if (parseString(lVal, fname, sizeof(fname))) {
+                                        if (k == 0) l.governs({ fname });
+                                        else if (k == 1) l.block({ fname });
+                                        else l.leaving({ fname });
+                                    }
+                                } else {
+                                    lVal++;
+                                }
+                                skipWhitespace(lVal);
+                                if (*lVal == ',') lVal++;
+                            }
+                        }
+                        if (findKey(itemStart, "tumbleDown", lVal) && parseString(lVal, str, sizeof(str))) {
+                            l.tumbleDown(nameToTumbleDown(str));
+                        }
+                        if (findKey(itemStart, "traffic", lVal) && parseString(lVal, str, sizeof(str))) {
+                            l.traffic(nameToTraffic(str));
+                        }
+                        if (findKey(itemStart, "trafficRelease", lVal) && parseString(lVal, str, sizeof(str))) {
+                            l.trafficRelease(nameToTrafficRelease(str));
+                        }
+                    }
+                    skipValue(val);
+                } else {
+                    val++;
+                }
+                skipWhitespace(val);
+                if (*val == ',') val++;
+            }
         }
     }
 
