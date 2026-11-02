@@ -224,7 +224,7 @@ writes the file is one writer among others.
 - **interlocking** [Both]. An arrangement that forces switch and signal movements to follow each other in a safe sequence.
   - History: first a mechanical machine (levers, locking bed, pipe and wire); later relays.
   - Interlocking is the mechanism facet. A CTC control point uses the same kind of field logic.
-- **interlocking limits** [Both]. The track between the opposing home signals of an interlocking. The tooling can derive them: cut the track graph at every controlled signal; each piece that contains a switch or derail is one interlocking (`FieldUnit-Subdivision/docs/archive/spike-cp-membership.md`).
+- **interlocking limits** [Both]. The track between the opposing home signals of an interlocking. The tooling can derive them: cut the track graph at every controlled signal; each piece that contains a powered switch or derail is one interlocking (`FieldUnit-Subdivision/docs/archive/spike-cp-membership.md`; `FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §4).
 - **interlocking machine** [Prototype]. The lever frame and its locking that a tower operator works. The locking bed is the part that holds a lever that must not move.
 - **tower** [Prototype]. The building at an interlocking from which the tower operator works the interlocking machine.
 - **tower operator** [Both]. The operator role that works directly on a locking bed, real or virtual. On the prototype this is the person who works an interlocking machine in a tower. The tower operator does not use a code line. Compare dispatcher and maintainer. Not yet covered by the model.
@@ -316,12 +316,17 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - Several sensors on separate inputs are separate track relays, so separate track circuits, named as cut sections of one block (`01AT`, `01BT`). Their one occupancy is a track repeater (`TP`), picked up only when every one is clear.
   - A block of track circuits (`TC = 01T, 02T`) has the same form: the block's occupancy is a `TP` over the circuits' `TR` contacts.
   - "Detector", "sensor" and "input pin" are not model terms. They are wiring inside a track relay's circuit, drawn on the field I/O sheet. The code chart decides whether the office sees the circuits, the block, or both.
+- **automatic signal** [Both]. A block signal controlled automatically by track circuits and `HD` lines, without a dispatcher or tower operator (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §5, §15).
+  - In the layout model a mast states `Kind` `ABSOLUTE` (an APB head block, whose most restrictive indication is Stop, Rule 292) or `PERMISSIVE` (with a number plate, whose most restrictive indication is Stop and Proceed, Rule 291; modified to Rule 290 by a `Plate-G` or `Plate-R` grade or restricting marker) [AAR56 pp. 51, 53–54].
+  - An automatic signal gives no movement authority.
 - **block** [Both]. One or more track circuits treated as one occupancy for one purpose. Its occupancy is a track repeater (`TP`) fed through the track relays of its circuits; with one circuit it is that circuit's `TR`.
   - Signal block [Prototype]: the track between consecutive signals that govern movement into it. A long one is several cut sections.
+  - Station-to-station block [Both]: the main-track block between two control points or APB head blocks (see station-to-station block).
   - OS section: the block over the switches of a control point (see OS section).
   - Logical detection block [FieldUnit]: several track circuits treated as one occupancy. Drawn today as the list in the `TC` field of a switch; a desk lamp's `IndicationToken` list is the same idea on the office side (`FieldUnit-Subdivision/docs/adr/0002-symbol-contract.md`, request 14).
   - FieldUnit: the model has no block or `TP` entity yet; `addSwitch(id, os)` finds an existing OS circuit by name, so several switches can share one circuit. The block entity is planned (FieldUnit-Subdivision issue #24).
   - A block is not a track circuit. A track circuit is one `TR`. A block is the unit that locking, a route or a lamp uses.
+- **boundary track circuit** [FieldUnit]. A point detector at an insulated joint (`Appliance track_circuit`, `Style` `boundary`) whose occupancy counts toward the track circuits on both sides of the joint (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §10, §19.1). Because a consumer ORs its occupancy into both sides, a train passing the masts occupies the circuit ahead before it releases the circuit behind (make-before-break), keeping the rear block occupied for cars with non-shunting wheels. It never splits a circuit or ends a block.
 - **crossover** [Both]. Two switches that connect two tracks and work together from one lever.
   - Name: one gang of switches that share a gang id (the Value minus its trailing letter): `815`, `815A`; a double crossover runs to `815C`. Any letter A to Z can name a member, including D (FieldUnit-Subdivision ADR 0003 D7, D8; proposed).
 - **cut section** [Both]. A track circuit that is one part of a longer block. It has its own track relay. AAR56 names the sections of a signal-governed block with letters (`784LAT`, `784LBT`) [AAR56 p. 31]. Where the letter goes (`784LAT` or `A10T`) is open (ADR 0003 D6).
@@ -349,6 +354,10 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - SPCoast: a lock carries the lock tokens, `WLS` (control) and `WLK`, `WLQK` (indications), as the desk's lock levers are drawn and as `WireCodec` packs `WLK` (the owner, 2026-10-27; this replaces the earlier simplification that locks carried the switch tokens). The crew, dispatcher and field coordination of a real electric lock is still deferred (FieldUnit-Subdivision ADR 0002 D14).
 - **fouling point** [Prototype]. The point beyond which a car on one track can be struck by a movement on another track.
 - **head** [Both]. One unit of lamps on a mast. It shows one part of an aspect. KiCad head Value: one letter. The proof-of-concept plant compiler accepts A to E today; ADR 0003 D9 allows any letter A to Z.
+- **HD line** [Both]. The directed two-value line circuit between neighbouring signal locations (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §15). Named for a mast and sent to the previous signal in that mast's direction of travel:
+  - `H` feeds the receiving signal's home relay (`HR`) when the segment's track circuits and permission conditions are met.
+  - `D` feeds the receiving signal's proceed-indication relay (`DR`) when the producer's mast indicates Approach or better (its `HR` is up: more favorable than Stop, Stop and Proceed, or Restricting) [AAR56; AARTC71 Dwg 8000, 8066; CBQ1946 pp. 613–615]. `D` is read only while `H` is asserted.
+  - On the prototype this is a chain of two-wire polarized line circuits re-fed at each signal location [CBQ1946; RS1947 p. 92].
 - **independent derail** [FieldUnit]. A derail with its own lever and its own tokens. Example: Corporal derail `5` in the legacy profile.
   - Name: a derail symbol whose gang id matches no switch or lock gang. The letter is optional; convention: none or D (ADR 0003 D8, proposed).
 - **LEFT, RIGHT** [FieldUnit]. The two directions of a signal lever and of a route. Code names: `DirectionAuthority::LEFT`, `DirectionAuthority::RIGHT`. Today the proof-of-concept plant compiler (`tools/plant_graph`) maps mast letters N and W to LEFT, and S and E to RIGHT.
@@ -364,6 +373,8 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **signal** [Both]. An appliance that shows an aspect to govern a train movement. One signal can use heads on one or more masts.
   - AAR56 names functions of one lever position with A, B, C. Fig. 26 uses them for separate signals and for two arms on one mast [AAR56 pp. 33–34].
   - FieldUnit separates the control of a signal (`SignalControl`, one for each signal lever) from its display (`SignalMast`).
+- **signal location** [Both]. A block boundary with its insulated joint, its signal mast or back-to-back pair of masts (`IRJ-Signal` or `IRJ-Signals`), and the track circuits on each side (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §6). A control point is a signal location with one side toward the station-to-station block.
+- **station-to-station block** [Both]. The piece of main track between two control points (or APB head-block signals), cut at every `CONTROLLED` and `ABSOLUTE` signal joint, holding no powered switch or derail and lying under a block signal rule [RS1942] (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §4). It may contain intermediate automatic signals and non-powered switches (hand-throw, spring, or electrically locked). It belongs to the layout, not to an interlocking, and reaches the office as one virtual track circuit indication (`BPR`).
 - **switch** [Both]. An appliance with movable points that routes a train from one track to another. AAR56 uses the letter W for switch [AAR56 p. 32]. Code name: `Switch`.
 - **switch correspondence** [Both]. Agreement between the position of a switch and its control.
   - Out of switch correspondence: the switch is moving, or it did not reach the position of its control.
@@ -397,10 +408,12 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **route locking** [Both]. Locking that holds the switches of a route while the signal is clear or a train is on the route. Each switch is released when its releasing track circuit clears (sectional release). FieldUnit: `SwitchLock::ROUTE_LOCKED`, `SectionState`.
 - **signal indication** [Both]. The meaning of an aspect, as the rulebook states it. Examples: Stop, Restricting, Clear. Code name: enum `Indication`.
 - **time locking** [Both]. Locking that holds the route switches for a set time after a signal is restored to stop. FieldUnit uses one timer for approach locking and time locking (see approach locking).
+- **traffic, direction of traffic** [Both]. The established direction of movement on a single-track or either-direction block (`RULE_261` / CTC) [CFR236 §236.769; CBQ1946; RS1942]. Occupancy of the block or an opposing cleared signal prevents changing the direction of traffic (**traffic locking**). On SP CTC, the signal levers and the `HD` line circuits through the track relays establish and hold traffic in the field without a separate traffic lever (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §16). Compare current of traffic (section 9).
 
 ## 9. Operating rules [Prototype]
 
 - A rule number belongs to one rulebook and one era. Give the book with the number.
+- **current of traffic** [Both]. The movement of trains on a main track in one direction, specified in the timetable (`RULE_251`) [PRR56 Definitions; CFR236 §236.734]. In the layout model, a `RULE_251` sign's `LEFT` or `RIGHT` states the lever direction of the signals that govern with the current of traffic (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §8). Compare traffic, direction of traffic (section 8).
 - SPCoast models 1942 to 1985 (title block). Use Standard Code numbers for SPCoast. Name GCOR only as the modern equivalent.
 - The texts below are from one road: the PRR book effective October 28, 1956, with 1964 revisions [PRR56]. Another road's wording can differ.
 
@@ -445,8 +458,10 @@ AAR letters [AAR56 p. 32]. A name uses one meaning of each letter.
 | Letter | Meanings |
 |---|---|
 | A | approach |
+| B | block [AARNOM46] |
 | D | proceed indication, detector, decoding, dragging |
 | E | east |
+| F | traffic [AARNOM46] |
 | G | signal (operating mechanism) |
 | H | home, approach indication |
 | K | indicator |
@@ -506,8 +521,9 @@ The sketches below are illustrative. They are not prototype circuit plans.
 bool plantFree = sig.ASR(); // false while the time-locking timer runs
 ```
 
-- **`ESR`, `WSR`** [Prototype]. East and west stick relays; likewise north and south [AAR56 p. 34]. They are directional stick relays [RS1927, RS1944]. FieldUnit-Subdivision ADR 0013 writes the automatic signal location's directional stick as `SR`. FieldUnit has no object for them; FieldUnit ADR 0007 D3 puts it in the automatic signal location class.
-- **`FSR`** [FieldUnit]. Fleet stick relay. FieldUnit name. `SignalControl::FSR()` is true while fleeting is on. The signal then clears again when the route is clear, without a new control.
+- **`BPR`** [Prototype]. Block repeater relay, repeating the track circuits in a block [AARNOM46 p. 3]. In the layout model, a `virtual` track circuit whose `Members` are the station-to-station block's circuits plays this role (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §7.2).
+- **`FR`, `FSR` (traffic)** [Prototype]. Traffic relay and traffic stick relay [AARNOM46 p. 4; AARTC71 Dwg 8066, 8082; CBQ1946]. Not a collision with FieldUnit's fleet stick relay `FSR` below: AAR abbreviations are not unique across domains (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §21).
+- **`FSR` (fleet)** [FieldUnit]. Fleet stick relay. FieldUnit name. `SignalControl::FSR()` is true while fleeting is on. The signal then clears again when the route is clear, without a new control.
 - **`HR`, `DR`** [Both]. Relay names with H (home, approach indication) and D (proceed indication). D does not mean "distant" on the AAR list. FieldUnit has no `HR` or `DR` object; section 10.6 gives the circuits that its logic follows.
 
 ```cpp
@@ -559,6 +575,8 @@ bool reverseInCorrespondence = sw.RWCR();
 bool inCorrespondence        = sw.KR();
 ```
 
+- **`RGPR`** [Prototype]. Relay repeating a signal mechanism at stop (red repeater) [AARNOM46; RS1945].
+- **`SR`, `ESR`, `WSR`, `NSR`, `SSR`** [Both]. Directional stick relay [AARNOM46; AAR56 p. 34; CBQ1946 p. 615; RS1927, RS1944]. At an intermediate signal location, a mast's `SR` picks up when a train passes the mast in its governing direction (the circuit beyond becomes occupied while the mast shows proceed, before slow-release `HR` drops) and sticks through its own front contact and `HR` back contact until `H` from ahead is asserted again, allowing following moves behind a receding train (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §15.3). FieldUnit has no object for it; FieldUnit ADR 0007 D3 puts it in the automatic signal location class.
 - **`TP`, `TPR`** [Both]. Track repeater relay. It repeats one track relay to give more contacts, or it is fed through the front contacts of several track relays in series, so that it is picked up only when every circuit is clear. The second form is the occupancy of a block (see block, aggregation). FieldUnit has no object for it yet; the block entity will carry this role.
 - **`TR`** [Both]. Track relay, one for each track circuit. In the model it is one input bit; sensors wired in parallel to that input are inside its circuit and are not model objects. It is energized (picked up) when the rails are not shunted. It drops when wheels and axles shunt the rails. A broken rail or a power loss also drops it.
 
@@ -685,6 +703,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | island, Island Block (for a switch section) | OS section |
 | Kontrol (for K) | indicator |
 | leverman, towerman, TowerMaster | tower operator |
+| line signal | HD line |
 | line station, Line Station | field station |
 | mnemonic | token |
 | Model 503, Model 506, Type 506 machine, US&S506 machine | the SPCoast CTC machine (US&S style) |
@@ -693,6 +712,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | Occupied Section, On-Sheet Section | OS section |
 | out of correspondence (alone) | out of switch correspondence or out of office correspondence |
 | panel (for the whole machine) | CTC machine |
+| passed memory | SR (directional stick relay) |
 | plant (alone) | interlocking plant, interlocking model or interlocking logic |
 | Send (for S) | control (FieldUnit final S) or stick (AAR S) |
 | settings (for the fields stated on a symbol) | given |
@@ -713,19 +733,25 @@ Quotes marked "paraphrase" came through a web fetch tool. Their wording is not v
 |---|---|
 | AAR56 | *American Railway Signaling Principles and Practices*, Chapter II, AAR Signal Section, revised June 1956. `docs/reference/Chapter-02-Symbols-Aspects-and-Indications-1956.pdf`. Printed page numbers. |
 | AARLIST | General AAR Abbreviations, as reproduced at railroadsignals.us/basics/nomenclature.htm (paraphrase). Not AREMA text. |
+| AARNOM46 | AAR Signal Section, *Circuit Nomenclature, Written Circuits and Graphical Symbols* (Manual Part 33, 1943; complete to Oct 1946). `docs/reference/AAR. Signal Section. Circuit nomenclature, written circuits, and graphical symbols. 1946-10.pdf`. |
+| AARTC71 | AAR Communication & Signal Section, *Typical Circuits Representing Current Practice for Railway Signaling*, compiled 1971, jonroma.net. |
 | ARTC23 | ARTC SCP 23, extranet.artc.com.au/docs/eng/signal/procedures/design/SCP23.pdf |
 | BNSF | BNSF Railtalk, "ABCs", bnsf.com/news-media/railtalk/heritage/abcs.html (paraphrase) |
+| CBQ1946 | Zane, W. F., "New Signal Control Line Circuits in Centralized Traffic Control Territory on the Burlington", *Railway Signaling*, Sept 1946, pp. 612–616, jonroma.net. |
 | CFR218 | 49 CFR 218.109, law.cornell.edu (paraphrase) |
-| CFR236 | 49 CFR 236.782, law.cornell.edu (paraphrase) |
+| CFR236 | 49 CFR Part 236 (including §§236.405, 236.734, 236.769, 236.782), ecfr.gov. |
 | EKEVING | "1927: Dispatcher Control on the New York Central", ekeving.se/ctc/us/NYC_1927.html (paraphrase) |
 | GCOR6 | General Code of Operating Rules, 6th edition, 2010, fobnr.org copy |
 | NORAC9 | NORAC Operating Rules, 9th edition, 2008, rail.pgengler.net copy |
 | PRR56 | PRR rulebook effective October 28, 1956, with revisions to 1964, redoveryellow.com copy |
 | RRS506 | rrsignal.com/railroad/ctc/uss506.htm |
 | RRS514 | rrsignal.com/railroad/ctc/uss514.htm (paraphrase) |
-| RS1927 | Railway Signaling, 1927, "Various Circuits for Directional Control of Single Track Signals", jonroma.net |
+| RS1927 | Railway Signaling, July 1927, pp. 269–270, "Various Circuits for Directional Control of Single Track Signals", jonroma.net |
 | RS1937 | Railway Signaling, October 1937, "Ends of Double Track Controlled by CTC", jonroma.net |
+| RS1942 | Railway Signaling, October 1942, pp. 538–545, "C.T.C. Saves Train Time on a Section of the Southern Pacific", jonroma.net |
 | RS1944 | Railway Signaling, 1944, "Coded Track Circuits for CTC and Cab Signaling", jonroma.net |
+| RS1945 | Railway Signaling, February 1945, pp. 94–99, "Southern Pacific Installs CTC on 72 Miles of Single Track", jonroma.net |
+| RS1947 | Railway Signaling, February 1947, p. 92, "Southern Pacific Installs C.T.C.", jonroma.net |
 | RS1959 | Railway Signaling, July 1959, "Pushbutton console for CTC", jonroma.net |
 | RS1960 | Railway Signaling and Communications, 1960, "Fourteen RRs adopt new operating code", jonroma.net |
 | USS1949 | Farrington, Union Switch & Signal history, 1949, utahrails.net |
