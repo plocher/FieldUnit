@@ -9,6 +9,7 @@
 #include "SignalMast.h"
 #include "SignalControl.h"
 #include "ControlTable.h"
+#include "AutomaticSignal.h"
 
 namespace FieldUnit {
 
@@ -114,7 +115,8 @@ public:
           authorityCount_(0),
           mastCount_(0),
           crossoverCount_(0),
-          detectorLockCouplingCount_(0) {
+          detectorLockCouplingCount_(0),
+          automaticSignalCount_(0) {
         setName(name);
         for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
             maintainerCalls_[i] = false;
@@ -131,6 +133,8 @@ public:
 
     void reset() {
         trackCircuitCount_ = 0;
+        lineInputCount_ = 0;
+        automaticSignalCount_ = 0;
         switchCount_ = 0;
         crossoverCount_ = 0;
         authorityCount_ = 0;
@@ -365,10 +369,50 @@ public:
         return nullptr;
     }
 
-    // A fact by name. Today the only facts are line inputs; a local mast
-    // becomes a fact source when the DR reads the next signal.
+    // A fact by name (FieldUnit ADR 0008 D2, D3): a line input, the H or D
+    // an automatic signal produces, or a track circuit (its TR).
     const Fact* findFact(const char* name) {
-        return findLineInput(name);
+        if (!name) return nullptr;
+        const Fact* f = findLineInput(name);
+        if (f) return f;
+        for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
+            if (strcmp(automaticSignals_[i].hOut()->name(), name) == 0) return automaticSignals_[i].hOut();
+            if (strcmp(automaticSignals_[i].dOut()->name(), name) == 0) return automaticSignals_[i].dOut();
+        }
+        return findTrackCircuit(name);
+    }
+
+    // Automatic signal (FieldUnit ADR 0008 D1): one mast, one direction,
+    // its own route with no signal control, its stick and its HD line out.
+    AutomaticSignal& addAutomaticSignal(const char* name, MastType type, AspectResolver policy = nullptr) {
+        if (automaticSignalCount_ >= MAX_APPLIANCES) {
+            static AutomaticSignal overflow;
+            return overflow;
+        }
+        SignalMast* mast = addSignalMast(name, type, policy);
+        Route& r = route(name);
+        r.displays(name, Indication::CLEAR).automatic();
+        AutomaticSignal& a = automaticSignals_[automaticSignalCount_++];
+        a.bind(name, this, &engine_, &r, mast);
+        return a;
+    }
+
+    AutomaticSignal* findAutomaticSignal(const char* name) {
+        if (!name) return nullptr;
+        for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
+            if (strcmp(automaticSignals_[i].name(), name) == 0) return &automaticSignals_[i];
+        }
+        return nullptr;
+    }
+
+    uint8_t automaticSignalCount() const { return automaticSignalCount_; }
+    const AutomaticSignal* automaticSignal(uint8_t idx) const { return (idx < automaticSignalCount_) ? &automaticSignals_[idx] : nullptr; }
+    AutomaticSignal* automaticSignal(uint8_t idx) { return (idx < automaticSignalCount_) ? &automaticSignals_[idx] : nullptr; }
+    bool isAutomaticMast(const SignalMast* mast) const {
+        for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
+            if (automaticSignals_[i].mast() == mast) return true;
+        }
+        return false;
     }
 
     uint8_t lineInputCount() const { return lineInputCount_; }
@@ -590,8 +634,19 @@ public:
             authorities_[i].evaluate(routeClear, nowMs);
         }
 
-        // D. Interlocking Control Table vital route evaluation
+        // D. Automatic signal sticks advance before the control table runs
+        //    (FieldUnit ADR 0008 D4): each stick reads the previous scan's HR.
+        for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
+            automaticSignals_[i].updateStick();
+        }
+
+        // E. Interlocking Control Table vital route evaluation
         engine_.evaluate();
+
+        // F. Remember this scan's HR for the next scan's stick
+        for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
+            automaticSignals_[i].latchHR();
+        }
     }
 
     // Egress: Generate complete, self-consistent plant-wide indication vector
@@ -687,6 +742,9 @@ private:
 
     DetectorBinding detectorLocks_[MAX_APPLIANCES];
     uint8_t detectorLockCouplingCount_;
+
+    AutomaticSignal automaticSignals_[MAX_APPLIANCES];
+    uint8_t automaticSignalCount_;
 
     InterlockingEngine engine_;
 };
@@ -796,6 +854,34 @@ inline Route& Route::homeFact(const char* factName) {
 inline Route& Route::proceed(const char* factName) {
     proceedFact_ = cp_ ? cp_->findFact(factName) : nullptr;
     return *this;
+}
+
+// -------------------------------------------------------------
+// AutomaticSignal String-Based Configuration Implementations
+// -------------------------------------------------------------
+
+inline AutomaticSignal& AutomaticSignal::governs(std::initializer_list<const char*> names) {
+    for (const char* n : names) {
+        governs(cp_ ? cp_->findFact(n) : nullptr);
+    }
+    return *this;
+}
+
+inline AutomaticSignal& AutomaticSignal::approach(std::initializer_list<const char*> names) {
+    for (const char* n : names) {
+        approach(cp_ ? cp_->findFact(n) : nullptr);
+    }
+    return *this;
+}
+
+inline AutomaticSignal& AutomaticSignal::reads(const char* hName, const char* dName) {
+    const Fact* h = cp_ ? cp_->findFact(hName) : nullptr;
+    const Fact* d = cp_ ? cp_->findFact(dName) : nullptr;
+    return reads(h, d);
+}
+
+inline AutomaticSignal& AutomaticSignal::opposing(const char* mastName) {
+    return opposing(cp_ ? cp_->findAutomaticSignal(mastName) : nullptr);
 }
 
 inline Route& Route::engineReturn(const char* standingCarsName, const char* islandName) {

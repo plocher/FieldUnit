@@ -407,18 +407,64 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
     snprintf(line, sizeof(line), "%s],%s", sp, nl);
     if (!append(line)) return false;
 
-    // 5. Signal Masts
+    // 5. Signal Masts (an automatic signal's mast is written with it, 5b)
     snprintf(line, sizeof(line), "%s\"signalMasts\": [%s", sp, nl);
     if (!append(line)) return false;
+    uint8_t plainMastCount = 0;
+    for (uint8_t i = 0; i < cp.mastCount(); ++i) {
+        if (!cp.isAutomaticMast(cp.mast(i))) plainMastCount++;
+    }
+    uint8_t plainMastEmitted = 0;
     for (uint8_t i = 0; i < cp.mastCount(); ++i) {
         const SignalMast* sm = cp.mast(i);
+        if (cp.isAutomaticMast(sm)) continue;
+        plainMastEmitted++;
         snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"type\": \"%s\", \"aspectPolicy\": \"%s\"}%s%s",
                  sp2, sm->name(), mastTypeToName(sm->type()), policyToName(sm->aspectPolicy()),
-                 (i + 1 < cp.mastCount()) ? "," : "", nl);
+                 (plainMastEmitted < plainMastCount) ? "," : "", nl);
         if (!append(line)) return false;
     }
     snprintf(line, sizeof(line), "%s],%s", sp, nl);
     if (!append(line)) return false;
+
+    // 5b. Automatic signals (FieldUnit ADR 0008 D6)
+    if (cp.automaticSignalCount() > 0) {
+        snprintf(line, sizeof(line), "%s\"automaticSignals\": [%s", sp, nl);
+        if (!append(line)) return false;
+        for (uint8_t i = 0; i < cp.automaticSignalCount(); ++i) {
+            const AutomaticSignal* a = cp.automaticSignal(i);
+            const SignalMast* sm = a->mast();
+            snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"type\": \"%s\", \"aspectPolicy\": \"%s\", ",
+                     sp2, a->name(),
+                     sm ? mastTypeToName(sm->type()) : "ONE_HEAD",
+                     sm ? policyToName(sm->aspectPolicy()) : "defaultRoute");
+            if (!append(line)) return false;
+            if (!append("\"governs\": [")) return false;
+            for (uint8_t g = 0; g < a->governedCount(); ++g) {
+                snprintf(line, sizeof(line), "\"%s\"%s", a->governed(g)->name(), (g + 1 < a->governedCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            if (!append("], \"approach\": [")) return false;
+            for (uint8_t g = 0; g < a->approachCount(); ++g) {
+                snprintf(line, sizeof(line), "\"%s\"%s", a->approachFact(g)->name(), (g + 1 < a->approachCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            if (!append("]")) return false;
+            if (a->hIn() || a->dIn()) {
+                snprintf(line, sizeof(line), ", \"reads\": {\"h\": \"%s\", \"d\": \"%s\"}",
+                         a->hIn() ? a->hIn()->name() : "", a->dIn() ? a->dIn()->name() : "");
+                if (!append(line)) return false;
+            }
+            if (a->opposingSignal()) {
+                snprintf(line, sizeof(line), ", \"opposing\": \"%s\"", a->opposingSignal()->name());
+                if (!append(line)) return false;
+            }
+            snprintf(line, sizeof(line), "}%s%s", (i + 1 < cp.automaticSignalCount()) ? "," : "", nl);
+            if (!append(line)) return false;
+        }
+        snprintf(line, sizeof(line), "%s],%s", sp, nl);
+        if (!append(line)) return false;
+    }
 
     // 6. Detector Locks
     snprintf(line, sizeof(line), "%s\"detectorLocks\": [%s", sp, nl);
@@ -438,8 +484,15 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
     snprintf(line, sizeof(line), "%s\"routes\": [%s", sp, nl);
     if (!append(line)) return false;
     const InterlockingEngine& eng = cp.engine();
+    uint8_t plainRouteCount = 0;
+    for (uint8_t i = 0; i < eng.routeCount(); ++i) {
+        if (!eng.route(i).isAutomatic()) plainRouteCount++;
+    }
+    uint8_t plainRouteEmitted = 0;
     for (uint8_t i = 0; i < eng.routeCount(); ++i) {
         const Route& r = eng.route(i);
+        if (r.isAutomatic()) continue;   // written under automaticSignals
+        plainRouteEmitted++;
         snprintf(line, sizeof(line), "%s{%s", sp2, nl);
         if (!append(line)) return false;
 
@@ -519,7 +572,7 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
             if (!append(line)) return false;
         }
 
-        snprintf(line, sizeof(line), "%s}%s%s", sp2, (i + 1 < eng.routeCount()) ? "," : "", nl);
+        snprintf(line, sizeof(line), "%s}%s%s", sp2, (plainRouteEmitted < plainRouteCount) ? "," : "", nl);
         if (!append(line)) return false;
     }
     snprintf(line, sizeof(line), "%s]%s", sp, nl);
@@ -827,6 +880,85 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
                 skipWhitespace(val);
                 if (*val == ',') val++;
             }
+        }
+    }
+
+    // 6b. Automatic signals (FieldUnit ADR 0008 D6). Two passes: every
+    // signal exists before any binding, so a local location may read
+    // another's outputs whatever the order in the file.
+    for (int pass = 0; pass < 2; ++pass) {
+        if (!findKey(json, "automaticSignals", val)) break;
+        skipWhitespace(val);
+        if (*val != '[') break;
+        val++;
+        while (*val && *val != ']') {
+            skipWhitespace(val);
+            if (*val == '{') {
+                const char* itemStart = val;
+                const char* aVal = nullptr;
+                char name[32] = "";
+                if (findKey(itemStart, "name", aVal)) {
+                    parseString(aVal, name, sizeof(name));
+                }
+                if (name[0] != '\0') {
+                    if (pass == 0) {
+                        char typeStr[32] = "ONE_HEAD";
+                        char policyStr[32] = "";
+                        if (findKey(itemStart, "type", aVal)) {
+                            parseString(aVal, typeStr, sizeof(typeStr));
+                        }
+                        if (findKey(itemStart, "aspectPolicy", aVal)) {
+                            parseString(aVal, policyStr, sizeof(policyStr));
+                        }
+                        AspectResolver policy = (policyStr[0] != '\0') ? nameToPolicy(policyStr) : nullptr;
+                        cp.addAutomaticSignal(name, nameToMastType(typeStr), policy);
+                    } else {
+                        AutomaticSignal* a = cp.findAutomaticSignal(name);
+                        if (a) {
+                            const char* listKeys[2] = { "governs", "approach" };
+                            for (int k = 0; k < 2; ++k) {
+                                if (!findKey(itemStart, listKeys[k], aVal)) continue;
+                                skipWhitespace(aVal);
+                                if (*aVal != '[') continue;
+                                aVal++;
+                                while (*aVal && *aVal != ']') {
+                                    skipWhitespace(aVal);
+                                    if (*aVal == '"') {
+                                        char fname[32] = "";
+                                        if (parseString(aVal, fname, sizeof(fname))) {
+                                            if (k == 0) a->governs({ fname }); else a->approach({ fname });
+                                        }
+                                    } else {
+                                        aVal++;
+                                    }
+                                    skipWhitespace(aVal);
+                                    if (*aVal == ',') aVal++;
+                                }
+                            }
+                            if (findKey(itemStart, "reads", aVal)) {
+                                const char* readsObj = aVal;
+                                const char* rv = nullptr;
+                                char hName[32] = "";
+                                char dName[32] = "";
+                                if (findKey(readsObj, "h", rv)) parseString(rv, hName, sizeof(hName));
+                                if (findKey(readsObj, "d", rv)) parseString(rv, dName, sizeof(dName));
+                                a->reads(hName[0] ? hName : nullptr, dName[0] ? dName : nullptr);
+                            }
+                            if (findKey(itemStart, "opposing", aVal)) {
+                                char oName[32] = "";
+                                if (parseString(aVal, oName, sizeof(oName))) {
+                                    a->opposing(oName);
+                                }
+                            }
+                        }
+                    }
+                }
+                skipValue(val);
+            } else {
+                val++;
+            }
+            skipWhitespace(val);
+            if (*val == ',') val++;
         }
     }
 

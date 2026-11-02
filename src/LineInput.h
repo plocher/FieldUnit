@@ -2,27 +2,9 @@
 #define FIELDUNIT_LINE_INPUT_H
 
 #include "types.h"
+#include "Fact.h"
 
 namespace FieldUnit {
-
-/**
- * Fact: a named vital boolean that a route can require.
- *
- * FieldUnit ADR 0007 D2. A route's home() terms are ANDed into its HR
- * condition; its proceed() term decides Clear versus Approach (the DR
- * condition). The operand of both is a Fact. The Fact's source is a
- * binding made at configuration: a LineInput today (a line circuit, a
- * topic, a neighbour's indication); a local mast later.
- *
- * Vital rule: asserted() is false whenever the source is released,
- * stale, or has never been set.
- */
-class Fact {
-public:
-    virtual ~Fact() {}
-    virtual const char* name() const = 0;
-    virtual bool asserted() const = 0;
-};
 
 /**
  * LineInput: the consumer end of a line circuit.

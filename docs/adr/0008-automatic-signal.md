@@ -1,6 +1,6 @@
 # 0008. The automatic signal: a location that reads the block ahead and produces the HD line to the rear
 
-- Status: proposed (drafted with the owner, 2026-11-02)
+- Status: accepted (drafted with the owner, 2026-11-02; D1 to D6 ratified by the owner 2026-11-02)
 - Date: 2026-11-02
 - Builds on: FieldUnit ADR 0007 (D2 line inputs, D3 the automatic signal location as a library class); FieldUnit-Subdivision ADR 0013 rev 4 (§14.1 invariants `I1` to `I4`, §15.1 to §15.4 the HD line and the stick, §16 the trace, §18.2 and §18.3 eavesdropping); `docs/GLOSSARY.md` §10.6 (the `HR` and `DR` chains).
 - Order of authority: as FieldUnit ADR 0007 states it. Inside the plant, GLOSSARY §10.6; between plants, ADR 0013 Part 2; where `src/` differs, the code has the defect.
@@ -124,6 +124,15 @@ Rejected shape: `SignalMast` or a per-mast relay object as the Fact the route in
 - The `approaching()` double duty (issue #19) is untouched. An automatic signal names its blocks `governs()` and `approach()` in the prototype's sense, in advance and in rear of the signal.
 - The AAR signaling primer §8.5 gains the picture and the block-only equations with D1 to D4.
 
+## Findings for FieldUnit-Subdivision ADR 0013, from the conformance test
+
+Recorded by `tests/test_automatic_signal.cpp` part E on the Corporal–Sargent block (locations 832 and 834, circuits `832T`, `834T`, `836T`), with the control points' lines driven by hand from §15.4 under `SP_1942`, one scan behind the plant as a wire would be.
+
+1. **I3 has a transient under `SP_1942`.** After a northbound train sets the receding sticks on `834NA` and `832NA` and clears into Corporal with a southbound control already requested, the sticks do release, since Corporal's `H` out returns as `832T` clears. But the release travels down the chain one location per scan, and Corporal's leaving signal clears in the first scan, so Corporal is cleared while Sargent's `segment_clear` is still asserted for one scan. Not a stuck stick; the chain's propagation delay. §14.2 says `SP_1942` holds `I3` by trace because "outbound `H` stays asserted while a train in `1T` holds the opposing leaving signal at Stop"; with §15.4's `H` out containing the adjacent circuit's `T`, outbound `H` is released while that train is in `1T`, so the trace as written does not reach that state. With `traffic_free` carried un-bypassed (`CBQ_1946`, `ERIE_NW_1942`) the overlap is a latency matter only (§18.3 item 4). Reported to the owner 2026-11-02; a profile question, not a code change here.
+2. **`sameLocationOpposingCut: true` with `intermediatesAtRest: "clear"` races.** Two masts at one location that each read the other's `HR` back contact, with `H` arriving from both directions at rest, pick up together, cut each other, drop together and pick up again, scan after scan. A relay pair does the same unless something breaks the tie. The `SP_1942` row of §14.2 states both. Part C of the test therefore establishes one direction before the other, as `CBQ_1946`'s `idleDirection: "last"` does. Reported to the owner 2026-11-02.
+3. **§16 row 4 wording.** The row says "`832SA` clears to Clear" while `T1` is in `836T`. `834SA` is at Stop then, so `832SA`'s `D` from 834 is released and `832SA` shows Approach, which the same row's "`D` asserted" (`832SA`'s own `D` out, its `HR` up) is consistent with. A wording nit.
+
 ## Record
 
+- 2026-11-02: D1 to D4 and D6 implemented and tested the same day (`src/AutomaticSignal.h`, `src/Fact.h`, `tests/test_automatic_signal.cpp`); the three findings above came out of the conformance test.
 - 2026-11-02: drafted with the owner after the item 2 discussion. The owner's rulings that shaped it: the mast is an output and never an input to another mast's equation; the number plate changes the aspect the crew reads, not the indication; eavesdropping is the location function run on remote operands.

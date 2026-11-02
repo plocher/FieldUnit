@@ -2,10 +2,11 @@
 #define FIELDUNIT_TRACK_CIRCUIT_H
 
 #include "types.h"
+#include "Fact.h"
 
 namespace FieldUnit {
 
-class TrackCircuit {
+class TrackCircuit : public Fact {
 public:
     TrackCircuit() : TrackCircuit("", 0) {}
 
@@ -27,9 +28,13 @@ public:
         name_[sizeof(name_) - 1] = '\0';
     }
 
-    const char* name() const { return name_; }
+    const char* name() const override { return name_; }
     uint8_t index() const { return index_; }
     void setIndex(uint8_t idx) { index_ = idx; }
+
+    // Fact (FieldUnit ADR 0008 D2): the TR as an operand. A route or a
+    // signal location reads a track circuit the same way it reads a line.
+    bool asserted() const override { return isClear(); }
 
     // Vital query: is this block safe for train movement?
     // Fail-safe rule: Must be VACANT AND GOOD quality.

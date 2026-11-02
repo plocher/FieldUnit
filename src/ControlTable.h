@@ -15,7 +15,7 @@ class InterlockingPlant;
 
 static constexpr uint8_t MAX_ROUTE_SWITCHES = 8;
 static constexpr uint8_t MAX_ROUTE_BLOCKS   = 8;
-static constexpr uint8_t MAX_ROUTE_FACTS    = 4;
+static constexpr uint8_t MAX_ROUTE_FACTS    = 8;
 static constexpr uint8_t MAX_ROUTES         = 32;
 
 enum class RouteState : uint8_t {
@@ -69,6 +69,7 @@ public:
           homeFactCount_(0),
           proceedFact_(nullptr),
           isEngineReturn_(false),
+          automatic_(false),
           originBlock_(nullptr),
           osBlock_(nullptr),
           cp_(nullptr),
@@ -278,6 +279,14 @@ public:
 
     Route& engineReturn(const char* standingCarsName, const char* islandName);
 
+    // Automatic signal (FieldUnit ADR 0008 D1): a route with no signal
+    // control. The authority term is absent, not Stop. Only a marked route
+    // evaluates without an authority; an unmarked one stays dark.
+    Route& automatic() {
+        automatic_ = true;
+        return *this;
+    }
+
     // Accessors for vital evaluation
     const char* name() const { return name_; }
     SignalControl* authority() const { return authority_; }
@@ -301,6 +310,7 @@ public:
     const Fact* proceedFact() const { return proceedFact_; }
 
     bool isEngineReturn() const { return isEngineReturn_; }
+    bool isAutomatic() const { return automatic_; }
     TrackCircuit* originBlock() const { return originBlock_; }
     TrackCircuit* osBlock() const { return osBlock_; }
 
@@ -325,6 +335,7 @@ private:
     const Fact*        proceedFact_;
 
     bool               isEngineReturn_;
+    bool               automatic_;
     TrackCircuit*      originBlock_;
     TrackCircuit*      osBlock_;
     InterlockingPlant* cp_;
@@ -410,7 +421,8 @@ public:
             }
 
             // B. Standard Dispatcher-Governed Route
-            if (r.authority() == nullptr || r.authority()->activeDirection() != r.direction()) {
+            if (!r.isAutomatic() &&
+                (r.authority() == nullptr || r.authority()->activeDirection() != r.direction())) {
                 r.resetTraversal();
                 continue;
             }
@@ -466,6 +478,13 @@ public:
     // Every home fact asserted (true when the route has none).
     bool checkRouteHomeFacts(const Route& r) const {
         return checkHomeFacts(r);
+    }
+
+    // The route equation as a function, for a signal location that
+    // produces its D from its own HR (FieldUnit ADR 0008 D3). Reads inputs
+    // only; writes nothing.
+    Indication evaluateRouteIndication(const Route& r) const {
+        return evaluateIndication(r);
     }
 
     const Route* activeRouteForAuthority(const SignalControl* auth) const {
@@ -554,6 +573,7 @@ private:
     }
 
     Indication authorityContribution(const Route& r) const {
+        if (r.isAutomatic()) return r.aspectCeiling();   // term absent, not Stop
         return r.authority() != nullptr && r.authority()->activeDirection() == r.direction()
             ? r.aspectCeiling()
             : Indication::STOP;
