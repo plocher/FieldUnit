@@ -186,6 +186,7 @@ The system is organized into a four-tier decoupled architecture:
   - **Approach Time Locking (`TIME_LOCKED`)**: If a cleared signal is knocked down before a train enters, switch points freeze until the approach timer expires, unless downstream approach tracks are vacant (dynamic approach cancellation).
   - **Sectional Route Release**: As a train traverses an interlocking across multiple switches, trailing switches release progressively as their specific fouling track circuit is vacated, freeing them for conflicting moves while maintaining locking ahead.
   - **Vital Stick Relays**: Standard signal stick drops upon entrance shunt (`knockdown`). Fleeting mode (`FSR`) automatically re-clears authority for following trains when route blocks vacate. Engine Return Stick (`ERS`) permits low-speed return moves to cars standing on dark/approach tracks.
+  - **Block signals and the seam (FieldUnit ADR 0007, ADR 0008)**: a route's `home()` and `proceed()` terms read named `Fact`s (`H`, `F`, `D` of the HD line from the location ahead). `AutomaticSignal` is the intermediate signal location: it governs into one block, reads the line from ahead, holds the directional stick `SR`, and produces the line to the rear as `<mast>H` and `<mast>D`. `ControlPointLine` is what a control point produces at the seam (`H`, `D`, `F` out, parameterized by the ADR 0013 `blockRules` axes). On one processor these are the same class bound to local circuits; across processors, to line inputs.
 
 ### 3. Office Machine Abstraction (`cTcMachine`)
 

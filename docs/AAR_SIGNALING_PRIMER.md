@@ -408,7 +408,22 @@ The `DR` relay looks down the track to the next signal.
 - If the block ahead is clear AND the next signal's `HR` is up (Approach or better), `DR` picks up.
   This upgrades the aspect from `APPROACH` (Yellow) to **`CLEAR`** (Green).
 
-FieldUnit has no `DR` object. It lowers CLEAR to APPROACH when the track circuit named in the route's `approaching()` is occupied.
+FieldUnit has no `DR` object, because it has no stored relays at all: the chain above is a function, and the "next signal `HR` front" is where that function reads the location ahead. Written for one automatic signal `M` at location `L`, governing toward `W` with its line going back to `U` (FieldUnit ADR 0008):
+
+```
+              U                        L                         W
+ ===T(·→U)=== + ======T(U→L)====== + ======T(L→W)====== + ===T(W→·)===
+             |--O                     |--O  M                   |--O
+                 ◄──── H, D from L ────   ◄──── H, D from W ────
+
+  M's display   least permissive of   T(L→W) clear      → CLEAR else STOP
+                                      H from W          → CLEAR else STOP
+                                      D from W          → CLEAR else APPROACH
+  D to U   =  HR_M  =  T(L→W) ∧ H_W
+  H to U   =  T(U→L) ∧ (H_W ∨ SR_M)
+```
+
+Each location reads the circuit ahead of it for its own display and reports on the circuit behind it to the location in rear. Written as blocks only, `D_W = T(W→X) ∧ H_X`: the mast at `W` is an output, never an input. In code the location is `AutomaticSignal`, its two outputs are the facts `<mast>H` and `<mast>D`, and the route in rear writes `home("832SAH").proceed("832SAD")` whether location 832 is on this processor or arrives over a wire as line inputs. A control point produces its own line at the seam with `ControlPointLine`. The `approaching()` circuit still lowers CLEAR to APPROACH as well (issue #19).
 
 ---
 
