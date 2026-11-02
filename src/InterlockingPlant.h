@@ -109,6 +109,7 @@ public:
           driverOverrideCount_(0),
           mockSwitchCount_(0),
           trackCircuitCount_(0),
+          lineInputCount_(0),
           switchCount_(0),
           authorityCount_(0),
           mastCount_(0),
@@ -345,6 +346,35 @@ public:
         return nullptr;
     }
 
+    // -------------------------------------------------------------
+    // Line inputs (FieldUnit ADR 0007 D2): the consumer end of a line
+    // circuit, a named Fact that a route's home() or proceed() term requires.
+    // -------------------------------------------------------------
+    LineInput* addLineInput(const char* name, uint32_t stalenessTimeoutMs = 5000) {
+        if (lineInputCount_ >= MAX_APPLIANCES) return nullptr;
+        lineInputs_[lineInputCount_] = LineInput(name, stalenessTimeoutMs);
+        lineInputs_[lineInputCount_].setIndex(lineInputCount_);
+        return &lineInputs_[lineInputCount_++];
+    }
+
+    LineInput* findLineInput(const char* name) {
+        if (!name) return nullptr;
+        for (uint8_t i = 0; i < lineInputCount_; ++i) {
+            if (strcmp(lineInputs_[i].name(), name) == 0) return &lineInputs_[i];
+        }
+        return nullptr;
+    }
+
+    // A fact by name. Today the only facts are line inputs; a local mast
+    // becomes a fact source when the DR reads the next signal.
+    const Fact* findFact(const char* name) {
+        return findLineInput(name);
+    }
+
+    uint8_t lineInputCount() const { return lineInputCount_; }
+    const LineInput* lineInput(uint8_t idx) const { return (idx < lineInputCount_) ? &lineInputs_[idx] : nullptr; }
+    LineInput* lineInput(uint8_t idx) { return (idx < lineInputCount_) ? &lineInputs_[idx] : nullptr; }
+
     /** Resolve a physical switch or derail by exact name (not logical crossovers). */
     Switch* findSwitchExact(const char* name) {
         if (!name) return nullptr;
@@ -538,6 +568,9 @@ public:
         for (uint8_t i = 0; i < trackCircuitCount_; ++i) {
             trackCircuits_[i].tick(nowMs);
         }
+        for (uint8_t i = 0; i < lineInputCount_; ++i) {
+            lineInputs_[i].tick(nowMs);
+        }
 
         // C. Evaluate signal authority stick / fleet logic
         for (uint8_t i = 0; i < authorityCount_; ++i) {
@@ -547,7 +580,7 @@ public:
                 for (uint8_t rIdx = 0; rIdx < engine_.routeCount(); ++rIdx) {
                     const Route& r = engine_.route(rIdx);
                     if (r.authority() == &authorities_[i] && r.direction() == cmdDir) {
-                        if (!engine_.checkRouteBlocksClear(r)) {
+                        if (!engine_.checkRouteBlocksClear(r) || !engine_.checkRouteHomeFacts(r)) {
                             routeClear = false;
                             break;
                         }
@@ -634,6 +667,9 @@ private:
     uint8_t mockSwitchCount_;
     TrackCircuit trackCircuits_[MAX_APPLIANCES];
     uint8_t trackCircuitCount_;
+
+    LineInput lineInputs_[MAX_APPLIANCES];
+    uint8_t lineInputCount_;
 
     Switch switches_[MAX_APPLIANCES];
     uint8_t switchCount_;
@@ -741,6 +777,24 @@ inline Route& Route::entrance(const char* tcName) {
 
 inline Route& Route::approaching(const char* tcName) {
     approachBlock_ = cp_ ? cp_->findTrackCircuit(tcName) : nullptr;
+    return *this;
+}
+
+inline Route& Route::home(std::initializer_list<const char*> factNames) {
+    homeFactCount_ = 0;
+    for (const char* factName : factNames) {
+        homeFact(factName);
+    }
+    return *this;
+}
+
+inline Route& Route::homeFact(const char* factName) {
+    const Fact* f = cp_ ? cp_->findFact(factName) : nullptr;
+    return homeFact(f);
+}
+
+inline Route& Route::proceed(const char* factName) {
+    proceedFact_ = cp_ ? cp_->findFact(factName) : nullptr;
     return *this;
 }
 

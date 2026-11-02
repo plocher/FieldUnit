@@ -4,6 +4,7 @@
 #include <initializer_list>
 #include "types.h"
 #include "TrackCircuit.h"
+#include "LineInput.h"
 #include "Switch.h"
 #include "SignalMast.h"
 #include "SignalControl.h"
@@ -14,6 +15,7 @@ class InterlockingPlant;
 
 static constexpr uint8_t MAX_ROUTE_SWITCHES = 8;
 static constexpr uint8_t MAX_ROUTE_BLOCKS   = 8;
+static constexpr uint8_t MAX_ROUTE_FACTS    = 4;
 static constexpr uint8_t MAX_ROUTES         = 32;
 
 enum class RouteState : uint8_t {
@@ -64,6 +66,8 @@ public:
           blockCount_(0),
           entranceBlock_(nullptr),
           approachBlock_(nullptr),
+          homeFactCount_(0),
+          proceedFact_(nullptr),
           isEngineReturn_(false),
           originBlock_(nullptr),
           osBlock_(nullptr),
@@ -233,6 +237,37 @@ public:
 
     Route& approaching(const char* tcName);
 
+    // Home terms (FieldUnit ADR 0007 D2): facts ANDed into the HR condition.
+    // At a block end these are segment_clear (H in) and traffic_free (F in).
+    Route& home(std::initializer_list<const Fact*> facts) {
+        homeFactCount_ = 0;
+        for (const Fact* f : facts) {
+            homeFact(f);
+        }
+        return *this;
+    }
+
+    Route& home(std::initializer_list<const char*> factNames);
+
+    Route& homeFact(const Fact* f) {
+        if (homeFactCount_ < MAX_ROUTE_FACTS && f) {
+            homeFacts_[homeFactCount_++] = f;
+        }
+        return *this;
+    }
+
+    Route& homeFact(const char* factName);
+
+    // Proceed term (FieldUnit ADR 0007 D2): the DR condition. While the fact
+    // is released the route shows no better than Approach. At a block end
+    // this is next_proceed (D in).
+    Route& proceed(const Fact* f) {
+        proceedFact_ = f;
+        return *this;
+    }
+
+    Route& proceed(const char* factName);
+
     // Engine Return: Permits Restricting back onto cars standing on originBlock
     Route& engineReturn(TrackCircuit* standingCarsBlock, TrackCircuit* islandBlock) {
         isEngineReturn_ = true;
@@ -261,6 +296,10 @@ public:
     }
     TrackCircuit* approachBlock() const { return approachBlock_; }
 
+    uint8_t homeFactCount() const { return homeFactCount_; }
+    const Fact* homeFact(uint8_t idx) const { return (idx < homeFactCount_) ? homeFacts_[idx] : nullptr; }
+    const Fact* proceedFact() const { return proceedFact_; }
+
     bool isEngineReturn() const { return isEngineReturn_; }
     TrackCircuit* originBlock() const { return originBlock_; }
     TrackCircuit* osBlock() const { return osBlock_; }
@@ -280,6 +319,10 @@ private:
     TrackCircuit*      entranceBlock_;
 
     TrackCircuit*      approachBlock_;
+
+    uint8_t            homeFactCount_;
+    const Fact*        homeFacts_[MAX_ROUTE_FACTS];
+    const Fact*        proceedFact_;
 
     bool               isEngineReturn_;
     TrackCircuit*      originBlock_;
@@ -420,6 +463,11 @@ public:
         return checkBlocksClear(r);
     }
 
+    // Every home fact asserted (true when the route has none).
+    bool checkRouteHomeFacts(const Route& r) const {
+        return checkHomeFacts(r);
+    }
+
     const Route* activeRouteForAuthority(const SignalControl* auth) const {
         if (!auth) return nullptr;
         for (uint8_t i = 0; i < routeCount_; ++i) {
@@ -471,13 +519,38 @@ private:
         return true;
     }
 
+    bool checkHomeFacts(const Route& r) const {
+        for (uint8_t i = 0; i < r.homeFactCount(); ++i) {
+            const Fact* f = r.homeFact(i);
+            if (f == nullptr || !f->asserted()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     Indication evaluateIndication(const Route& r) const {
         Indication indication = r.aspectCeiling();
         indication = Route::leastPermissive(indication, authorityContribution(r));
         indication = Route::leastPermissive(indication, alignmentContribution(r));
         indication = Route::leastPermissive(indication, clearanceContribution(r));
+        indication = Route::leastPermissive(indication, homeContribution(r));
         indication = Route::leastPermissive(indication, approachContribution(r));
+        indication = Route::leastPermissive(indication, proceedContribution(r));
         return indication;
+    }
+
+    // HR term: every home fact asserted, else Stop.
+    Indication homeContribution(const Route& r) const {
+        return checkHomeFacts(r) ? r.aspectCeiling() : Indication::STOP;
+    }
+
+    // DR term: the proceed fact released caps the route at Approach.
+    Indication proceedContribution(const Route& r) const {
+        if (r.proceedFact() == nullptr || r.proceedFact()->asserted()) {
+            return r.aspectCeiling();
+        }
+        return reduceForOccupiedApproach(r.aspectCeiling());
     }
 
     Indication authorityContribution(const Route& r) const {

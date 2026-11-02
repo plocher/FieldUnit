@@ -313,6 +313,21 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
     snprintf(line, sizeof(line), "%s],%s", sp, nl);
     if (!append(line)) return false;
 
+    // 1b. Line inputs (FieldUnit ADR 0007 D2)
+    if (cp.lineInputCount() > 0) {
+        snprintf(line, sizeof(line), "%s\"lineInputs\": [%s", sp, nl);
+        if (!append(line)) return false;
+        for (uint8_t i = 0; i < cp.lineInputCount(); ++i) {
+            const LineInput* li = cp.lineInput(i);
+            snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"stalenessTimeoutMs\": %u}%s%s",
+                     sp2, li->name(), static_cast<unsigned>(li->stalenessTimeout()),
+                     (i + 1 < cp.lineInputCount()) ? "," : "", nl);
+            if (!append(line)) return false;
+        }
+        snprintf(line, sizeof(line), "%s],%s", sp, nl);
+        if (!append(line)) return false;
+    }
+
     // 2. Switches (non-derail appliances only)
     uint8_t plainSwitchCount = 0;
     uint8_t derailCount = 0;
@@ -472,6 +487,24 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
         snprintf(line, sizeof(line), "],%s", nl);
         if (!append(line)) return false;
 
+        // home facts (HR terms)
+        if (r.homeFactCount() > 0) {
+            snprintf(line, sizeof(line), "%s\"home\": [", sp3);
+            if (!append(line)) return false;
+            for (uint8_t f = 0; f < r.homeFactCount(); ++f) {
+                snprintf(line, sizeof(line), "\"%s\"%s", r.homeFact(f)->name(), (f + 1 < r.homeFactCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            snprintf(line, sizeof(line), "],%s", nl);
+            if (!append(line)) return false;
+        }
+
+        // proceed fact (DR term)
+        if (r.proceedFact()) {
+            snprintf(line, sizeof(line), "%s\"proceed\": \"%s\",%s", sp3, r.proceedFact()->name(), nl);
+            if (!append(line)) return false;
+        }
+
         // entrance
         if (r.entranceBlock()) {
             snprintf(line, sizeof(line), "%s\"entrance\": \"%s\"%s%s",
@@ -548,6 +581,38 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
                     }
                     if (name[0] != '\0') {
                         cp.addTrackCircuit(name, static_cast<uint32_t>(delay));
+                    }
+                    skipValue(val);
+                } else {
+                    val++;
+                }
+                skipWhitespace(val);
+                if (*val == ',') val++;
+            }
+        }
+    }
+
+    // 2b. Line inputs
+    if (findKey(json, "lineInputs", val)) {
+        skipWhitespace(val);
+        if (*val == '[') {
+            val++;
+            while (*val && *val != ']') {
+                skipWhitespace(val);
+                if (*val == '{') {
+                    const char* itemStart = val;
+                    const char* liVal = nullptr;
+                    char name[32] = "";
+                    int32_t timeout = 5000;
+
+                    if (findKey(itemStart, "name", liVal)) {
+                        parseString(liVal, name, sizeof(name));
+                    }
+                    if (findKey(itemStart, "stalenessTimeoutMs", liVal)) {
+                        parseInt(liVal, timeout);
+                    }
+                    if (name[0] != '\0') {
+                        cp.addLineInput(name, static_cast<uint32_t>(timeout));
                     }
                     skipValue(val);
                 } else {
@@ -876,6 +941,35 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
                                     skipWhitespace(rVal);
                                     if (*rVal == ',') rVal++;
                                 }
+                            }
+                        }
+
+                        // home facts (HR terms)
+                        if (findKey(routeObj, "home", rVal)) {
+                            skipWhitespace(rVal);
+                            if (*rVal == '[') {
+                                rVal++;
+                                while (*rVal && *rVal != ']') {
+                                    skipWhitespace(rVal);
+                                    if (*rVal == '"') {
+                                        char factName[32] = "";
+                                        if (parseString(rVal, factName, sizeof(factName))) {
+                                            r.homeFact(factName);
+                                        }
+                                    } else {
+                                        rVal++;
+                                    }
+                                    skipWhitespace(rVal);
+                                    if (*rVal == ',') rVal++;
+                                }
+                            }
+                        }
+
+                        // proceed fact (DR term)
+                        if (findKey(routeObj, "proceed", rVal)) {
+                            char factName[32];
+                            if (parseString(rVal, factName, sizeof(factName))) {
+                                r.proceed(factName);
                             }
                         }
 

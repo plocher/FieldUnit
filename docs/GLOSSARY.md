@@ -526,6 +526,7 @@ bool plantFree = sig.ASR(); // false while the time-locking timer runs
 - **`FR`, `FSR` (traffic)** [Prototype]. Traffic relay and traffic stick relay [AARNOM46 p. 4; AARTC71 Dwg 8066, 8082; CBQ1946]. Not a collision with FieldUnit's fleet stick relay `FSR` below: AAR abbreviations are not unique across domains (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §21).
 - **`FSR` (fleet)** [FieldUnit]. Fleet stick relay. FieldUnit name. `SignalControl::FSR()` is true while fleeting is on. The signal then clears again when the route is clear, without a new control.
 - **`HR`, `DR`** [Both]. Relay names with H (home, approach indication) and D (proceed indication). D does not mean "distant" on the AAR list. FieldUnit has no `HR` or `DR` object; section 10.6 gives the circuits that its logic follows.
+- **line input** [FieldUnit]. The consumer end of a line circuit: a named fact (`LineInput`, a `Fact`) that a route requires with `home()` (an `HR` term) or `proceed()` (a `DR` term). At a block end the facts are `segment_clear` (`H`), `traffic_free` (`F`) and `next_proceed` (`D`) of the interlocking–block seam (FieldUnit-Subdivision ADR 0013 §13). Released until first set and released again when stale; a timeout of 0 marks an in-memory fact (FieldUnit ADR 0007 D2).
 
 ```cpp
 // InterlockingEngine::evaluateIndication (ControlTable.h), summarized.
@@ -630,7 +631,7 @@ This section stops at the interlocking–block seam (FieldUnit-Subdivision ADR 0
   DR:  ──[ 2HR front ]──[ advance TR front ]──[ next signal HR front ]──( 2DR )
 ```
 
-  - Code today: `InterlockingEngine::evaluateIndication` has the `HR` conditions. It has no `DR`: it does not read the next signal, and it lowers Clear to Approach from the `approaching()` track circuit.
+  - Code today: `InterlockingEngine::evaluateIndication` has the `HR` conditions, including a route's `home()` line inputs. It has no `DR` object. A route's `proceed()` line input supplies the next-signal condition from the block ahead (FieldUnit ADR 0007 D2); a next signal inside the plant is not read yet, and Clear is still lowered to Approach from the `approaching()` track circuit.
 
 - **`ASR`** (approach stick relay). It is up while the signal is at stop and no approach locking is in effect. It drops when the signal clears. It picks up again when the signal is at stop and either the approach track circuit is clear, or the train has accepted the signal, or the time-locking timer has run.
 

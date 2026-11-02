@@ -4,6 +4,7 @@
 #include "types.h"
 #include "SignalAspectPolicy.h"
 #include "TrackCircuit.h"
+#include "LineInput.h"
 #include "Switch.h"
 #include "Crossover.h"
 #include "SignalControl.h"
