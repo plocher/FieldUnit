@@ -94,7 +94,7 @@ This section describes the current state, including known debt.
 - **Backend:** choose it by editing the include at the top of the sketch, `IO-I2C.h` (real) or `IO-CMRI.h` (stub, no transport). Both define `PanelIO : PanelHardware`.
   - Per-column bit roles are fixed constants in `IO-I2C.h`: input mask `0x1EC4`, all I/O active-LOW. They duplicate what the desk schematic already records (debt).
   - **`IO-CMRI.h` has SW_NORMAL/SW_REVERSE swapped (6/7 vs 7/6).**
-- **Layout:** `configureDesk()` hard-codes all 7 stations across columns 1–14. CP_Luchessa (columns 5–7) uses KiCad-derived names (783/795/799/784); the other stations still use legacy names.
+- **Layout:** `configureDesk()` hard-codes all 7 stations across columns 1–14. Luchessa (columns 5–7) uses KiCad-derived names (783/795/799/784); the other stations still use legacy names.
 - **Build quirks:**
   - Keep the hand-written forward declarations near the top; arduino-cli's ctags misses functions under `#ifdef`.
   - `getArduinoLoopTaskStackSize()` is raised to 16 KB for the OLED.
@@ -121,7 +121,7 @@ python3 tools/test_ctc_desk.py --loopback
 python3 tools/test_ctc_desk.py --walk
 ```
 
-`tools/test_ctc_desk.py` needs `paho-mqtt` and a broker on localhost:1883. Its `STATIONS["CP_Luchessa"]` still uses legacy names (1/3/5/2); update it whenever desk names change.
+`tools/test_ctc_desk.py` needs `paho-mqtt` and a broker on localhost:1883. Its `STATIONS["Luchessa"]` carries the KiCad-derived names (783/795/799/784); update it whenever desk names change.
 
 ---
 
