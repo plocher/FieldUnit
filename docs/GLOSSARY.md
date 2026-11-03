@@ -205,6 +205,11 @@ writes the file is one writer among others.
 
 ## 4. Control point, interlocking, CTC and limits
 
+- **ABS** (automatic block signal system) [Prototype]. A block signal system in which track circuits control the signals, with no operator. ABS protects trains. It does not give them authority: the timetable and train orders, or another system, give authority. Compare APB and CTC. (unverified: no rule text was opened.)
+- **APB** (absolute permissive block) [Prototype]. ABS for single track. An absolute signal at each end of a single-track section (a head block) holds opposing movements at Stop; the intermediate signals are permissive and let following movements close up. Conceived by GRS about 1910; first major installation on the Toronto, Hamilton and Buffalo in 1911 (owner, 2026-11-03; W. K. Howe, GRS, 1911, not opened). FieldUnit: a mast's `Kind`, `ABSOLUTE` or `PERMISSIVE` (see automatic signal).
+- **ATC** (automatic train control) [Prototype]. Train control that enforces a speed limit and stops the train when the engineer does not obey a signal. (unverified) Out of scope for FieldUnit: the project does not control train speed.
+- **ATS** (automatic train stop) [Prototype]. Train control that applies the brakes when a train passes a restrictive signal and the engineer does not acknowledge it. Usually worked by an inductor on the track at the signal. (unverified) Out of scope for FieldUnit: the project does not control train speed.
+- **cab signal** [Prototype]. A signal in the cab of the locomotive that repeats the wayside signal indication, or replaces it. A continuous cab signal takes its information from a coded track circuit [RS1944]. Out of scope for FieldUnit: the project does not control train speed.
 - **control point** [Both]. A named place where a dispatcher or operator controls train movements by controlled absolute signals.
   - The term names a function. Controlled signals make a place a control point. A switch does not. A control point can have no switch.
   - An interlocking contains one or more control points.
@@ -226,8 +231,10 @@ writes the file is one writer among others.
   - Interlocking is the mechanism facet. A CTC control point uses the same kind of field logic.
 - **interlocking limits** [Both]. The track between the opposing home signals of an interlocking. The tooling can derive them: cut the track graph at every controlled signal; each piece that contains a powered switch or derail is one interlocking (`FieldUnit-Subdivision/docs/archive/spike-cp-membership.md`; `FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §4).
 - **interlocking machine** [Prototype]. The lever frame and its locking that a tower operator works. The locking bed is the part that holds a lever that must not move.
+- **PTC** (positive train control) [Prototype]. Train control that enforces the authority and the speed limits of a train in the cab, and stops the train when the crew does not. Required on certain lines by the Rail Safety Improvement Act of 2008 (unverified: the act was not opened). History only. PTC needs train speed control (DCC, car and engine detection). Out of scope for FieldUnit: the project does not control train speed. Correct switches, signals and CTC are the foundation that PTC is built on.
 - **tower** [Prototype]. The building at an interlocking from which the tower operator works the interlocking machine.
 - **tower operator** [Both]. The operator role that works directly on a locking bed, real or virtual. On the prototype this is the person who works an interlocking machine in a tower. The tower operator does not use a code line. Compare dispatcher and maintainer. Not yet covered by the model.
+- **train control** [Prototype]. Equipment on the train and the track that acts on the brakes when the engineer does not obey a signal or a speed limit: ATS, ATC and cab signals, later PTC. The ICC ordered train control on many lines from 1922 and set speed rules in 1947; today 49 CFR 236 requires cab signals, ATS or ATC for trains at 80 mph or more (unverified: the orders and §236.0 were not opened). Many western roads kept passenger trains below 80 mph instead, the 79 mph limit. Out of scope for FieldUnit: the project does not control train speed.
 - **yard limits** [Prototype]. A part of main track, designated by the railroad, inside which the yard limit rule applies. Standard Code Rule 93 [PRR56]: "Within yard limits, movements not authorized by timetable schedule or train order may be made on the main track by proper signal indication or permission of the operator without protecting against extra trains or engines." GCOR 6.13 is the modern equivalent. The KiCad symbol is `Rule93-Yard Limits` (`RULE_93`; was `Rule6.13-Yard Limits`).
 
 ## 5. Controls, indications and functions
@@ -319,6 +326,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **automatic signal** [Both]. A block signal controlled automatically by track circuits and `HD` lines, without a dispatcher or tower operator (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §5, §15).
   - In the layout model a mast states `Kind` `ABSOLUTE` (an APB head block, whose most restrictive indication is Stop, Rule 292) or `PERMISSIVE` (with a number plate, whose most restrictive indication is Stop and Proceed, Rule 291; modified to Rule 290 by a `Plate-G` or `Plate-R` grade or restricting marker) [AAR56 pp. 51, 53–54].
   - An automatic signal gives no movement authority.
+- **ball signal** [Prototype]. An early fixed signal: a ball hoisted on a mast. The New Castle and Frenchtown Railroad, 1832, is usually given as the first fixed signal in the US (unverified).
 - **block** [Both]. One or more track circuits treated as one occupancy for one purpose. Its occupancy is a track repeater (`TP`) fed through the track relays of its circuits; with one circuit it is that circuit's `TR`.
   - Signal block [Prototype]: the track between consecutive signals that govern movement into it. A long one is several cut sections.
   - Station-to-station block [Both]: the main-track block between two control points or APB head blocks (see station-to-station block).
@@ -327,6 +335,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - FieldUnit: the model has no block or `TP` entity yet; `addSwitch(id, os)` finds an existing OS circuit by name, so several switches can share one circuit. The block entity is planned (FieldUnit-Subdivision issue #24).
   - A block is not a track circuit. A track circuit is one `TR`. A block is the unit that locking, a route or a lamp uses.
 - **boundary track circuit** [FieldUnit]. A point detector at an insulated joint (`Appliance track_circuit`, `Style` `boundary`) whose occupancy counts toward the track circuits on both sides of the joint (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §10, §19.1). Because a consumer ORs its occupancy into both sides, a train passing the masts occupies the circuit ahead before it releases the circuit behind (make-before-break), keeping the rear block occupied for cars with non-shunting wheels. It never splits a circuit or ends a block.
+- **coded track circuit** [Prototype]. A track circuit whose current is switched on and off at a code rate. The rate carries information, for example the aspect for a cab signal [RS1944]. Compare track circuit. FieldUnit has no coded track circuit.
 - **crossover** [Both]. Two switches that connect two tracks and work together from one lever.
   - Name: one gang of switches that share a gang id (the Value minus its trailing letter): `815`, `815A`; a double crossover runs to `815C`. Any letter A to Z can name a member, including D (FieldUnit-Subdivision ADR 0003 D7, D8; proposed).
 - **cut section** [Both]. A track circuit that is one part of a longer block. It has its own track relay. AAR56 names the sections of a signal-governed block with letters (`784LAT`, `784LBT`) [AAR56 p. 31]. Where the letter goes (`784LAT` or `A10T`) is open (ADR 0003 D6).
@@ -352,19 +361,23 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - FieldUnit: tokens `WLS` (release, control) and `WLK` (released, indication: asserted while the lock relay is energized and the switch is released; deasserted when locked, the fail-safe state, since the lock bar and the lock relay both drop on loss of power). `WLQK` is the crew's unlock request, non-vital (FieldUnit-Subdivision ADR 0004 D1). `SwitchLock::HAND_LOCKED`. The field unit releases the lock only when every signal is at stop and no time locking runs. The full exchange is in `AAR_SIGNALING_PRIMER.md` section 18.
   - An electric lock is not a dual-control switch.
   - SPCoast: a lock carries the lock tokens, `WLS` (control) and `WLK`, `WLQK` (indications), as the desk's lock levers are drawn and as `WireCodec` packs `WLK` (the owner, 2026-10-27; this replaces the earlier simplification that locks carried the switch tokens). The crew, dispatcher and field coordination of a real electric lock is still deferred (FieldUnit-Subdivision ADR 0002 D14).
+- **fixed signal** [Prototype]. A signal at a fixed location that governs train movements: a ball signal, a train order signal, a semaphore, a light signal. A hand signal or a flag is not a fixed signal. (unverified: no rule text was opened.)
 - **fouling point** [Prototype]. The point beyond which a car on one track can be struck by a movement on another track.
 - **head** [Both]. One unit of lamps on a mast. It shows one part of an aspect. KiCad head Value: one letter. The proof-of-concept plant compiler accepts A to E today; ADR 0003 D9 allows any letter A to Z.
+- **head block** [Prototype]. The absolute signal at the entrance of an APB section. It holds an opposing movement at Stop while a train is in the section. Its most restrictive indication is Stop (Rule 292) [AAR56 pp. 51, 53–54]. FieldUnit: a mast with `Kind` `ABSOLUTE`.
 - **HD line** [Both]. The directed two-value line circuit between neighbouring signal locations (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §15). Named for a mast and sent to the previous signal in that mast's direction of travel:
   - `H` feeds the receiving signal's home relay (`HR`) when the segment's track circuits and permission conditions are met.
   - `D` feeds the receiving signal's proceed-indication relay (`DR`) when the producer's mast indicates Approach or better (its `HR` is up: more favorable than Stop, Stop and Proceed, or Restricting) [AAR56; AARTC71 Dwg 8000, 8066; CBQ1946 pp. 613–615]. `D` is read only while `H` is asserted.
   - On the prototype this is a chain of two-wire polarized line circuits re-fed at each signal location [CBQ1946; RS1947 p. 92].
 - **independent derail** [FieldUnit]. A derail with its own lever and its own tokens. Example: Corporal derail `5` in the legacy profile.
   - Name: a derail symbol whose gang id matches no switch or lock gang. The letter is optional; convention: none or D (ADR 0003 D8, proposed).
+- **insulated joint** [Both]. A rail joint that insulates one rail from the next. Insulated joints bound a track circuit. KiCad: `IRJ-Signal` and `IRJ-Signals` place a joint with its mast or masts (see signal location).
 - **LEFT, RIGHT** [FieldUnit]. The two directions of a signal lever and of a route. Code names: `DirectionAuthority::LEFT`, `DirectionAuthority::RIGHT`. Today the proof-of-concept plant compiler (`tools/plant_graph`) maps mast letters N and W to LEFT, and S and E to RIGHT.
 - **mast** [Both]. The structure that carries one or more heads. KiCad mast Value today: `^\d+[NSEW][A-E]+$`, for example `784EAB`; ADR 0003 D9 widens the head letters to A to Z.
 - **OS section** [Both]. The track between opposing signals in a control point, treated as one block. It is usually one track circuit over the switches. It can be several (see block, aggregation).
   - "OS" means "on sheet": the dispatcher's record of a train that passes a location. The BNSF source gives both meanings (paraphrase) [BNSF].
   - FieldUnit: the OS track circuit detector-locks its switch. Declare it with `addSwitch(id, osName)` or `addDerail(id, osName)`.
+- **points** [Both]. The two movable rails of a switch that guide the wheels to one track or the other. A switch machine or a switch stand moves them. Point detection proves their position (see switch correspondence).
 - **semaphore signal** [Both]. A signal whose head is a pivoted arm (the blade); the arm's position is the aspect by day, and a lamp behind colored roundels repeats it by night. Two Style words, by quadrant, because the quadrant fixes the aspect set (`LQ`, `UQ`; E65):
   - `LQ`, lower quadrant: two positions, horizontal STOP and inclined down CLEAR. The only form before 1903.
   - `UQ`, upper quadrant: three positions, horizontal STOP, inclined up APPROACH, vertical CLEAR. Introduced from 1903, universal on new work by the First World War.
@@ -379,6 +392,8 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **switch correspondence** [Both]. Agreement between the position of a switch and its control.
   - Out of switch correspondence: the switch is moving, or it did not reach the position of its control.
   - FieldUnit: `Switch::inCorrespondence()` is true when the reported position equals the position of its control (`commandedPosition()`) and is NORMAL or REVERSE. After the travel timeout (default 5000 ms) a moving switch reports `SwitchPosition::OUT_OF_CORRESPONDENCE`.
+- **switch machine** [Both]. The mechanism that moves and locks the points of a powered switch, by electric motor or compressed air. Its contacts prove the position of the points; its lock contacts dominate point detection (`AAR_SIGNALING_PRIMER.md` section 9.7). It replaced pipe and lever at power interlockings. FieldUnit: `SwitchDriver`.
+- **switch stand** [Prototype]. The hand-operated mechanism beside a manual switch: a lever, a rod to the points and a target that shows the position of the switch. (unverified)
 - **powered switch** [Both]. A switch whose points are moved by a switch machine, electric or pneumatic, under the dispatcher's control. Style word `powered`. The lever and the office show it NORMAL or REVERSE (`NWS`/`RWS`, `NWK`/`RWK`).
 - **manual switch** [Both]. A switch whose points are moved by hand, with a switch stand; the counterpart of a powered switch. Style words `manual` and, with point detection, `manual_sensed`. "Manual" names who moves the points, not who controls: an electrically locked switch is a manual switch with a remote release. "Hand-throw" is not the term: switches were thrown by hand, then hand-operated, then manually operated, as the stands became electro-mechanical, and the Style outlives the mechanism (owner, 2026-10-11).
 - **dual-control switch** [Both]. A powered switch that the crew may also work by hand at the location, after the dispatcher releases it; a selector lever disconnects the machine from the control and a hand lever moves the points. Style word `dual`. While released, the dispatcher's control has no effect and the switch is out of correspondence until it is returned to power operation. The model has no crank: hand operation is a local lever driving the machine under a release, the electric lock flow applied to a powered switch (FieldUnit ADR 0006, proposed). Compare electric lock, which locks a manual switch.
@@ -388,6 +403,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - AAR56: "A track circuit is designated by the letter T preceded by a number" [AAR56 p. 31].
   - FieldUnit: `TrackCircuit`. Occupancy can come from any detector. A dropout delay (`dropoutDelayMs`) bridges gaps between cars for optical sensors. This is a model workaround.
   - FieldUnit: a track circuit starts OCCUPIED. A remote circuit with no update for 5000 ms gets quality `LOST_COMMS` and is not clear.
+- **train order signal** [Prototype]. A fixed signal at a train order office, worked by the operator. It tells a train whether there are train orders for it. It is not a block signal: it says nothing about the track ahead. The Standard Code governed it by its own rule (Rule 221 in most books; unverified). FieldUnit: not modeled yet; a KiCad symbol and a model object are planned (owner, 2026-11-03).
 
 ## 8. Signal indications and locking
 
@@ -405,6 +421,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - Prototype: the AAR list has `TSR`, track stick relay [AARLIST]. Railway Signaling names directional stick relays [RS1927, RS1944]. "Engine return stick" is a search lead only (unverified).
 - **fleeting** [Both]. A mode in which a signal clears again for a following train without a new control. A 1959 machine had a fleeting control [RS1959]. FieldUnit: `ControlTransaction::fleetDemands`, `SignalControl::FSR()`.
 - **indication ceiling** [FieldUnit]. The most favorable signal indication that a route permits. Code name: the second argument of `Route::displays()`, read by `Route::aspectCeiling()`.
+- **route** [Both]. A path through an interlocking from one signal to the limit beyond it: the switch positions it needs, the track circuits it uses and the signal that governs it. A tower's locking sheet states routes as locking; route locking holds them. FieldUnit: `Route`. In the interlocking model a route has `governedBy`, `aligns`, `clears`, `entrance` and `approaching` (`src/PlantSerializer.h:788` to `:891`).
 - **route locking** [Both]. Locking that holds the switches of a route while the signal is clear or a train is on the route. Each switch is released when its releasing track circuit clears (sectional release). FieldUnit: `SwitchLock::ROUTE_LOCKED`, `SectionState`.
 - **signal indication** [Both]. The meaning of an aspect, as the rulebook states it. Examples: Stop, Restricting, Clear. Code name: enum `Indication`.
 - **time locking** [Both]. Locking that holds the route switches for a set time after a signal is restored to stop. FieldUnit uses one timer for approach locking and time locking (see approach locking).
@@ -414,6 +431,8 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 
 - A rule number belongs to one rulebook and one era. Give the book with the number.
 - **current of traffic** [Both]. The movement of trains on a main track in one direction, specified in the timetable (`RULE_251`) [PRR56 Definitions; CFR236 §236.734]. In the layout model, a `RULE_251` sign's `LEFT` or `RIGHT` states the lever direction of the signals that govern with the current of traffic (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §8). Compare traffic, direction of traffic (section 8).
+- **timetable** [Prototype]. The document that authorizes the regular trains of a division, gives their schedules and superiority, and holds special instructions. Under timetable and train order operation it is one of the two sources of authority. (unverified)
+- **train order** [Prototype]. A written order from the dispatcher, sent by telegraph (later by telephone) through an operator to a train crew. It adds to or changes the authority of the timetable. The first telegraphic train order is usually credited to Charles Minot on the Erie, 1851 (unverified). Compare train order signal.
 - SPCoast models 1942 to 1985 (title block). Use Standard Code numbers for SPCoast. Name GCOR only as the modern equivalent.
 - The texts below are from one road: the PRR book effective October 28, 1956, with 1964 revisions [PRR56]. Another road's wording can differ.
 
@@ -507,7 +526,10 @@ Some references describe the lock indication as "locked when 0" and others as "u
 - **back contact**. Closed when the relay is de-energized (dropped). Software: `!x`. Sketch symbol: `[/]`.
 - **front contact**. Closed when the relay is energized (picked up). Software: `x`. Sketch symbol: `[  ]`.
 - **parallel contacts**. Paths that branch around each other. Software: `||`.
+- **relay** [Both]. An electrically operated switch. Current in the coil picks up the armature and closes the front contacts. Without current, gravity drops the armature and closes the back contacts. A vital relay is built so that a failure drops it. FieldUnit: a relay is a boolean in the interlocking logic (section 10.6).
 - **series contacts**. Contacts in one path. Software: `&&`.
+- **slow-release relay, slow-pickup relay** [Prototype]. A relay built to drop, or to pick up, a short time after its coil current changes. On a code line it tells a long pulse from a short one. (unverified)
+- **stepping relay** [Prototype]. A relay that advances one position for each pulse, so that both ends of a code line count the steps of a code together (see section 6). (unverified)
 - **stick circuit**. A circuit in which a relay's own front contact holds its coil energized after the pickup path opens.
 
 The sketches below are illustrative. They are not prototype circuit plans.

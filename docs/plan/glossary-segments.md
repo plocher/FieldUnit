@@ -1,6 +1,6 @@
 # Glossary Terms by Spine Segment
 
-Draft 3, 2026-11-03 (follows the 13-segment spine of talk outline draft 3). Deliverable 2 of
+Draft 4, 2026-11-03 (13-segment spine; 22 new glossary entries assigned; yard limits moved to segment 8). Deliverable 2 of
 `docs/plan/user-docs-plan.md`; companion to `docs/plan/talk-outline.md`.
 
 Each entry of `docs/GLOSSARY.md` is assigned to exactly one segment of the spine: the segment where the reader first
@@ -17,8 +17,8 @@ term, not a power-interlocking term). Terms are spelled as the glossary spells t
   letters, token parts) are not entries. Where they carry teaching content, the segment that uses them is noted under
   "Glossary sections that are not entries".
 
-Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates three).
-123 terms are assigned to segments 1 to 13; 15 are reference-only. Segments 7 and 12 have none.
+Count: 163 entries in the glossary (160 distinct terms, since 10.6 restates three), after the 22 entries added on
+2026-11-03 (marked "new" below). 145 terms are assigned to segments 1 to 13; 15 are reference-only.
 
 ## 1. The switch tender
 
@@ -28,7 +28,10 @@ Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates thre
 | manual switch | 7 | yes | Styles `manual`, `manual_sensed` only; `powered` and `dual` are CTC (segment 10) |
 | derail | 7 | yes | |
 | fouling point | 7 | yes | |
-| yard limits | 4 | | textbook only; later Rule 93 (open question: segment 6 instead?) |
+| timetable | 9 | yes | new |
+| train order | 9 | yes | new |
+| points | 7 | yes | new |
+| switch stand | 7 | yes | new |
 
 ## 2. Fixed signals, the strongarm era
 
@@ -40,6 +43,9 @@ Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates thre
 | aspect | 8 | yes | |
 | signal indication | 8 | yes | |
 | semaphore signal | 7 | yes | the arm, worked by wire; lower quadrant; upper quadrant returns in segment 6 |
+| fixed signal | 7 | yes | new |
+| ball signal | 7 | yes | new |
+| train order signal | 7 | yes | new; not a block signal; symbol and model object planned |
 
 ## 3. The tower and the lever frame
 
@@ -57,6 +63,7 @@ Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates thre
 | independent derail | 7 | | |
 | LEFT, RIGHT | 7 | | direction of a signal lever and a route |
 | appliance | 3 | | the things the levers work |
+| route | 8 | yes | new |
 
 ## 4. Track circuits: electricity arrives
 
@@ -68,6 +75,7 @@ Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates thre
 | detector locking | 8 | yes | here only "switch may move while its OS `TR` is up" |
 | approach track circuit | 7 | yes | |
 | aggregation | 7 | | not a term of its own; the modeler's sidebar |
+| insulated joint | 7 | yes | new |
 
 ## 5. Power interlocking
 
@@ -86,6 +94,8 @@ Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates thre
 | `NWCR`, `RWCR` | 10.5 | | |
 | `RGPR` | 10.5 | | low confidence |
 | indication ceiling | 8 | | FieldUnit term |
+| switch machine | 7 | yes | new |
+| relay | 10.4 | yes | new |
 
 ## 6. Automatic block: ABS, then APB
 
@@ -108,10 +118,19 @@ Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates thre
 | `TP`, `TPR` | 10.5 | | |
 | `BPR` | 10.5 | | |
 | `FR`, `FSR` (traffic) | 10.5 | | |
+| ABS | 4 | yes | new |
+| APB | 4 | yes | new |
+| head block | 7 | yes | new |
 
 ## 7. Train control (context only)
 
-No glossary entries. The talk proposes [Prototype] entries; see "Gaps" below.
+| Term | § | Talk | Note |
+|---|---|---|---|
+| train control | 4 | yes | new |
+| ATS | 4 | yes | new |
+| ATC | 4 | yes | new |
+| cab signal | 4 | yes | new |
+| coded track circuit | 7 | yes | new |
 
 ## 8. CTC: when towers cost too much
 
@@ -129,7 +148,10 @@ No glossary entries. The talk proposes [Prototype] entries; see "Gaps" below.
 | parallel contacts | 10.4 | | |
 | office | 3 | | |
 | field | 3 | | |
-| CTC limits | 4 | | (unverified) in the glossary |
+| CTC limits | 4 | yes | where the dispatcher's authority ends; (unverified) in the glossary |
+| yard limits | 4 | yes | where the dispatcher's authority ends; Rule 93 |
+| slow-release relay, slow-pickup relay | 10.4 | yes | new |
+| stepping relay | 10.4 | yes | new |
 | step | 6 | | |
 | US&S 506 time code | 6 | | |
 | US&S 500-series time code systems | 6 | | |
@@ -184,7 +206,9 @@ No glossary entries. The talk proposes [Prototype] entries; see "Gaps" below.
 
 ## 12. PTC (context only)
 
-No glossary entries. A "PTC, history only" entry is proposed; see "Gaps" below.
+| Term | § | Talk | Note |
+|---|---|---|---|
+| PTC | 4 | yes | new; history only |
 
 ## 13. Your layout, and what comes next
 
@@ -238,32 +262,23 @@ None of these is a gap: they belong to the reference, the peer brief or the tuto
 | 2.4 | six terms from interlocking plant to field unit | 13, the closing equation |
 | 2.5 | cardinality | reference |
 | 6 (facts, step table) | 506 steps and the hearsay step assignment | 8, the stepping code line; the step table is hearsay and stays out of the talk |
-| 9 (rule rows) | 105, D-151, 93 → segment 1 (future tense); 251, 262, D-152 → segment 6; 261 → segment 8 | as listed |
+| 9 (rule rows) | 105, D-151 → segment 1 (future tense); 93 → segment 8; 251, 262, D-152 → segment 6; 261 → segment 8 | as listed |
 | 10.1 to 10.3 | AAR name structure, letters, FieldUnit token parts | 5 (letters, with the relay names); 11 (token parts) |
 
-## Gaps: terms the spine needs that the glossary does not define
+## Gaps: terms the spine uses that the glossary still does not define
 
-These words appear in the plan's spine or the talk outline (in italics there), or inside other glossary entries,
-with no entry of their own. Each one needs a decision: add a [Prototype] or [Both] entry, or keep it out of the
-learning track.
+The 22 terms that talk outline draft 3 marked in italics now have entries (2026-11-03). These remain, used inside
+other entries or in the talk without an entry of their own:
 
 | Segment | Missing term | Where it is used today |
 |---|---|---|
-| 1 | points, frog | plan, segment 1; "movable points" in the switch entry |
-| 1 | switch stand | inside manual switch; talk segment 1 |
-| 1 | timetable, train order, superiority of trains | plan, segment 1; rule texts in section 9 |
-| 2 | fixed signal, ball signal, distant signal | plan and talk, segment 2 |
-| 2 | train order signal | talk segment 2; also missing from the model and the symbol library |
-| 2 | governing direction, govern | inside signal location, cut section, HD line |
+| 1 | frog, superiority of trains | plan, segment 1; rule texts in section 9 |
+| 2 | distant signal, governing direction, govern | inside signal location, cut section, HD line |
 | 2 | Stop and Proceed, Restricting, Approach, Clear (as indications) | inside automatic signal, signal indication |
-| 3 | route | code `Route`; inside route locking, indication ceiling, LEFT, RIGHT; talk segment 3 |
 | 3 | locking bed, mechanical locking, locking sheet, pipe and wire | inside interlocking machine and interlocking; talk segment 3 |
 | 3 | home signal, absolute signal, controlled signal | inside interlocking limits, control point, automatic signal |
-| 4 | insulated joint, detector bar | inside track circuit, signal location, boundary track circuit; talk segment 4 |
-| 5 | relay (generic), pick up, drop, switch machine, electro-pneumatic | section 10 throughout; inside powered switch; talk segment 5 |
-| 6 | ABS, APB, head block, number plate | inside automatic signal; talk segment 6 |
-| 6 | route signaling, speed signaling, searchlight | `docs/how-to/04_semaphores_and_eastern_signaling.md`; inside color light signal; talk segment 6 |
-| 7 | ATS, cab signal, ATC, coded track circuit, train control | talk segment 7; RS1944 title; "directional coded-track form" inside track circuit |
-| 8 | stepping relay, slow-release relay, slow-pickup relay, line relay, pulse (long, short) | talk segment 8 |
+| 4 | detector bar | talk segment 4 |
+| 5 | pick up, drop, electro-pneumatic | section 10 throughout; talk segment 5 |
+| 6 | number plate, route signaling, speed signaling, searchlight | inside automatic signal and color light signal; talk segment 6 |
+| 8 | line relay, pulse (long, short), End CTC sign | talk segment 8 |
 | 9 | model board | `docs/AAR_SIGNALING_PRIMER.md` section 9.6; talk segment 9 |
-| 12 | PTC | talk segment 12 (history only; an entry should say so) |

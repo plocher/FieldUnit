@@ -1,6 +1,6 @@
 # Talk Outline: From the Switch Tender to Your Layout
 
-Draft 3, 2026-11-03. Deliverable 1 of `docs/plan/user-docs-plan.md`.
+Draft 4, 2026-11-03. Deliverable 1 of `docs/plan/user-docs-plan.md`.
 Audience: NMRA Layout Design and Operations SIGs, in person, early 2027. One hour.
 Tone: approachable, interesting, fun. Pure story. Optional demo hooks are marked **[demo, optional]**.
 
@@ -8,12 +8,14 @@ Changes in draft 3 (owner review, 2026-11-03): each segment speaks only the voca
 are named in the future tense; CTC is split into the idea and the code line (8), the office (9) and the field (10);
 digital code lines (11) and PTC (12) are separate segments; the last segment looks forward.
 The spine in `user-docs-plan.md` is updated to match.
+Draft 4: the 22 terms that draft 3 marked in italics now have `docs/GLOSSARY.md` entries; segment 8 says where the
+dispatcher's authority ends and carries the East/West story of CTC; segment 10's sidebar is about dual control.
 
 How to read this outline:
 
 - One section per spine segment, 2 to 6 minutes each.
 - Each section has the same fields: the era, the problem, the invention, the terms (spelled as in `docs/GLOSSARY.md`;
-  a term in *italics* has no glossary entry yet), the one figure, the layer under the picture, the East/West sidebar,
+  every term has a glossary entry), the one figure, the layer under the picture, the East/West sidebar,
   what FieldUnit does, the closing line, and sources.
 - **The layer under the picture** is the rulebook or the locking sheet in segments 1 to 3, before there were relays,
   and the relay circuit from segment 4 on.
@@ -77,7 +79,7 @@ A switch left in the wrong position puts a train into a siding at speed. Two tra
   The first telegraphic train order is usually credited to Charles Minot on the Erie, 1851 [lead: KING1921].
 - The derail, which sacrifices a car to save the main line.
 
-**Terms.** switch, manual switch, derail, fouling point; *timetable*, *train order*, *points*, *switch stand*.
+**Terms.** switch, manual switch, derail, fouling point; timetable, train order, points, switch stand.
 
 **Figure.** The end of a passing siding at a station, all hand-operated: the switch (Style `manual`) with a switch
 stand and target (symbol needed), a derail on the siding, and the fouling point marked.
@@ -123,7 +125,8 @@ colored roundel. Its use to protect a junction is segment 3; its use as a block 
 A fixed signal has two parts that the rest of the talk keeps apart: its appearance (the aspect) and its meaning in
 the rulebook (the signal indication).
 
-**Terms.** signal, mast, head, aspect, signal indication, semaphore signal; *ball signal*, *train order signal*.
+**Terms.** fixed signal, signal, mast, head, aspect, signal indication, semaphore signal; ball signal, train order
+signal.
 
 **Figure.** A station on single track with a train order signal at the depot, worked by the operator by a lever and a
 wire (symbols needed: train order signal, lever, wire run). A ball signal inset. One signal labeled with its aspect on
@@ -135,8 +138,8 @@ one railroad, in one era, shows it [GLOSSARY section 8, aspect and signal indica
 **East/West.** Not much to say yet. Train orders, and so train order signals, ran everywhere; they lasted longest on
 western single track.
 
-**What FieldUnit does.** Nothing yet. FieldUnit has no train order signal: no model object and no KiCad symbol.
-It should have both (see open questions). The aspect and indication machinery FieldUnit does have
+**What FieldUnit does.** Nothing yet. A train order signal is planned: a KiCad symbol and a model object of its own,
+not a block-signal mast (owner, 2026-11-03). The aspect and indication machinery FieldUnit does have
 (`src/SignalAspectPolicy.h`) is for interlocking and block signals, and is shown in segments 3 and 6.
 
 **Closing line.** "On a model railroad, this is the order board at the depot: the operator's way to say 'stop,
@@ -159,7 +162,7 @@ that is wrong.
 signals, with a mechanical locking bed under the levers. A lever that must not move cannot move. The tower operator
 feels the refusal in the hand [GLOSSARY section 2.3]. No electricity is involved.
 
-**Terms.** interlocking, interlocking machine, tower, tower operator, lever, interlocking plant.
+**Terms.** interlocking, interlocking machine, tower, tower operator, lever, interlocking plant, route.
 
 **Figure.** A passing siding at a station, one end interlocked from a tower: switch `1`, home semaphores `2` and `4`
 facing each other, the interlocking limits shaded between them, and the pipe run and wire runs from the tower
@@ -169,7 +172,7 @@ L, N and R for a signal [GLOSSARY section 5, lever]. The odd-switch, even-signal
 [GLOSSARY section 10.2, unverified].
 
 **The locking sheet.** A truth table, before there were relays. "2R locks 1N" reads: signal 2 may clear only if switch
-1 is normal, and while signal 2 is clear, switch 1 cannot move. This is a *route*, written as locking.
+1 is normal, and while signal 2 is clear, switch 1 cannot move. This is a route, written as locking.
 
 **East/West.** The cost of a tower was its operators, three shifts a day. Dense eastern main lines paid for towers
 every few miles; in the West, towers stood mostly at junctions and crossings at grade.
@@ -200,7 +203,7 @@ rails, the relay loses its current, and gravity literally drops the armature. A 
 too. Every failure reads as "occupied", which is the safe answer [GLOSSARY section 10.5, `TR`; primer section 2].
 This is the first battery and the first relay of the talk; everything electric after it is built on it.
 
-**Terms.** track circuit, `TR`, OS section, detector locking, approach track circuit; *insulated joint*.
+**Terms.** track circuit, `TR`, OS section, detector locking, approach track circuit; insulated joint.
 
 **Figure.** One track circuit between two insulated joints (`IRJ-Signal` symbols at the ends), the battery and the
 `TR` coil, drawn twice: vacant (relay up) and shorted by a wheelset (relay down). The ASCII sketch of GLOSSARY section
@@ -245,7 +248,7 @@ because they can see the train:
 
 Relays are vital: the armature drops by gravity, so a failed relay leaves the signal at Stop [primer section 2].
 
-**Terms.** switch correspondence, route locking, approach locking, time locking, vital; *switch machine*, *relay*.
+**Terms.** switch correspondence, route locking, approach locking, time locking, vital; switch machine, relay.
 
 **Figure.** One switch machine with its points proved, lighting the switch lamp only when they are home; the signal it
 protects showing Stop while the points are moving. Relay symbols kept to the coil and one contact (symbol needed,
@@ -286,12 +289,12 @@ ahead; on single track, two trains meet head on.
 
 **The invention, in two steps.**
 
-1. *ABS*, automatic block signals: track circuits drive signals with no person behind them. ABS is **protection, not
+1. ABS, automatic block signals: track circuits drive signals with no person behind them. ABS is **protection, not
    authority**. The timetable and the train order still give a train the right to the track; the signals only tell it
    whether the block ahead is clear. The upper-quadrant arm adds a third position, Approach, so a signal can warn of
    the next one.
-2. *APB*, absolute permissive block: on single track, ABS cannot stop two trains entering from opposite ends. APB puts
-   absolute signals at the ends of the single track (the *head blocks*). Once a train enters, the opposing head block
+2. APB, absolute permissive block: on single track, ABS cannot stop two trains entering from opposite ends. APB puts
+   absolute signals at the ends of the single track (the head blocks). Once a train enters, the opposing head block
    and every opposing intermediate signal are held at Stop to the next siding, while following trains may still close
    up behind it. APB quickly became the standard single-track ABS.
 
@@ -299,7 +302,7 @@ With batteries and relays at every signal, the lamp goes electric too: the searc
 position light, the B&O signal, each a road's own answer.
 
 **Terms.** block, automatic signal, signal location, cut section, traffic, direction of traffic, current of traffic;
-*ABS*, *APB*, *head block*. Named but not stressed: color light signal, position light signal.
+ABS, APB, head block. Named but not stressed: color light signal, position light signal.
 
 **Figure.** Single track between two sidings. Head-block masts with `Kind` `ABSOLUTE` at each end, back-to-back
 intermediate masts with `Kind` `PERMISSIVE` and number plates (`IRJ-Signals`), and the `HD` line drawn as arrows
@@ -345,12 +348,11 @@ pages are the lead.
 ([CFR236] §236.0, to be opened and quoted).
 
 **The story.** Signals work only if the engineer sees and obeys them. The answer was to put the signal in the cab and
-let it act on the brakes: *automatic train stop* at the signal, continuous *cab signals* carried by *coded track
-circuits*, and *automatic train control*, which enforces speed. This was mostly the dense eastern railroads.
+let it act on the brakes: automatic train stop (ATS) at the signal, continuous cab signals carried by coded track
+circuits, and automatic train control (ATC), which enforces speed. This was mostly the dense eastern railroads.
 Many western roads kept their trains under 80 mph instead: the 79 mph limit.
 
-**Terms.** None in the glossary yet: *ATS*, *cab signal*, *ATC*, *coded track circuit*, *train control*. Worth
-defining as [Prototype] entries; the glossary already uses "coded track" inside track circuit [RS1944].
+**Terms.** train control, ATS, cab signal, coded track circuit, ATC.
 
 **Figure.** None. There is nothing on the track plan to see. One photo of a cab signal display, if wanted.
 
@@ -375,30 +377,47 @@ train orders are slow; double track costs more than either.
 in the field. A code line carries the dispatcher's intent out (controls) and the truth back (office indications).
 Segments 9 and 10 take the two halves one at a time; this segment is the idea and the wire between them.
 
-**Terms.** CTC, code line, control, office indication, field station; front contact, back contact, stick circuit.
+Where the dispatcher's authority ends: at the CTC limits (the End CTC sign), and at yard limits, where movements may
+be made on the main track without train orders under Rule 93 [PRR56]. Inside an interlocking that a tower still
+works, the tower operator holds it [GLOSSARY sections 2.3 and 4].
+
+**Terms.** CTC, code line, control, office indication, field station, CTC limits, yard limits; front contact,
+back contact, stick circuit.
 
 **Figure.** The two-panel drawing of the README, redrawn in KiCad symbols: a tower (levers, locking bed, track) beside
-a CTC machine and a control point joined by two wires. Then, full width, the inside of one end of the code line: a
+a CTC machine and a control point joined by two wires, with an End CTC sign (symbol needed) and a `Rule93-Yard Limits`
+sign at the ends of the territory. Then, full width, the inside of one end of the code line: a
 stepping relay, a slow-release relay and a line relay (symbols needed), with one code drawn as a pulse train of long
 and short pulses.
 
 **The relay layer: how relays think, and how a code line counts.** The deeper relay dive of the talk.
 
-- A relay is a switch moved by a magnet. A *front contact* closes when it is up; a *back contact* closes when it is
+- A relay is a switch moved by a magnet. A front contact closes when it is up; a back contact closes when it is
   down. Contacts in series are AND; contacts in parallel are OR [GLOSSARY section 10.4].
-- A *stick circuit* is a relay that holds itself up through its own front contact: one bit of memory. The signal's
+- A stick circuit is a relay that holds itself up through its own front contact: one bit of memory. The signal's
   home stick relay remembers "the dispatcher asked for this signal" until a train knocks it down [GLOSSARY section
   10.5, `HSR`].
-- *Slow-release* and *slow-pickup* relays add time: a relay that takes a moment to drop can tell a long pulse from a
+- Slow-release and slow-pickup relays add time: a relay that takes a moment to drop can tell a long pulse from a
   short one.
-- The code line: both ends step through the same sequence of steps together, one *stepping* relay position per
+- The code line: both ends step through the same sequence of steps together, one stepping relay position per
   pulse. The station selection steps pick the field station; on each function step, a long or short pulse is one
   control or one indication [GLOSSARY section 6; lead: RRS506]. A US&S 506 code has 16 steps and serves up to 35
   field stations [RRS506].
 
-**East/West.** West: CTC paid for itself on long single track and put off double track; the SP installed it through
-the 1940s [RS1942, RS1945, RS1947]. East: CTC also let roads run fewer main tracks, signaled in both directions
-[cite?]. FieldUnit setting: the code line type, US&S 506 style or AAR tokens over MQTT
+**East/West.** The starkest difference in the talk, and money and track drove it [lead: UTAHRAILS, TRAINS-CTC].
+
+- West: long single-track main lines. The Santa Fe, SP, UP and CB&Q installed the most CTC mileage
+  [lead: RS1960-CON, TH-CTC]. CTC let a single track carry far more traffic (up to 80% more, by one account
+  [lead: TRAINS-CTC]) because the dispatcher ran meets at sidings without anyone throwing a switch by hand. It cost much
+  less than a second main track across thousands of miles. The SP's own installations are on record [RS1942, RS1945,
+  RS1947].
+- East: the PRR and NYC had laid double, triple and quadruple track decades before. ABS with directional running
+  (Rule 251) and staffed towers carried the traffic; they did not need CTC for capacity.
+- When eastern roads did install CTC in quantity, in the 1950s and after, it was to remove track: four main tracks
+  became two, signaled in both directions under CTC, with the same capacity and much lower taxes and maintenance.
+  The NYC under Alfred Perlman is the usual example [lead: TRAINS-CTC, RRNET-4TRK].
+
+FieldUnit setting: the code line type, US&S 506 style or AAR tokens over MQTT
 [GLOSSARY section 3, code line type].
 
 **What FieldUnit does.** The SPCoast CTC machine can show the code going out, pulse by pulse, at roughly prototype
@@ -407,7 +426,8 @@ speed (`CODELINE_VISUAL_STEPPING`; long 350 ms, short 110 ms; a model design, pr
 **Closing line.** "On a model railroad, this is two wires, or one network, from the dispatcher's desk to every
 siding."
 
-**Sources.** [EKEVING], [RS1937], [RS1942], [RS1945], [RS1947], [RRS506], [AARNOM46] for written circuits.
+**Sources.** [EKEVING], [RS1937], [RS1942], [RS1945], [RS1947], [RRS506], [AARNOM46] for written circuits, [PRR56]
+for Rule 93; RS1960-CON, TH-CTC, UTAHRAILS, TRAINS-CTC and RRNET-4TRK for the East/West story (owner-supplied leads).
 
 **[demo, optional]** The SPCoast CTC machine with visual stepping on, sending one switch control.
 
@@ -459,7 +479,7 @@ wire, and may be wrong.
 
 **The invention.** The control point: a bungalow of relays beside the track, at a field station address on the code
 line. It accepts a control only if the locking allows it, and otherwise does nothing; it sends no refusal. It moves the
-*powered switches* the dispatcher controls. For switches the dispatcher does not power, it gives the crew a way in: an
+powered switches the dispatcher controls. For switches the dispatcher does not power, it gives the crew a way in: an
 electric lock the dispatcher releases, or a dual-control switch the crew may work by hand.
 
 **Terms.** control point, bungalow, powered switch, vital control, electric lock, dual-control switch.
@@ -472,8 +492,11 @@ The one sentence: the code line, the field station and the field unit together r
 distance, and after the fact, what the locking bed did in the operator's hand [GLOSSARY section 2.3].
 The electric lock: the lock relay is energized to unlock and drops to locked when power fails [GLOSSARY section 3].
 
-**East/West.** The switch Styles are the sidebar: SP-style CTC with powered switches at the siding ends and electric
-locks at spurs, against dual-control switches where crews worked by hand [cite?].
+**Resilience, instead of East/West.** A dual-control switch is a powered switch that a crew can also work by hand,
+once the dispatcher gives them authority. In normal service the dispatcher throws it. When the switch machine fails,
+or the code line or the dispatcher's connection is lost, the crew moves the selector from motor to hand and the
+railroad keeps running locally (FieldUnit ADR 0006, proposed; owner, 2026-11-03). Three kinds of switch from the
+dispatcher's seat: powered, electrically locked (a manual switch with a remote release), and dual control.
 FieldUnit setting: the switch Style, `powered`, `dual`, or `manual` with an electric lock [GLOSSARY section 7].
 
 **What FieldUnit does.** This is the field unit. It applies a set of controls whole or not at all; an unsafe set
@@ -531,7 +554,7 @@ between a dispatcher's office and Arduino field units under your layout."
 the cab on all of them, and stops the train if the crew does not. It is built on the same switches, signals, track
 circuits and code lines as everything before it.
 
-**Terms.** *PTC* (no glossary entry; one should say "history only").
+**Terms.** PTC (the entry says "history only").
 
 **Figure.** None.
 
@@ -605,6 +628,11 @@ Keys are provisional; a lead that is opened and kept moves into `docs/GLOSSARY.m
 | WIKI-SEM | Wikipedia, "Railway semaphore signal" | 6: upper quadrant about 1903 |
 | HOWE1911 | Howe, W. K., "Absolute-Permissive Block System", GRS, 1911 (jonroma.net 1911 index; irse.nl GRS bulletin 120) | 6: APB |
 | ICC1922 | "Final Train Control Order Issued by ICC", *Railway Signaling* 1922, jonroma.net | 7 |
+| RS1960-CON | "Signal construction steady in 1959", *Railway Signaling and Communications*, 1960, jonroma.net (owner-supplied) | 8: CTC mileage by road |
+| TH-CTC | "Railroad history: centralized traffic control", transporthistory.wordpress.com, 2015 (owner-supplied) | 8: western CTC mileage, capacity |
+| UTAHRAILS | "Train control", utahrails.net/train-control.html (owner-supplied) | 8: East/West adoption |
+| TRAINS-CTC | "CTC: remotely directing the movement of trains", Trains, ABCs of railroading (owner-supplied) | 8: capacity, eastern track removal |
+| RRNET-4TRK | "Four-track removal in NY state", railroad.net forum (owner-supplied; a forum, so color only) | 8: NYC four to two tracks |
 | ICC1947 | "Signaling Order Issued by ICC" and "Territories Involved in the ICC Signaling Order", *Railway Signaling* 1947, jonroma.net; ICC hearings 1946–1947 on Docket 29543 | 7: the 80 mph rule and which roads it covered |
 
 Other archives to mine for the textbook: jonroma.net *Railway Signaling* (1908 on); the O Scale Resource railroad
@@ -614,22 +642,20 @@ background.
 
 ## Open questions for John
 
-1. **Train order signal.** Not in the model, the glossary or the symbol library. Add a [Prototype] glossary entry, a
-   KiCad symbol and a model object? It is not a block signal, so it should not be a `SignalMast` with a block-signal
-   aspect policy. Is Rule 221 the number to cite?
-2. **New [Prototype] glossary entries** for words the talk now uses in italics: timetable, train order, points, switch
-   stand, ball signal, train order signal, route, insulated joint, switch machine, relay, ABS, APB, head block, ATS,
-   cab signal, ATC, coded track circuit, train control, slow-release relay, stepping relay, PTC. Add them as a batch?
-3. **Yard limits** is no longer in the talk (segment 1 is a siding). It stays assigned to segment 1 for the textbook.
-   Would it fit better with segment 6, where Rule 93 meets block signals?
-4. **B&O naming.** The glossary calls the B&O system "position-color light signal" (`PCL`) and uses
+Settled in this round (owner, 2026-11-03): the train order signal gets a glossary entry (done), a KiCad symbol and a
+model object (to do); the italic terms got [Prototype] and [Both] glossary entries (done); yard limits and CTC limits
+moved to segment 8 as the places where the dispatcher's authority ends; segment 10's sidebar is dual control as
+resilience.
+
+1. **New glossary entries need review.** 22 entries were added to `docs/GLOSSARY.md`. Most carry "(unverified)":
+   their facts come from the leads below, not opened sources. Rule 221 for the train order signal is still a guess.
+2. **B&O naming.** The glossary calls the B&O system "position-color light signal" (`PCL`) and uses
    "color-position light signal" (`CPL`) for a three-lamp head; the code calls the B&O policy `boCpl`, and common
    usage calls the B&O system "color position light". Confirm or reconcile.
-5. **Segment 10's East/West sidebar** (powered versus dual-control switches by region) is a guess. Keep it, or replace
-   it?
-6. **Claims with no lead:** CTC reducing eastern main tracks (8), digital code line dates (11), color light dates by
-   type (6). The wall timers in towers are cited as your knowledge.
-7. **Figures that need new symbols:** switch stand target, train order signal, lever and wire run, pipe run and bell
-   crank, lever frame, relay coil and contacts, stepping and slow-release relays, transport.
-8. **Demo readiness.** Which demo hooks will be ready by early 2027: the ghost plant (`--loopback`) works today against
+3. **End CTC sign.** Segment 8's figure wants an End CTC sign. Is there a KiCad symbol, as there is for
+   `Rule93-Yard Limits`?
+4. **Claims with no lead:** digital code line dates (11), color light dates by type (6).
+5. **Figures that need new symbols:** switch stand target, train order signal, lever and wire run, pipe run and bell
+   crank, lever frame, relay coil and contacts, stepping and slow-release relays, transport, End CTC.
+6. **Demo readiness.** Which demo hooks will be ready by early 2027: the ghost plant (`--loopback`) works today against
    the desk; the virtual SPCoast plant lives in FieldUnit-Subdivision.
