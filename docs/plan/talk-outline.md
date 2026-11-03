@@ -39,7 +39,7 @@ The story lines of all segments, in order. This is the talk in one page; everyth
 
 0. Every lever and lamp on a CTC machine is the answer to a wreck, a lawsuit or a payroll. Tonight we walk a hundred years forward, one problem at a time, and pick up the words the way the railroads did, watching the East and the West, with different traffic and different money, solve the same problems differently.
 
-1. Let's start at the beginning, before electricity and radios, when two trains tried to use the same track. The only protection was paper and people: a timetable, a train order by telegraph, a switch tender at a switch stand, and a derail for when all of that failed.
+1. Let's start at the beginning, before electricity and radios, when two trains tried to use the same track. The only protection was paper and people: a timetable, a train order by telegraph, a brakeman at a switch stand, and a derail for when all of that failed.
 
 2. Paper can't be read at fifty miles an hour, so the railroads put up fixed signals: balls on masts, the train order board at the depot, then semaphores worked by wire. Everything still runs on muscle, and one idea arrives that lasts all night: what a signal looks like is not the same as what it means.
 
@@ -53,7 +53,7 @@ The story lines of all segments, in order. This is the talk in one page; everyth
 
 7. Signals only work if the engineer obeys them, so the ICC began putting the signal in the cab. The dense East paid for it; much of the West stayed under 80 mph instead, which is where 79 comes from, and all of it is outside what FieldUnit does.
 
-8. Towers cost three shifts a day at every siding, so in 1927 the railroads cut the lever frame in two: the levers went to a distant dispatcher, the locking stayed in the field, and a relay code line of long and short pulses joined them. The West built CTC to add capacity to single track; the East built it later to tear track out.
+8. On single track, every meet meant stopping so the brakeman could throw the switch by hand, and towers stood only at the bottlenecks, at three shifts a day each. In 1927 the railroads cut the lever frame in two: powered switches and signals at the sidings, the levers with a distant dispatcher, the locking in the field, and a relay code line of long and short pulses between them. The West built CTC to add capacity to single track; the East built it later to tear track out.
 
 9. At the dispatcher's desk the lever no longer refuses: it is a wish, sent with the CODE button, and the answer is the lamp that lights, or doesn't. The desk keeps nobody safe; it states intent and shows the truth for a whole subdivision.
 
@@ -77,7 +77,7 @@ The story lines of all segments, in order. This is the talk in one page; everyth
 | 5 | Power interlocking | 4 | 0:19 |
 | 6 | Automatic block: ABS, then APB | 5 | 0:23 |
 | 7 | Train control (context only) | 2 | 0:28 |
-| 8 | CTC: when towers cost too much | 6 | 0:30 |
+| 8 | CTC: meets without stopping | 6 | 0:30 |
 | 9 | CTC, the office: the dispatcher's desk | 4 | 0:36 |
 | 10 | CTC, the field: the control point | 4 | 0:40 |
 | 11 | Digital code lines | 4 | 0:44 |
@@ -106,7 +106,7 @@ Segments 7 and 12 exist for continuity. They are history the project does not im
 
 ## 1. The switch tender (4 min)
 
-**Story line.** Let's start at the beginning, before electricity and radios, when two trains tried to use the same track. The only protection was paper and people: a timetable, a train order by telegraph, a switch tender at a switch stand, and a derail for when all of that failed.
+**Story line.** Let's start at the beginning, before electricity and radios, when two trains tried to use the same track. The only protection was paper and people: a timetable, a train order by telegraph, a brakeman at a switch stand, and a derail for when all of that failed.
 
 **Era.** From the first railroads in the 1830s; on light lines, well into the 20th century.
 There is no general rulebook yet; each road writes its own.
@@ -116,7 +116,8 @@ A switch left in the wrong position puts a train into a siding at speed. Two tra
 
 **The invention.** Three things, none of them signals:
 
-- The switch stand with a target, thrown by hand, and a person responsible for it.
+- The switch stand with a target, thrown by hand. At an ordinary siding the crew does it: stop, the brakeman throws the
+  switch, waits for the other train, throws it back and climbs back on the caboose.
 - The timetable and the train order: authority to occupy the track comes from paper, sent by telegraph.
   The first telegraphic train order is usually credited to Charles Minot on the Erie, 1851 [lead: KING1921].
 - The derail, which sacrifices a car to save the main line.
@@ -210,7 +211,8 @@ feels the refusal in the hand [GLOSSARY section 2.3]. No electricity is involved
 
 **Terms.** interlocking, interlocking machine, tower, tower operator, lever, interlocking plant, route.
 
-**Figure.** A passing siding at a station, one end interlocked from a tower: switch `1`, home semaphores `2` and `4`
+**Figure.** A busy station whose siding end is a bottleneck worth a tower (an ordinary siding was crew-worked), one end
+interlocked from the tower: switch `1`, home semaphores `2` and `4`
 facing each other, the interlocking limits shaded between them, and the pipe run and wire runs from the tower
 (symbols needed: pipe run, bell crank, lever frame). Under it, the lever frame with numbered levers, and one line of
 the locking sheet: "lever 2 reversed locks lever 1 normal". Lever positions follow AAR56: N and R for a switch;
@@ -220,8 +222,10 @@ L, N and R for a signal [GLOSSARY section 5, lever]. The odd-switch, even-signal
 **The locking sheet.** A truth table, before there were relays. "2R locks 1N" reads: signal 2 may clear only if switch
 1 is normal, and while signal 2 is clear, switch 1 cannot move. This is a route, written as locking.
 
-**East/West.** The cost of a tower was its operators, three shifts a day. Dense eastern main lines paid for towers
-every few miles; in the West, towers stood mostly at junctions and crossings at grade.
+**East/West.** The cost of a tower was its operators, three shifts a day. Railroads put a tower only where traffic
+density, operational complexity or a bottleneck in the track made split-second coordination vital: junctions, crossings
+at grade, busy stations (owner, 2026-11-03). An ordinary passing siding was crew-worked (segment 1). Dense eastern main
+lines had towers every few miles; in the West they stood mostly at junctions and crossings at grade.
 FieldUnit setting: none directly. The tower operator role is not yet in the model [GLOSSARY section 4, tower operator].
 
 **What FieldUnit does.** Each route in an interlocking model lists the switch positions it needs and the signal that
@@ -423,18 +427,22 @@ explains 79 mph, and it sets up PTC in segment 12.
 
 ---
 
-## 8. CTC: when towers cost too much (6 min)
+## 8. CTC: meets without stopping (6 min)
 
-**Story line.** Towers cost three shifts a day at every siding, so in 1927 the railroads cut the lever frame in two: the levers went to a distant dispatcher, the locking stayed in the field, and a relay code line of long and short pulses joined them. The West built CTC to add capacity to single track; the East built it later to tear track out.
+**Story line.** On single track, every meet meant stopping so the brakeman could throw the switch by hand, and towers stood only at the bottlenecks, at three shifts a day each. In 1927 the railroads cut the lever frame in two: powered switches and signals at the sidings, the levers with a distant dispatcher, the locking in the field, and a relay code line of long and short pulses between them. The West built CTC to add capacity to single track; the East built it later to tear track out.
 
 **Era.** 1927: the first CTC on the New York Central, Stanley to Berwick, Ohio, built by GRS [EKEVING, one secondary
 source]. Two-wire coded lines by the 1930s [RS1937].
 
-**The problem.** A tower costs three shifts of operators, every day, at every passing siding. Single track is full;
-train orders are slow; double track costs more than either.
+**The problem.** On single track, every meet at an ordinary passing siding is crew work: stop, the brakeman throws the
+switch by hand, waits for the other train, throws it back and climbs back on the caboose; and every meet is set up by
+train orders that are slow to issue and to change. Towers stand only at the bottlenecks (junctions, crossings at grade,
+busy stations), and each one costs three shifts of operators, every day. Single track is full, and double track costs
+more than any of it.
 
 **The invention.** Cut the interlocking machine in two. The levers go to one dispatcher's office; the locking stays
-in the field. A code line carries the dispatcher's intent out (controls) and the truth back (office indications).
+in the field. Ordinary sidings get powered switches and signals under the dispatcher, so trains meet without stopping;
+the towers at the bottlenecks close, their levers moved to the dispatcher's desk. A code line carries the dispatcher's intent out (controls) and the truth back (office indications).
 Segments 9 and 10 take the two halves one at a time; this segment is the idea and the wire between them.
 
 Where the dispatcher's authority ends: at the CTC limits (the End CTC sign), and at yard limits, where movements may
@@ -536,7 +544,8 @@ the whole main line."
 
 **Story line.** Out at the siding, an empty bungalow has the last word: it checks the locking and acts, or silently does nothing. Electric locks and dual-control switches let crews work by hand when the dispatcher allows it, or when the code line fails.
 
-**Era.** The same as segment 9: the tower is gone, and a bungalow stands at each end of each siding.
+**Era.** The same as segment 9. At the end of each siding, where a brakeman once threw the switch by hand, a bungalow
+now stands; at a junction, it replaces the tower.
 
 **The problem.** The locking that the tower held must now work with nobody there, on intent that arrives late, by
 wire, and may be wrong.

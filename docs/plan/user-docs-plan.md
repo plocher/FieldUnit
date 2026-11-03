@@ -53,7 +53,7 @@ an East/West sidebar where it applies, and a last line: "on a model railroad, th
 5. Power interlocking: electro-pneumatic, switch machines, relays, route, approach and time locking
 6. Automatic block, ABS then APB: protection without authority, then absolute head blocks and traffic direction; electric signals
 7. Train control (ATS, cab signals, ATC), context only: the ICC orders, and the 79 mph limit as the West's answer
-8. CTC, when towers cost too much: the lever frame cut in two, the code line, how relays and a stepping code line work
+8. CTC, meets without stopping: crew-thrown sidings and costly towers replaced; the lever frame cut in two, the code line, how relays and a stepping code line work
 9. CTC, the office: the dispatcher's desk, panel columns, office correspondence, subdivision
 10. CTC, the field: the control point, bungalow, powered switches, electric locks and dual control
 11. Digital code lines: the code line as data, logic in software, what FieldUnit was built to provide

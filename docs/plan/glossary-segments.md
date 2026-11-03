@@ -133,7 +133,7 @@ Count: 163 entries in the glossary (160 distinct terms, since 10.6 restates thre
 | cab signal | 4 | yes | new |
 | coded track circuit | 7 | yes | new |
 
-## 8. CTC: when towers cost too much
+## 8. CTC: meets without stopping
 
 | Term | § | Talk | Note |
 |---|---|---|---|
