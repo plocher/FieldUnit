@@ -376,6 +376,8 @@ train close up behind one going away [GLOSSARY section 10.5, `SR`].
   as the NYC and PRR showed what speed was allowed, at the cost of more heads.
 - Hardware: color light (three-lamp heads and searchlights) on many western roads, PRR position light, B&O color
   position light.
+- Laugh line for the inset: the SP used Type D three-lamp color light heads from the 1920s. After Star Wars came
+  out in 1977, their big glare hoods got them called "Darth Vaders" (owner, 2026-11-03).
 
 FieldUnit settings: mast `Kind`, `Plate-G` and `Plate-R` markers, the `RULE_251` sign [GLOSSARY sections 7 and 9];
 the aspect policy of each mast: `sp1969`, `sp1985`, `gcorSpeed`, `nycSpeed`, `prrPositionLight`, `boCpl`,
