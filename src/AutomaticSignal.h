@@ -51,7 +51,7 @@ public:
         : cp_(nullptr), engine_(nullptr), route_(nullptr), mast_(nullptr),
           hIn_(nullptr), dIn_(nullptr), opposing_(nullptr),
           governedCount_(0), approachCount_(0),
-          sr_(false), hrWasUp_(false), busy_(false),
+          sr_(false), hrWasUp_(false), busy_(false), incomplete_(false),
           hOut_(this, Output::H), dOut_(this, Output::D), cut_(this) {
         name_[0] = '\0';
     }
@@ -125,6 +125,15 @@ public:
 
     const Fact* hOut() const { return &hOut_; }
     const Fact* dOut() const { return &dOut_; }
+
+    // A binding named an appliance the plant does not have (FieldUnit ADR
+    // 0009 D2): the mast is at Stop and H and D read released until the
+    // model declares it.
+    void markIncomplete() {
+        incomplete_ = true;
+        if (route_) route_->markIncomplete();
+    }
+    bool isIncomplete() const { return incomplete_; }
 
     // --- state ---
 
@@ -209,7 +218,7 @@ private:
     // H to U = T(U->L) clear AND (H from W OR SR). Re-entry (a loop of
     // locations) reads as released.
     bool computeH() const {
-        if (busy_) return false;
+        if (busy_ || incomplete_) return false;
         busy_ = true;
         bool h = allAsserted(approach_, approachCount_) && (hInAsserted() || sr_);
         busy_ = false;
@@ -218,7 +227,7 @@ private:
 
     // D to U = HR = the route equation above the Restricting tier.
     bool computeD() const {
-        if (busy_ || engine_ == nullptr || route_ == nullptr) return false;
+        if (busy_ || incomplete_ || engine_ == nullptr || route_ == nullptr) return false;
         busy_ = true;
         Indication ind = engine_->evaluateRouteIndication(*route_);
         busy_ = false;
@@ -240,6 +249,7 @@ private:
     bool               sr_;
     bool               hrWasUp_;
     mutable bool       busy_;
+    bool               incomplete_;
     Output             hOut_;
     Output             dOut_;
     OpposingCut        cut_;

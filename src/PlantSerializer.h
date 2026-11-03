@@ -326,6 +326,14 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
              sp, policyToName(cp.defaultAspectPolicy()), nl);
     if (!append(line)) return false;
 
+    // The per-interlocking staleness timeout (FieldUnit ADR 0009), written
+    // only when it is not the library default.
+    if (cp.defaultStalenessTimeout() != DEFAULT_STALENESS_TIMEOUT_MS) {
+        snprintf(line, sizeof(line), "%s\"defaultStalenessTimeoutMs\": %u,%s",
+                 sp, static_cast<unsigned>(cp.defaultStalenessTimeout()), nl);
+        if (!append(line)) return false;
+    }
+
     // 1. Track Circuits
     snprintf(line, sizeof(line), "%s\"trackCircuits\": [%s", sp, nl);
     if (!append(line)) return false;
@@ -339,15 +347,24 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
     snprintf(line, sizeof(line), "%s],%s", sp, nl);
     if (!append(line)) return false;
 
-    // 1b. Line inputs (FieldUnit ADR 0007 D2)
-    if (cp.lineInputCount() > 0) {
+    // 1b. Line inputs (FieldUnit ADR 0007 D2). An implicit line input is
+    // derived, not given (FieldUnit ADR 0009 D4): the bindings re-derive it
+    // on read, so it is not written.
+    uint8_t givenLineInputs = 0;
+    for (uint8_t i = 0; i < cp.lineInputCount(); ++i) {
+        if (!cp.lineInput(i)->isImplicit()) ++givenLineInputs;
+    }
+    if (givenLineInputs > 0) {
         snprintf(line, sizeof(line), "%s\"lineInputs\": [%s", sp, nl);
         if (!append(line)) return false;
+        uint8_t written = 0;
         for (uint8_t i = 0; i < cp.lineInputCount(); ++i) {
             const LineInput* li = cp.lineInput(i);
+            if (li->isImplicit()) continue;
+            ++written;
             snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"stalenessTimeoutMs\": %u}%s%s",
                      sp2, li->name(), static_cast<unsigned>(li->stalenessTimeout()),
-                     (i + 1 < cp.lineInputCount()) ? "," : "", nl);
+                     (written < givenLineInputs) ? "," : "", nl);
             if (!append(line)) return false;
         }
         snprintf(line, sizeof(line), "%s],%s", sp, nl);
@@ -673,6 +690,15 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
         }
     }
 
+    // 1a. Per-interlocking staleness timeout (FieldUnit ADR 0009): the
+    // default for line inputs that state none and for implicit ones.
+    if (findKey(json, "defaultStalenessTimeoutMs", val)) {
+        int32_t timeout = 0;
+        if (parseInt(val, timeout) && timeout >= 0) {
+            cp.setDefaultStalenessTimeout(static_cast<uint32_t>(timeout));
+        }
+    }
+
     // 2. Track Circuits
     if (findKey(json, "trackCircuits", val)) {
         skipWhitespace(val);
@@ -716,7 +742,7 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
                     const char* itemStart = val;
                     const char* liVal = nullptr;
                     char name[32] = "";
-                    int32_t timeout = 5000;
+                    int32_t timeout = static_cast<int32_t>(cp.defaultStalenessTimeout());
 
                     if (findKey(itemStart, "name", liVal)) {
                         parseString(liVal, name, sizeof(name));

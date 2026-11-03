@@ -71,6 +71,7 @@ public:
           proceedFact_(nullptr),
           isEngineReturn_(false),
           automatic_(false),
+          incomplete_(false),
           originBlock_(nullptr),
           osBlock_(nullptr),
           cp_(nullptr),
@@ -288,6 +289,11 @@ public:
         return *this;
     }
 
+    // A binding named an appliance the plant does not have (FieldUnit ADR
+    // 0009 D2). The route evaluates to Stop until the model declares it.
+    void markIncomplete() { incomplete_ = true; }
+    bool isIncomplete() const { return incomplete_; }
+
     // Accessors for vital evaluation
     const char* name() const { return name_; }
     SignalControl* authority() const { return authority_; }
@@ -337,6 +343,7 @@ private:
 
     bool               isEngineReturn_;
     bool               automatic_;
+    bool               incomplete_;
     TrackCircuit*      originBlock_;
     TrackCircuit*      osBlock_;
     InterlockingPlant* cp_;
@@ -569,6 +576,7 @@ private:
     }
 
     Indication evaluateIndication(const Route& r) const {
+        if (r.isIncomplete()) return Indication::STOP;     // FieldUnit ADR 0009 D2
         Indication indication = r.aspectCeiling();
         indication = Route::leastPermissive(indication, authorityContribution(r));
         indication = Route::leastPermissive(indication, alignmentContribution(r));

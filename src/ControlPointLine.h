@@ -76,6 +76,7 @@ public:
           trafficDropped_(false),
           clearedLatched_(false),
           homeProceedLatched_(false),
+          incomplete_(false),
           hOut_(this, Output::H), dOut_(this, Output::D), fOut_(this, Output::F) {
         name_[0] = '\0';
     }
@@ -129,6 +130,11 @@ public:
     ControlPointLine& tumbleDown(TumbleDownTrigger t) { tumbleDown_ = t; return *this; }
     ControlPointLine& traffic(TrafficMechanism m) { traffic_ = m; return *this; }
     ControlPointLine& trafficRelease(TrafficRelease r) { release_ = r; return *this; }
+
+    // A binding named a mast the plant does not have (FieldUnit ADR 0009
+    // D2): H, D and F read released until the model declares it.
+    void markIncomplete() { incomplete_ = true; }
+    bool isIncomplete() const { return incomplete_; }
 
     // --- outputs ---
 
@@ -203,6 +209,7 @@ private:
         }
         const char* name() const override { return name_; }
         bool asserted() const override {
+            if (owner_->incomplete_) return false;
             switch (kind_) {
                 case H: return owner_->computeH();
                 case D: return owner_->homeProceed();
@@ -281,6 +288,7 @@ private:
     bool               trafficDropped_;
     bool               clearedLatched_;
     bool               homeProceedLatched_;
+    bool               incomplete_;
     Output             hOut_;
     Output             dOut_;
     Output             fOut_;

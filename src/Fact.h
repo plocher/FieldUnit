@@ -26,6 +26,23 @@ public:
     virtual bool asserted() const = 0;
 };
 
+/**
+ * ReleasedFact: a fact with no source and no slot to hold one (FieldUnit
+ * ADR 0009 D1). A binding whose name resolves to nothing and for which the
+ * plant has no line-input slot left binds here, so the term reads released
+ * and the route is at Stop. One shared instance; never asserted.
+ */
+class ReleasedFact : public Fact {
+public:
+    const char* name() const override { return "(unsourced)"; }
+    bool asserted() const override { return false; }
+};
+
+inline const Fact* releasedFact() {
+    static ReleasedFact instance;
+    return &instance;
+}
+
 } // namespace FieldUnit
 
 #endif // FIELDUNIT_FACT_H

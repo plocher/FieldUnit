@@ -1,6 +1,6 @@
 # 0009. An incomplete plant: what a binding does when its name has no source
 
-- Status: proposed (drafted with the owner, 2026-11-02; nothing ratified)
+- Status: accepted (drafted with the owner, 2026-11-02; D1 to D6 ratified by the owner 2026-11-02; implemented the same day)
 - Date: 2026-11-02
 - Builds on: FieldUnit ADR 0007 (D2 line inputs, D4 per-plant capacity); FieldUnit ADR 0008 (D2 operands are Facts, D3 produced Facts, the "names bind at the call" rule); FieldUnit-Subdivision ADR 0008 §4.7 (absence is information; gaps are stubbed by the emulator's mocks) and §4.9 (the drawing is the deployment; the Day 0 view that elides hardware is a consumer's to build); FieldUnit-Subdivision ADR 0011 decision 5 and §6 (incomplete is not in error; each consumer decides, as a capability gate, whether a file holds enough for its own work; the code generator's stance is out of scope there); FieldUnit-Subdivision ADR 0009 §3.2 and §3.3 (a virtual processor hosts emulated interlockings).
 - Order of authority: as FieldUnit ADR 0007 states it. This ADR adds no relay. It decides what the plant does when the model gives it less than a relay chain would have.
@@ -108,6 +108,14 @@ Rejected: inventing a track circuit for an unknown `clears()` name. See "too inc
 4. Whether the report should name a stage (a count of ghost-driven facts, for the emulator's display). Default: no; the emulator counts implicit inputs it drives.
 5. What Studio shows for a plant in this state is Studio's (FieldUnit-Subdivision ADR 0011 §6, "its diagnostics are its own display").
 
+### The owner's answers (2026-11-02)
+
+1. No prototype case wants a drawn-but-unwired circuit to read clear. If one appears, an `unimplemented:override` kind of attribute on the model is the shape to add; that is a ghost policy under D5 and a Layout Data Model question, not a plant one. Not built.
+2. No gate. "If a device is connected to a driver, the driver should drive." Incompleteness shows as a lamp that never lights or a signal that always shows Stop, which D1 and D2 already give. `driveOutputs()` is unchanged.
+3. The staleness timeout is a per-layout setting, overridable per interlocking; finer than that is not known to be needed. The library default stays 5000 ms (the wire default of ADR 0007 D2: long enough for a 1 Hz heartbeat to miss four beats, short enough that a stopped ghost is noticed within a scan or two of a human noticing). Implemented as `InterlockingPlant::setDefaultStalenessTimeout()` and the JSON key `defaultStalenessTimeoutMs`, applied to line inputs that state none and to every implicit one; a line input may still state its own. The per-layout value is the Layout Data Model's (`settings`, FieldUnit-Subdivision ADR 0011), from which the generator writes the per-interlocking key.
+4. and 5. Owned by whatever implements the emulator and Studio, which the current code generation work does not include. Later.
+
 ## Record
 
+- 2026-11-02: D1 to D6 ratified and implemented the same day (`src/Fact.h` `ReleasedFact`, `src/LineInput.h` `isImplicit()`, `src/InterlockingPlant.h` `resolveFact()` / `noteMissing()` / the report / `setDefaultStalenessTimeout()`, `Route`, `AutomaticSignal` and `ControlPointLine` `markIncomplete()`, `src/PlantSerializer.h`, `examples/Universal_FieldUnit`, `tests/test_unresolved_references.cpp`). All 19 programs pass; `CP_Corporal` and `Universal_FieldUnit` build for ESP32. One addition to the draft: an incomplete `AutomaticSignal` also marks its own route incomplete, so its mast is at Stop and not only its `H` and `D` released.
 - 2026-11-02: drafted with the owner after ADR 0008 landed, from the owner's statement that the data model is explicitly allowed to be incomplete and that emulation, partial hardware and partial deployment are stages of one design. The table of today's behaviour came from reading the bindings in `src/` the same day. Nothing is ratified.

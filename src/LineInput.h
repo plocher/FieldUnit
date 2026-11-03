@@ -35,7 +35,8 @@ public:
           stale_(false),
           index_(0),
           lastUpdateMs_(0),
-          stalenessTimeoutMs_(stalenessTimeoutMs) {
+          stalenessTimeoutMs_(stalenessTimeoutMs),
+          implicit_(false) {
         setName(name);
     }
 
@@ -55,6 +56,12 @@ public:
     }
 
     bool isStale() const { return everUpdated_ && stale_; }
+
+    // Declared by the plant for a name no binding could resolve (FieldUnit
+    // ADR 0009 D1): derived, not given. The serializer does not write it;
+    // a ghost finds it here and drives it with update() and touch().
+    bool isImplicit() const { return implicit_; }
+    void setImplicit(bool implicit) { implicit_ = implicit; }
     bool everUpdated() const { return everUpdated_; }
 
     // State: update from a wire, a topic, or a decoded neighbour indication.
@@ -90,6 +97,7 @@ private:
     uint8_t  index_;
     uint32_t lastUpdateMs_;
     uint32_t stalenessTimeoutMs_;
+    bool     implicit_;
 };
 
 } // namespace FieldUnit
