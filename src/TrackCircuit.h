@@ -17,7 +17,7 @@ public:
           dropoutDelayMs_(dropoutDelayMs),
           clearanceStartMs_(0),
           clearingActive_(false),
-          stalenessTimeoutMs_(5000),
+          stalenessTimeoutMs_(DEFAULT_STALENESS_TIMEOUT_MS),
           lastUpdateMs_(0) {
         setName(name);
     }
@@ -128,6 +128,7 @@ public:
     void setStalenessTimeout(uint32_t timeoutMs) {
         stalenessTimeoutMs_ = timeoutMs;
     }
+    uint32_t stalenessTimeout() const { return stalenessTimeoutMs_; }
 
 private:
     char name_[MAX_APPLIANCE_NAME_LEN];

@@ -131,7 +131,6 @@ struct UnresolvedReference {
 };
 
 static constexpr uint8_t  MAX_UNRESOLVED = 16;
-static constexpr uint32_t DEFAULT_STALENESS_TIMEOUT_MS = 5000;
 
 class InterlockingPlant {
 public:
@@ -241,6 +240,7 @@ public:
         noteConflict(name, "addTrackCircuit");
         trackCircuits_[trackCircuitCount_] = TrackCircuit(name, dropoutDelayMs);
         trackCircuits_[trackCircuitCount_].setIndex(trackCircuitCount_);
+        trackCircuits_[trackCircuitCount_].setStalenessTimeout(defaultStalenessTimeoutMs_);
         return &trackCircuits_[trackCircuitCount_++];
     }
 

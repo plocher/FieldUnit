@@ -22,14 +22,14 @@ namespace FieldUnit {
  * Fail-safe, as for a remote TrackCircuit:
  * - released until the first update();
  * - released again when neither update() nor touch() arrives within the
- *   staleness timeout (default 5000 ms). A timeout of 0 disables
+ *   staleness timeout (DEFAULT_STALENESS_TIMEOUT_MS). A timeout of 0 disables
  *   staleness, for a fact that lives in the same processor's memory.
  */
 class LineInput : public Fact {
 public:
     LineInput() : LineInput("") {}
 
-    explicit LineInput(const char* name, uint32_t stalenessTimeoutMs = 5000)
+    explicit LineInput(const char* name, uint32_t stalenessTimeoutMs = DEFAULT_STALENESS_TIMEOUT_MS)
         : energized_(false),
           everUpdated_(false),
           stale_(false),

@@ -283,6 +283,7 @@ int main() {
         cp.route("R").governedBy("2", DirectionAuthority::RIGHT).displays("2E", Indication::CLEAR)
           .clears({ "1T" }).home({ "GIVEN", "GIVEN2", "IMPLIED" }).entrance("1T");
         assert(cp.findLineInput("GIVEN")->stalenessTimeout() == 12000);
+        assert(cp.findTrackCircuit("1T")->stalenessTimeout() == 12000);   // circuits take it too
         assert(cp.findLineInput("IMPLIED")->isImplicit());
         assert(cp.findLineInput("IMPLIED")->stalenessTimeout() == 12000);
 
