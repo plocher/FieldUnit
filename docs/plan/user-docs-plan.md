@@ -46,18 +46,22 @@ A later internal-developer set (schema, code generation) is out of scope for thi
 Each segment: the problem, the invention, the 3–6 glossary terms it introduces, one figure, the relay layer where it applies,
 an East/West sidebar where it applies, and a last line: "on a model railroad, this is …".
 
-1. The switch tender: points, frogs, hand-thrown switches, timetable and train orders
-2. Fixed signals: governing direction, aspect vs. indication, mast and head
-3. The tower and the lever frame: interlocking, mechanical locking, route
-4. Track circuits: occupancy, detector locking, OS
-5. Power interlocking: electro-pneumatic, relays, approach and time locking
-6. Automatic block (ABS/APB): signals without people, traffic direction
-7. Train control (ATS, cab signals, ATC): the ICC orders, and the 79 mph limit as the West's answer
-8. CTC, the lever frame cut in two: code line, controls vs. indications, field station
-9. The dispatcher's desk: control point, subdivision, the dispatcher as many towers
-10. Digital code lines to PTC: history only. PTC needs train speed control (DCC, car and engine detection)
-    that this project does not do. Correct switches, signals and CTC are the foundation for it; PTC itself is out of scope.
-11. Your layout as a railroad: the whole story mapped onto FieldUnit
+1. The switch tender: points, hand-thrown switches, derails, timetable and train orders
+2. Fixed signals, the strongarm era: ball signals, train order signals, wire-worked semaphores, aspect vs. indication, mast and head
+3. The tower and the lever frame: interlocking, mechanical locking, pipe and wire, route
+4. Track circuits, electricity arrives: occupancy, detector locking, OS
+5. Power interlocking: electro-pneumatic, switch machines, relays, route, approach and time locking
+6. Automatic block, ABS then APB: protection without authority, then absolute head blocks and traffic direction; electric signals
+7. Train control (ATS, cab signals, ATC), context only: the ICC orders, and the 79 mph limit as the West's answer
+8. CTC, when towers cost too much: the lever frame cut in two, the code line, how relays and a stepping code line work
+9. CTC, the office: the dispatcher's desk, panel columns, office correspondence, subdivision
+10. CTC, the field: the control point, bungalow, powered switches, electric locks and dual control
+11. Digital code lines: the code line as data, logic in software, what FieldUnit was built to provide
+12. PTC, context only: PTC needs train speed control (DCC, car and engine detection) that this project does not do.
+    Correct switches, signals and CTC are the foundation for it; PTC itself is out of scope.
+13. Your layout, and what comes next: the whole story mapped onto FieldUnit, then C/MRI hosting, MQTT appliances, virtual CTC machines
+
+(Spine revised 2026-11-03 from the owner's review of the talk outline: segments 8 to 10 split CTC; PTC split from digital code lines.)
 
 Every glossary term is assigned to exactly one segment (where it is introduced). Terms with no segment are either
 reference-only or a sign of a gap.
@@ -73,7 +77,7 @@ reference-only or a sign of a gap.
 ## Deliverables, in order
 
 1. **Talk outline = spine.** A 1-hour, in-person presentation for the NMRA LD/Ops SIG, early 2027: approachable, interesting, fun.
-   Pure story at minimum; a demo if the emulation is ready. About 5 minutes per segment.
+   Pure story at minimum; a demo if the emulation is ready. 2 to 6 minutes per segment.
 2. Glossary-to-segment assignment.
 3. Docs-figures KiCad project in `Railroad/`, and the first figures for the talk.
 4. The textbook: the talk written down, one short chapter per segment. Mostly cut from the existing primer and glossary along the spine.
