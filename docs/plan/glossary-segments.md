@@ -1,6 +1,6 @@
 # Glossary Terms by Spine Segment
 
-Draft 1, 2026-11-03. Deliverable 2 of `docs/plan/user-docs-plan.md`; companion to `docs/plan/talk-outline.md`.
+Draft 2, 2026-11-03 (color light terms moved from segment 2 to segment 6). Deliverable 2 of `docs/plan/user-docs-plan.md`; companion to `docs/plan/talk-outline.md`.
 
 Each entry of `docs/GLOSSARY.md` is assigned to exactly one segment of the spine: the segment where the reader first
 needs it. Terms are spelled as the glossary spells them.
@@ -28,7 +28,7 @@ Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates thre
 | fouling point | 7 | yes | |
 | yard limits | 4 | yes | Rule 93 |
 
-## 2. Fixed signals
+## 2. Fixed signals, the strongarm era
 
 | Term | § | Talk | Note |
 |---|---|---|---|
@@ -37,11 +37,7 @@ Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates thre
 | head | 7 | yes | |
 | aspect | 8 | yes | |
 | signal indication | 8 | yes | |
-| semaphore signal | 7 | yes | LQ/UQ and the 1903 date |
-| color light signal | 7 | | |
-| color-position light signal | 7 | | naming question, see open questions |
-| position-color light signal | 7 | | |
-| position light signal | 7 | | |
+| semaphore signal | 7 | yes | lower quadrant here; upper quadrant (1903) returns in segment 6 |
 
 ## 3. The tower and the lever frame
 
@@ -60,7 +56,7 @@ Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates thre
 | LEFT, RIGHT | 7 | | direction of a signal lever and a route |
 | appliance | 3 | | the things the levers work |
 
-## 4. Track circuits
+## 4. Track circuits: electricity arrives
 
 | Term | § | Talk | Note |
 |---|---|---|---|
@@ -98,7 +94,7 @@ Count: 141 entries in the glossary (138 distinct terms, since 10.6 restates thre
 Segment 5 is the heaviest chapter (18 terms). The textbook may split it: "the switch" (`KR`, `NWCR`, `RWCR`,
 switch correspondence) and "the signal" (`HR`, `DR`, `HSR`, `ASR`, the three lockings).
 
-## 6. Automatic block (ABS/APB)
+## 6. Automatic block, and the signal goes electric
 
 | Term | § | Talk | Note |
 |---|---|---|---|
@@ -115,6 +111,10 @@ switch correspondence) and "the signal" (`HR`, `DR`, `HSR`, `ASR`, the three loc
 | `TP`, `TPR` | 10.5 | | |
 | `BPR` | 10.5 | | |
 | `FR`, `FSR` (traffic) | 10.5 | | |
+| color light signal | 7 | | electric lamps need the batteries and relays of segments 4 and 5 |
+| color-position light signal | 7 | | naming question, see the talk outline's open questions |
+| position-color light signal | 7 | | |
+| position light signal | 7 | | |
 
 ## 7. Train control (ATS, cab signals, ATC)
 
@@ -245,10 +245,11 @@ of their own. Each one needs a decision: add a [Prototype] or [Both] entry, or k
 | 1 | points, frog | plan, segment 1; "movable points" in the switch entry |
 | 1 | switch stand | inside manual switch |
 | 1 | timetable, train order, superiority of trains | plan, segment 1; rule texts in section 9 |
-| 2 | fixed signal | plan, segment 2 |
+| 2 | fixed signal, ball signal, train order signal, distant signal | plan, segment 2; talk segment 2 |
 | 2 | governing direction, govern | plan, segment 2; inside signal location, cut section, HD line |
 | 2 | Stop and Proceed, Restricting, Approach, Clear (as indications) | inside automatic signal, signal indication |
-| 2 | route signaling, speed signaling | `docs/how-to/04_semaphores_and_eastern_signaling.md`; talk segment 2 sidebar |
+| 6 | route signaling, speed signaling | `docs/how-to/04_semaphores_and_eastern_signaling.md`; talk segment 6 sidebar |
+| 6 | searchlight | inside color light signal; talk segment 6 |
 | 3 | route | plan, segment 3; code `Route`; inside route locking, indication ceiling, LEFT, RIGHT |
 | 3 | locking bed, mechanical locking, pipe and wire | inside interlocking machine and interlocking |
 | 3 | home signal, absolute signal, controlled signal | inside interlocking limits, control point, automatic signal |
