@@ -406,7 +406,9 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - AAR56: "A track circuit is designated by the letter T preceded by a number" [AAR56 p. 31].
   - FieldUnit: `TrackCircuit`. Occupancy can come from any detector. A dropout delay (`dropoutDelayMs`) bridges gaps between cars for optical sensors. This is a model workaround.
   - FieldUnit: a track circuit starts OCCUPIED. A remote circuit with no update for 5000 ms gets quality `LOST_COMMS` and is not clear.
-- **train order signal** [Prototype]. A fixed signal at a train order office, worked by the operator. It tells a train whether there are train orders for it. It is not a block signal: it says nothing about the track ahead. The Standard Code governed it by its own rule (Rule 221 in most books; unverified). FieldUnit: not modeled yet; a KiCad symbol and a model object are planned (owner, 2026-11-03).
+- **train order signal** [Prototype]. A fixed signal at a train order office, worked by the operator. It tells a train whether there are train orders for it. It is not a block signal: it says nothing about the track ahead. Standard Code Rule 221 governs it: when orders are held for a train, the signal displays stop for that train's direction, and the operator handles the clearance (unverified). Railroads differed on its normal position: stop whenever an operator is on duty, or proceed unless orders are held (unverified). Compare Form 19, Form 31.
+  - Layout model: Appliance `train_order` (FieldUnit-Subdivision, 2026-11-03). It is operator-controlled and non-vital. It is never in a route or a control point, and no mast rule reads it. Its heads are keyed by the compass letter of the direction they face (`N`, `S`, `E`, `W`, each at most once); its `Station` field names the station it serves. KiCad symbol in `Railroad/symbols/`.
+  - FieldUnit: no train order appliance in the library yet.
 
 ## 8. Signal indications and locking
 
@@ -436,6 +438,8 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - **current of traffic** [Both]. The movement of trains on a main track in one direction, specified in the timetable (`RULE_251`) [PRR56 Definitions; CFR236 §236.734]. In the layout model, a `RULE_251` sign's `LEFT` or `RIGHT` states the lever direction of the signals that govern with the current of traffic (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §8). Compare traffic, direction of traffic (section 8).
 - **timetable** [Prototype]. The document that authorizes the regular trains of a division, gives their schedules and superiority, and holds special instructions. Under timetable and train order operation it is one of the two sources of authority. (unverified)
 - **train order** [Prototype]. A written order from the dispatcher, sent by telegraph (later by telephone) through an operator to a train crew. It adds to or changes the authority of the timetable. The first telegraphic train order is usually credited to Charles Minot on the Erie, 1851 (unverified). Compare train order signal.
+- **Form 19** [Prototype]. A train order that the crew can take without stopping: the operator hands it up on a hoop and the crew takes it on the fly. The conductor does not sign for it (unverified). Compare Form 31.
+- **Form 31** [Prototype]. A train order that the train must stop for: the conductor (on some roads the engineman too) signs for it before the operator gives the clearance. It is used for the more restrictive orders (unverified). Compare Form 19.
 - SPCoast models 1942 to 1985 (title block). Use Standard Code numbers for SPCoast. Name GCOR only as the modern equivalent.
 - The texts below are from one road: the PRR book effective October 28, 1956, with 1964 revisions [PRR56]. Another road's wording can differ.
 

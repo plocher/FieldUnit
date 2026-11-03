@@ -31,6 +31,8 @@ Count: 163 entries in the glossary (160 distinct terms, since 10.6 restates thre
 | fouling point | 7 | yes | |
 | timetable | 9 | yes | new |
 | train order | 9 | yes | new |
+| Form 19 | 9 | yes | new; orders on the fly, the hoop |
+| Form 31 | 9 | yes | new; stop and sign |
 | points | 7 | yes | new |
 | switch stand | 7 | yes | new |
 
@@ -46,7 +48,7 @@ Count: 163 entries in the glossary (160 distinct terms, since 10.6 restates thre
 | semaphore signal | 7 | yes | the arm, worked by wire; lower quadrant; upper quadrant returns in segment 6 |
 | fixed signal | 7 | yes | new |
 | ball signal | 7 | yes | new |
-| train order signal | 7 | yes | new; not a block signal; symbol and model object planned |
+| train order signal | 7 | yes | new; not a block signal; KiCad symbol and layout model Appliance `train_order` exist (2026-11-03) |
 
 ## 3. The tower and the lever frame
 

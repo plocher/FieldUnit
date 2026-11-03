@@ -120,9 +120,11 @@ A switch left in the wrong position puts a train into a siding at speed. Two tra
   switch, waits for the other train, throws it back and climbs back on the caboose.
 - The timetable and the train order: authority to occupy the track comes from paper, sent by telegraph.
   The first telegraphic train order is usually credited to Charles Minot on the Erie, 1851 [lead: KING1921].
+  Two forms: a Form 19 is handed up on a hoop and taken on the fly; a Form 31 stops the train so the conductor can
+  sign for it [cite?]. The hoop is a good prop.
 - The derail, which sacrifices a car to save the main line.
 
-**Terms.** switch, manual switch, derail, fouling point; timetable, train order, points, switch stand.
+**Terms.** switch, manual switch, derail, fouling point; timetable, train order, Form 19, Form 31, points, switch stand.
 
 **Figure.** The end of a passing siding at a station, all hand-operated: the switch (Style `manual`) with a switch
 stand and target (symbol needed), a derail on the siding, and the fouling point marked.
@@ -162,7 +164,8 @@ far away, day and night. And the station operator needs a way to stop a train to
   fixed signal in the US (flags first, then balls) [lead: WIKI-SIG, IRSE-US].
 - The train order signal: a semaphore of its own style at the station, worked by the operator. It says one thing:
   there are orders for you, or there are not. It is not a block signal. It says nothing about the track ahead.
-  It would later be governed by its own rule in the Standard Code (Rule 221 in most books; check [PRR56]).
+  It would later be governed by its own rule in the Standard Code, Rule 221: when orders are held, it displays stop
+  for that direction [cite?: check PRR56].
 
 The semaphore arm itself appears here: an arm worked by a wire from a lever, lit at night by an oil lamp behind a
 colored roundel. Its use to protect a junction is segment 3; its use as a block signal is segment 6.
@@ -180,11 +183,14 @@ one side and its signal indication on the other.
 **The rulebook.** aspect = rulebook(signal indication, signal). The indication is the instruction; the aspect is how
 one railroad, in one era, shows it [GLOSSARY section 8, aspect and signal indication].
 
-**East/West.** Not much to say yet. Train orders, and so train order signals, ran everywhere; they lasted longest on
-western single track.
+**East/West.** Train orders, and so train order signals, ran everywhere; they lasted longest on western single track.
+One druther to show: the signal's normal position. Some roads kept it at stop whenever an operator was on duty;
+others kept it at proceed unless orders were held [cite?]. The model's train order signal does not care which.
 
-**What FieldUnit does.** Nothing yet. A train order signal is planned: a KiCad symbol and a model object of its own,
-not a block-signal mast (owner, 2026-11-03). The aspect and indication machinery FieldUnit does have
+**What FieldUnit does.** The train order signal has a KiCad symbol and a layout model object of its own,
+Appliance `train_order`, not a block-signal mast (Railroad and FieldUnit-Subdivision, 2026-11-03). It is
+operator-controlled and non-vital: never in a route or a control point. Its heads face compass directions (`N`, `S`,
+`E`, `W`) and it belongs to a station. The FieldUnit library does not drive one yet. The aspect and indication machinery FieldUnit does have
 (`src/SignalAspectPolicy.h`) is for interlocking and block signals, and is shown in segments 3 and 6.
 
 **Closing line.** "On a model railroad, this is the order board at the depot: the operator's way to say 'stop,
@@ -724,12 +730,13 @@ background.
 ## Open questions for John
 
 Settled in this round (owner, 2026-11-03): the train order signal gets a glossary entry (done), a KiCad symbol and a
-model object (to do); the italic terms got [Prototype] and [Both] glossary entries (done); yard limits and CTC limits
+model object (done, 2026-11-03; the FieldUnit library has no appliance for it yet); the italic terms got [Prototype] and [Both] glossary entries (done); yard limits and CTC limits
 moved to segment 8 as the places where the dispatcher's authority ends; segment 10's sidebar is dual control as
 resilience.
 
 1. **New glossary entries need review.** 22 entries were added to `docs/GLOSSARY.md`. Most carry "(unverified)":
-   their facts come from the leads below, not opened sources. Rule 221 for the train order signal is still a guess.
+   their facts come from the leads below, not opened sources. Rule 221 for the train order signal, its normal position, and Forms 19 and 31 now come from your notes,
+   not an opened rulebook: still (unverified) until checked against [PRR56] or an SP book.
 2. **Signal type names.** Fixed in the glossary: color light is the generic name for the multi-lamp head (SP three-lamp
    heads; GRS Type D is one product) and the searchlight; color-position light (CPL) is the B&O system; position light
    (PL) is the PRR's. Still open: the KiCad Style word `CPL` names the three-lamp head today; rename it (for example
@@ -739,7 +746,7 @@ resilience.
 3. **End CTC sign.** Segment 8's figure wants an End CTC sign. Is there a KiCad symbol, as there is for
    `Rule93-Yard Limits`?
 4. **Claims with no lead:** digital code line dates (11), color light dates by type (6).
-5. **Figures that need new symbols:** switch stand target, train order signal, lever and wire run, pipe run and bell
+5. **Figures that need new symbols:** switch stand target, lever and wire run, pipe run and bell
    crank, lever frame, relay coil and contacts, stepping and slow-release relays, transport, End CTC.
 6. **Demo readiness.** Which demo hooks will be ready by early 2027: the ghost plant (`--loopback`) works today against
    the desk; the virtual SPCoast plant lives in FieldUnit-Subdivision.
