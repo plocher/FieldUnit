@@ -121,7 +121,9 @@ python3 tools/test_ctc_desk.py --loopback
 python3 tools/test_ctc_desk.py --walk
 ```
 
-`tools/test_ctc_desk.py` needs `paho-mqtt` and a broker on localhost:1883. Its `STATIONS["Luchessa"]` carries the KiCad-derived names (783/795/799/784); update it whenever desk names change.
+`tools/test_ctc_desk.py` needs `paho-mqtt` and a broker on localhost:1883.
+
+`tools/md2pdf/md2pdf.py` prints a Markdown file as a PDF, one `##` section per page (`docs/plan/talk-outline.md` is the use case). It needs `markdown` and Playwright for Python; see `tools/md2pdf/README.md`. Its `STATIONS["Luchessa"]` carries the KiCad-derived names (783/795/799/784); update it whenever desk names change.
 
 ---
 
