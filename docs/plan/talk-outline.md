@@ -184,8 +184,6 @@ one side and its signal indication on the other.
 one railroad, in one era, shows it [GLOSSARY section 8, aspect and signal indication].
 
 **East/West.** Train orders, and so train order signals, ran everywhere; they lasted longest on western single track.
-One druther to show: the signal's normal position. Some roads kept it at stop whenever an operator was on duty;
-others kept it at proceed unless orders were held [cite?]. The model's train order signal does not care which.
 
 **What FieldUnit does.** The train order signal has a KiCad symbol and a layout model object of its own,
 Appliance `train_order`, not a block-signal mast (Railroad and FieldUnit-Subdivision, 2026-11-03). It is
@@ -735,7 +733,7 @@ moved to segment 8 as the places where the dispatcher's authority ends; segment 
 resilience.
 
 1. **New glossary entries need review.** 22 entries were added to `docs/GLOSSARY.md`. Most carry "(unverified)":
-   their facts come from the leads below, not opened sources. Rule 221 for the train order signal, its normal position, and Forms 19 and 31 now come from your notes,
+   their facts come from the leads below, not opened sources. Rule 221 for the train order signal and Forms 19 and 31 now come from your notes,
    not an opened rulebook: still (unverified) until checked against [PRR56] or an SP book.
 2. **Signal type names.** Fixed in the glossary: color light is the generic name for the multi-lamp head (SP three-lamp
    heads; GRS Type D is one product) and the searchlight; color-position light (CPL) is the B&O system; position light
