@@ -352,9 +352,12 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - Name: a derail symbol whose gang id (the Value minus its trailing letter) matches a switch or lock gang of the same interlocking. Convention: the letter D, for example `795D`. The symbol kind and the name relation decide dependence, not the letter D. Values are unique across switches, locks and derails (FieldUnit-Subdivision ADR 0003 D8, proposed).
   - Code today: `addDerail("795D")` parses the trailing D and requires switch `795` to exist; it is to take the base from the model (`controllingSwitch`).
   - It has no lever and no tokens of its own. The switch's `NWK` and `RWK` require both machines in switch correspondence.
-- **color light signal** [Both]. A signal whose head is one light source showing one color at a time: on the prototype the searchlight, one lamp behind a moving colored roundel (the vane); in the model one RGB LED with three legs (red is R, yellow is R plus G, green is G; brightness per leg on PWM) or one point on a pixel chain. Style word `CL` (FieldUnit-Subdivision checkpoint E47, E65, E71). Compare color-position light.
-- **color-position light signal** [Both]. A signal whose head has colored lamps in fixed positions, one lit at a time: the three-lamp head, or a multiplexed head whose decoder lights one of them. Style word `CPL` (E65). Which lamp is lit is the device's business; the model realises it with one pin per lamp or with a select code.
-- **position-color light signal** [Both]. The B&O system: pairs of lamps whose position and color together carry the aspect. Style word `PCL`, reserved; no symbol yet (owner, 2026-10-12).
+- **color light signal** [Both]. A signal whose head shows its aspect by the color of its light, one color at a time. Two forms (owner, 2026-11-03):
+  - Multi-lamp head: one lamp for each color, one lit at a time; the SP's green, yellow and red heads. GRS Type D is one product of this form (unverified). In the model: one pin for each lamp, or a select code. Style word today `CPL` (FieldUnit-Subdivision checkpoint E65). That word is a misnomer: CPL is the B&O color-position light system. A rename is open.
+  - Searchlight: one lamp behind a moving colored roundel (the vane). In the model: one RGB LED with three legs (red is R, yellow is R plus G, green is G; brightness per leg on PWM) or one point on a pixel chain. Style word `CL` (E47, E65, E71).
+  - Compare color-position light signal and position light signal.
+- **color-position light signal** (CPL) [Both]. The B&O system: a round target with pairs of lamps, whose position and color together carry the aspect, and marker lamps around the target. FieldUnit: aspect policy `boCpl` (`src/SignalAspectPolicy.h:326`), driver `CplMastDriver` (`src/drivers/CplMastDriver.h`); see `docs/how-to/04_semaphores_and_eastern_signaling.md` section 4. Style word: none yet, because `CPL` names the multi-lamp color light head today (see color light signal). Before 2026-11-03 this glossary used this term for the multi-lamp head and called the B&O system position-color light; both were wrong.
+- **position-color light signal** (PCL) [Both]. Per the owner (2026-11-03): an eastern, PRR-area system of amber position lights with added color elements (unverified: no source was opened). Style word `PCL`, reserved; no symbol yet. It is not the B&O system, which is the color-position light signal.
 - **position light signal** [Both]. The PRR system: rows of amber lamps whose position alone carries the aspect; the word color does not appear. Style word `PL`, reserved; no symbol yet (owner, 2026-10-12).
 - **electric lock** [Both]. A lock on a hand-operated switch. The dispatcher releases it by a control.
   - AAR56: `WL`, switch lock [AAR56 p. 35].
@@ -703,6 +706,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | corridor | subdivision |
 | correspondence (alone) | switch correspondence or office correspondence |
 | CP (as a common noun) | control point |
+| CPL (for a multi-lamp head with one lamp per color) | color light signal; CPL is the B&O color-position light signal |
 | CP Boundary, control point limits | interlocking limits (a control point has no limits of its own) |
 | cTc, cTc machine (in prose) | CTC machine |
 | demand (for a control) | control |
@@ -736,6 +740,7 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | out of correspondence (alone) | out of switch correspondence or out of office correspondence |
 | panel (for the whole machine) | CTC machine |
 | passed memory | SR (directional stick relay) |
+| position-color light (for the B&O system) | color-position light signal |
 | plant (alone) | interlocking plant, interlocking model or interlocking logic |
 | Send (for S) | control (FieldUnit final S) or stick (AAR S) |
 | settings (for the fields stated on a symbol) | given |

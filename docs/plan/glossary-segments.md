@@ -1,6 +1,7 @@
 # Glossary Terms by Spine Segment
 
-Draft 4, 2026-11-03 (13-segment spine; 22 new glossary entries assigned; yard limits moved to segment 8). Deliverable 2 of
+Draft 5, 2026-11-03 (13-segment spine; 22 new glossary entries assigned; yard limits moved to segment 8; signal type names corrected).
+This list is for the textbook. The talk does not recite it. Deliverable 2 of
 `docs/plan/user-docs-plan.md`; companion to `docs/plan/talk-outline.md`.
 
 Each entry of `docs/GLOSSARY.md` is assigned to exactly one segment of the spine: the segment where the reader first
@@ -109,8 +110,8 @@ Count: 163 entries in the glossary (160 distinct terms, since 10.6 restates thre
 | current of traffic | 9 | yes | ABS on double track, later Rule 251 |
 | color light signal | 7 | yes | named, not stressed |
 | position light signal | 7 | yes | named, not stressed |
-| color-position light signal | 7 | | naming question, see the talk outline's open questions |
-| position-color light signal | 7 | | |
+| color-position light signal | 7 | | the B&O system (corrected 2026-11-03) |
+| position-color light signal | 7 | | owner's description, unverified |
 | station-to-station block | 7 | | |
 | HD line | 7 | | |
 | boundary track circuit | 7 | | FieldUnit term |
