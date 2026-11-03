@@ -9,6 +9,8 @@
 #include "SignalMast.h"
 #include "SignalControl.h"
 #include "ControlTable.h"
+#include "AutomaticSignal.h"
+#include "ControlPointLine.h"
 
 namespace FieldUnit {
 
@@ -101,6 +103,35 @@ class DriverPolicy;
 class ApplianceDriver;
 class MockSwitchDriver;
 
+// FieldUnit ADR 0009 D3: what the plant records when a binding's name has
+// no source. The engine never consults this; the vital answer to a gap is
+// the released term (D1) or the route at Stop (D2).
+enum class UnresolvedKind : uint8_t {
+    IMPLICIT = 0,   // a Fact name with no source: an implicit line input was declared (D1)
+    NO_SLOT  = 1,   // the same, with no line-input slot left: bound to the released fact (D1)
+    MISSING  = 2,   // an appliance name with no source: the owner is incomplete, at Stop (D2)
+    CONFLICT = 3    // a source was added after an implicit fact of its name existed; the
+                    // implicit fact shadows it (D1's limit)
+};
+
+inline const char* unresolvedKindName(UnresolvedKind k) {
+    switch (k) {
+        case UnresolvedKind::IMPLICIT: return "implicit";
+        case UnresolvedKind::NO_SLOT:  return "no_slot";
+        case UnresolvedKind::MISSING:  return "missing";
+        default:                       return "conflict";
+    }
+}
+
+struct UnresolvedReference {
+    char           name[MAX_APPLIANCE_NAME_LEN + 2];  // the name that did not resolve
+    char           owner[MAX_ROUTE_NAME_LEN];         // the route or location that named it
+    const char*    call;                              // the configuration call, a literal
+    UnresolvedKind kind;
+};
+
+static constexpr uint8_t  MAX_UNRESOLVED = 16;
+
 class InterlockingPlant {
 public:
     InterlockingPlant(const char* name, AspectResolver defaultPolicy = AspectPolicies::defaultRoute)
@@ -109,11 +140,17 @@ public:
           driverOverrideCount_(0),
           mockSwitchCount_(0),
           trackCircuitCount_(0),
+          lineInputCount_(0),
           switchCount_(0),
           authorityCount_(0),
           mastCount_(0),
           crossoverCount_(0),
-          detectorLockCouplingCount_(0) {
+          detectorLockCouplingCount_(0),
+          automaticSignalCount_(0),
+          controlPointLineCount_(0),
+          unresolvedCount_(0),
+          unresolvedTotal_(0),
+          defaultStalenessTimeoutMs_(DEFAULT_STALENESS_TIMEOUT_MS) {
         setName(name);
         for (uint8_t i = 0; i < MAX_APPLIANCES; ++i) {
             maintainerCalls_[i] = false;
@@ -130,6 +167,9 @@ public:
 
     void reset() {
         trackCircuitCount_ = 0;
+        lineInputCount_ = 0;
+        automaticSignalCount_ = 0;
+        controlPointLineCount_ = 0;
         switchCount_ = 0;
         crossoverCount_ = 0;
         authorityCount_ = 0;
@@ -138,6 +178,9 @@ public:
             maintainerCalls_[i] = false;
         }
         detectorLockCouplingCount_ = 0;
+        unresolvedCount_ = 0;
+        unresolvedTotal_ = 0;
+        defaultStalenessTimeoutMs_ = DEFAULT_STALENESS_TIMEOUT_MS;
         driverOverrideCount_ = 0;
         mockSwitchCount_ = 0;
         defaultDriverPolicy_ = nullptr;
@@ -194,8 +237,10 @@ public:
 
     TrackCircuit* addTrackCircuit(const char* name, uint32_t dropoutDelayMs = 0) {
         if (trackCircuitCount_ >= MAX_APPLIANCES) return nullptr;
+        noteConflict(name, "addTrackCircuit");
         trackCircuits_[trackCircuitCount_] = TrackCircuit(name, dropoutDelayMs);
         trackCircuits_[trackCircuitCount_].setIndex(trackCircuitCount_);
+        trackCircuits_[trackCircuitCount_].setStalenessTimeout(defaultStalenessTimeoutMs_);
         return &trackCircuits_[trackCircuitCount_++];
     }
 
@@ -344,6 +389,160 @@ public:
         }
         return nullptr;
     }
+
+    // -------------------------------------------------------------
+    // Line inputs (FieldUnit ADR 0007 D2): the consumer end of a line
+    // circuit, a named Fact that a route's home() or proceed() term requires.
+    // -------------------------------------------------------------
+    LineInput* addLineInput(const char* name, uint32_t stalenessTimeoutMs) {
+        noteConflict(name, "addLineInput");
+        return declareLineInput(name, stalenessTimeoutMs);
+    }
+
+    // With the plant's default staleness timeout (FieldUnit ADR 0009:
+    // a per-interlocking setting, DEFAULT_STALENESS_TIMEOUT_MS unless set).
+    LineInput* addLineInput(const char* name) {
+        return addLineInput(name, defaultStalenessTimeoutMs_);
+    }
+
+    void setDefaultStalenessTimeout(uint32_t timeoutMs) { defaultStalenessTimeoutMs_ = timeoutMs; }
+    uint32_t defaultStalenessTimeout() const { return defaultStalenessTimeoutMs_; }
+
+    // -------------------------------------------------------------
+    // Unresolved references (FieldUnit ADR 0009 D1 to D3). A binding whose
+    // name has no source calls one of these; the plant records the gap and
+    // answers with something that fails safe.
+    // -------------------------------------------------------------
+
+    // A Fact-typed name (home, proceed, governs, approach, block, reads).
+    // Null or empty is an absent term, not a reference. A name with no
+    // source becomes an implicit line input, released until driven; with
+    // no slot left, the shared released fact.
+    const Fact* resolveFact(const char* name, const char* call, const char* owner) {
+        if (!name || name[0] == '\0') return nullptr;
+        const Fact* f = findFact(name);
+        if (f) return f;
+        LineInput* li = declareLineInput(name, defaultStalenessTimeoutMs_);
+        if (li) {
+            li->setImplicit(true);
+            noteUnresolved(name, call, owner, UnresolvedKind::IMPLICIT);
+            return li;
+        }
+        noteUnresolved(name, call, owner, UnresolvedKind::NO_SLOT);
+        return releasedFact();
+    }
+
+    // An appliance-typed name that did not resolve: recorded as missing.
+    // The caller marks its route or location incomplete.
+    void noteMissing(const char* name, const char* call, const char* owner) {
+        if (!name || name[0] == '\0') return;
+        noteUnresolved(name, call, owner, UnresolvedKind::MISSING);
+    }
+
+    uint8_t  unresolvedCount() const { return unresolvedCount_; }   // stored (at most MAX_UNRESOLVED)
+    uint16_t unresolvedTotal() const { return unresolvedTotal_; }   // counted, including those not stored
+    const UnresolvedReference* unresolved(uint8_t idx) const {
+        return (idx < unresolvedCount_) ? &unresolved_[idx] : nullptr;
+    }
+    bool isComplete() const { return unresolvedTotal_ == 0; }
+
+    LineInput* findLineInput(const char* name) {
+        if (!name) return nullptr;
+        for (uint8_t i = 0; i < lineInputCount_; ++i) {
+            if (strcmp(lineInputs_[i].name(), name) == 0) return &lineInputs_[i];
+        }
+        return nullptr;
+    }
+
+    // A fact by name (FieldUnit ADR 0008 D2, D3): a line input, the H or D
+    // an automatic signal produces, or a track circuit (its TR).
+    const Fact* findFact(const char* name) {
+        if (!name) return nullptr;
+        const Fact* f = findLineInput(name);
+        if (f) return f;
+        for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
+            if (strcmp(automaticSignals_[i].hOut()->name(), name) == 0) return automaticSignals_[i].hOut();
+            if (strcmp(automaticSignals_[i].dOut()->name(), name) == 0) return automaticSignals_[i].dOut();
+        }
+        for (uint8_t i = 0; i < controlPointLineCount_; ++i) {
+            const ControlPointLine& l = controlPointLines_[i];
+            if (strcmp(l.hOut()->name(), name) == 0) return l.hOut();
+            if (strcmp(l.dOut()->name(), name) == 0) return l.dOut();
+            if (l.producesF() && strcmp(l.fOut()->name(), name) == 0) return l.fOut();
+        }
+        return findTrackCircuit(name);
+    }
+
+    // Control point line (FieldUnit ADR 0008 D5): what this plant produces at
+    // the seam with one block, named for the home mast facing the block.
+    ControlPointLine& addControlPointLine(const char* name) {
+        if (controlPointLineCount_ >= MAX_APPLIANCES) {
+            static ControlPointLine overflow;
+            return overflow;
+        }
+        noteConflict(name, 'H', "addControlPointLine");
+        noteConflict(name, 'D', "addControlPointLine");
+        noteConflict(name, 'F', "addControlPointLine");
+        ControlPointLine& l = controlPointLines_[controlPointLineCount_++];
+        l.bind(name, this, &engine_);
+        SignalMast* home = findSignalMast(name);
+        if (home == nullptr) {
+            noteMissing(name, "addControlPointLine", name);
+            l.markIncomplete();
+        }
+        l.home(home);
+        return l;
+    }
+
+    ControlPointLine* findControlPointLine(const char* name) {
+        if (!name) return nullptr;
+        for (uint8_t i = 0; i < controlPointLineCount_; ++i) {
+            if (strcmp(controlPointLines_[i].name(), name) == 0) return &controlPointLines_[i];
+        }
+        return nullptr;
+    }
+
+    uint8_t controlPointLineCount() const { return controlPointLineCount_; }
+    const ControlPointLine* controlPointLine(uint8_t idx) const { return (idx < controlPointLineCount_) ? &controlPointLines_[idx] : nullptr; }
+
+    // Automatic signal (FieldUnit ADR 0008 D1): one mast, one direction,
+    // its own route with no signal control, its stick and its HD line out.
+    AutomaticSignal& addAutomaticSignal(const char* name, MastType type, AspectResolver policy = nullptr) {
+        if (automaticSignalCount_ >= MAX_APPLIANCES) {
+            static AutomaticSignal overflow;
+            return overflow;
+        }
+        noteConflict(name, 'H', "addAutomaticSignal");
+        noteConflict(name, 'D', "addAutomaticSignal");
+        SignalMast* mast = addSignalMast(name, type, policy);
+        Route& r = route(name);
+        r.displays(name, Indication::CLEAR).automatic();
+        AutomaticSignal& a = automaticSignals_[automaticSignalCount_++];
+        a.bind(name, this, &engine_, &r, mast);
+        return a;
+    }
+
+    AutomaticSignal* findAutomaticSignal(const char* name) {
+        if (!name) return nullptr;
+        for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
+            if (strcmp(automaticSignals_[i].name(), name) == 0) return &automaticSignals_[i];
+        }
+        return nullptr;
+    }
+
+    uint8_t automaticSignalCount() const { return automaticSignalCount_; }
+    const AutomaticSignal* automaticSignal(uint8_t idx) const { return (idx < automaticSignalCount_) ? &automaticSignals_[idx] : nullptr; }
+    AutomaticSignal* automaticSignal(uint8_t idx) { return (idx < automaticSignalCount_) ? &automaticSignals_[idx] : nullptr; }
+    bool isAutomaticMast(const SignalMast* mast) const {
+        for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
+            if (automaticSignals_[i].mast() == mast) return true;
+        }
+        return false;
+    }
+
+    uint8_t lineInputCount() const { return lineInputCount_; }
+    const LineInput* lineInput(uint8_t idx) const { return (idx < lineInputCount_) ? &lineInputs_[idx] : nullptr; }
+    LineInput* lineInput(uint8_t idx) { return (idx < lineInputCount_) ? &lineInputs_[idx] : nullptr; }
 
     /** Resolve a physical switch or derail by exact name (not logical crossovers). */
     Switch* findSwitchExact(const char* name) {
@@ -538,6 +737,9 @@ public:
         for (uint8_t i = 0; i < trackCircuitCount_; ++i) {
             trackCircuits_[i].tick(nowMs);
         }
+        for (uint8_t i = 0; i < lineInputCount_; ++i) {
+            lineInputs_[i].tick(nowMs);
+        }
 
         // C. Evaluate signal authority stick / fleet logic
         for (uint8_t i = 0; i < authorityCount_; ++i) {
@@ -547,7 +749,7 @@ public:
                 for (uint8_t rIdx = 0; rIdx < engine_.routeCount(); ++rIdx) {
                     const Route& r = engine_.route(rIdx);
                     if (r.authority() == &authorities_[i] && r.direction() == cmdDir) {
-                        if (!engine_.checkRouteBlocksClear(r)) {
+                        if (!engine_.checkRouteBlocksClear(r) || !engine_.checkRouteHomeFacts(r)) {
                             routeClear = false;
                             break;
                         }
@@ -557,8 +759,23 @@ public:
             authorities_[i].evaluate(routeClear, nowMs);
         }
 
-        // D. Interlocking Control Table vital route evaluation
+        // D. Automatic signal sticks advance before the control table runs
+        //    (FieldUnit ADR 0008 D4): each stick reads the previous scan's HR.
+        for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
+            automaticSignals_[i].updateStick();
+        }
+
+        // E. Interlocking Control Table vital route evaluation
         engine_.evaluate();
+
+        // F. Remember this scan's HR for the next scan's stick; latch the
+        //    control point lines' traffic sticks on this scan's ports
+        for (uint8_t i = 0; i < automaticSignalCount_; ++i) {
+            automaticSignals_[i].latchHR();
+        }
+        for (uint8_t i = 0; i < controlPointLineCount_; ++i) {
+            controlPointLines_[i].latch();
+        }
     }
 
     // Egress: Generate complete, self-consistent plant-wide indication vector
@@ -620,6 +837,45 @@ private:
         TrackCircuit* tc;
     };
 
+    LineInput* declareLineInput(const char* name, uint32_t stalenessTimeoutMs) {
+        if (lineInputCount_ >= MAX_APPLIANCES) return nullptr;
+        lineInputs_[lineInputCount_] = LineInput(name, stalenessTimeoutMs);
+        lineInputs_[lineInputCount_].setIndex(lineInputCount_);
+        return &lineInputs_[lineInputCount_++];
+    }
+
+    void noteUnresolved(const char* name, const char* call, const char* owner, UnresolvedKind kind) {
+        if (unresolvedTotal_ < 0xFFFF) ++unresolvedTotal_;
+        if (unresolvedCount_ >= MAX_UNRESOLVED) return;
+        UnresolvedReference& u = unresolved_[unresolvedCount_++];
+        strncpy(u.name, name ? name : "", sizeof(u.name) - 1);
+        u.name[sizeof(u.name) - 1] = '\0';
+        strncpy(u.owner, owner ? owner : "", sizeof(u.owner) - 1);
+        u.owner[sizeof(u.owner) - 1] = '\0';
+        u.call = call ? call : "";
+        u.kind = kind;
+    }
+
+    // A source added after an implicit fact of its name exists cannot be
+    // bound to; findFact() finds the implicit line input first.
+    void noteConflict(const char* name, const char* call) {
+        LineInput* li = findLineInput(name);
+        if (li && li->isImplicit()) {
+            noteUnresolved(name, call, name, UnresolvedKind::CONFLICT);
+        }
+    }
+
+    void noteConflict(const char* base, char suffix, const char* call) {
+        if (!base) return;
+        char n[MAX_APPLIANCE_NAME_LEN + 2];
+        size_t len = strlen(base);
+        if (len > sizeof(n) - 2) len = sizeof(n) - 2;
+        memcpy(n, base, len);
+        n[len] = suffix;
+        n[len + 1] = '\0';
+        noteConflict(n, call);
+    }
+
     struct DriverOverride {
         const char* name;
         ApplianceDriver* driver;
@@ -634,6 +890,9 @@ private:
     uint8_t mockSwitchCount_;
     TrackCircuit trackCircuits_[MAX_APPLIANCES];
     uint8_t trackCircuitCount_;
+
+    LineInput lineInputs_[MAX_APPLIANCES];
+    uint8_t lineInputCount_;
 
     Switch switches_[MAX_APPLIANCES];
     uint8_t switchCount_;
@@ -652,6 +911,17 @@ private:
     DetectorBinding detectorLocks_[MAX_APPLIANCES];
     uint8_t detectorLockCouplingCount_;
 
+    AutomaticSignal automaticSignals_[MAX_APPLIANCES];
+    uint8_t automaticSignalCount_;
+
+    ControlPointLine controlPointLines_[MAX_APPLIANCES];
+    uint8_t controlPointLineCount_;
+
+    UnresolvedReference unresolved_[MAX_UNRESOLVED];
+    uint8_t  unresolvedCount_;
+    uint16_t unresolvedTotal_;
+    uint32_t defaultStalenessTimeoutMs_;
+
     InterlockingEngine engine_;
 };
 
@@ -660,15 +930,19 @@ private:
 // Resolves string names once during setup to retain O(1) runtime pointer execution.
 // -------------------------------------------------------------
 
+// An appliance-typed name with no source (FieldUnit ADR 0009 D2): the plant
+// records it and the route is incomplete, which evaluates to Stop.
 inline Route& Route::governedBy(const char* signalName, DirectionAuthority dir) {
     authority_ = cp_ ? cp_->findSignalControl(signalName) : nullptr;
     direction_ = dir;
+    if (cp_ && authority_ == nullptr) { cp_->noteMissing(signalName, "governedBy", name_); markIncomplete(); }
     return *this;
 }
 
 inline Route& Route::displays(const char* mastName, Indication maxIndication) {
     mast_ = cp_ ? cp_->findSignalMast(mastName) : nullptr;
     aspectCeiling_ = maxIndication;
+    if (cp_ && mast_ == nullptr) { cp_->noteMissing(mastName, "displays", name_); markIncomplete(); }
     return *this;
 }
 
@@ -676,11 +950,7 @@ inline Route& Route::aligns(std::initializer_list<NamedSwitchRequirement> swList
     switchCount_ = 0;
     for (const auto& s : swList) {
         if (switchCount_ < MAX_ROUTE_SWITCHES) {
-            Switch* sw = cp_ ? cp_->findSwitch(s.switchName) : nullptr;
-            TrackCircuit* rel = (cp_ && s.releasingBlockName) ? cp_->findTrackCircuit(s.releasingBlockName) : nullptr;
-            if (sw) {
-                switches_[switchCount_++] = { sw, s.requiredPosition, rel };
-            }
+            align(s.switchName, s.requiredPosition, s.releasingBlockName);
         }
     }
     return *this;
@@ -692,6 +962,13 @@ inline Route& Route::align(const char* swName, SwitchPosition pos, const char* r
         TrackCircuit* rel = relName ? cp_->findTrackCircuit(relName) : nullptr;
         if (sw) {
             switches_[switchCount_++] = { sw, pos, rel };
+        } else {
+            cp_->noteMissing(swName, "aligns", name_);
+            markIncomplete();
+        }
+        if (relName && rel == nullptr) {
+            cp_->noteMissing(relName, "aligns", name_);
+            markIncomplete();
         }
     }
     return *this;
@@ -715,10 +992,7 @@ inline Route& Route::clears(std::initializer_list<const char*> tcNames) {
     blockCount_ = 0;
     for (const char* tcName : tcNames) {
         if (blockCount_ < MAX_ROUTE_BLOCKS) {
-            TrackCircuit* tc = cp_ ? cp_->findTrackCircuit(tcName) : nullptr;
-            if (tc) {
-                blocks_[blockCount_++] = tc;
-            }
+            clearBlock(tcName);
         }
     }
     return *this;
@@ -729,6 +1003,9 @@ inline Route& Route::clearBlock(const char* tcName) {
         TrackCircuit* tc = cp_->findTrackCircuit(tcName);
         if (tc) {
             blocks_[blockCount_++] = tc;
+        } else {
+            cp_->noteMissing(tcName, "clears", name_);
+            markIncomplete();
         }
     }
     return *this;
@@ -736,17 +1013,100 @@ inline Route& Route::clearBlock(const char* tcName) {
 
 inline Route& Route::entrance(const char* tcName) {
     entranceBlock_ = cp_ ? cp_->findTrackCircuit(tcName) : nullptr;
+    if (cp_ && entranceBlock_ == nullptr) { cp_->noteMissing(tcName, "entrance", name_); markIncomplete(); }
     return *this;
 }
 
 inline Route& Route::approaching(const char* tcName) {
     approachBlock_ = cp_ ? cp_->findTrackCircuit(tcName) : nullptr;
+    if (cp_ && approachBlock_ == nullptr) { cp_->noteMissing(tcName, "approaching", name_); markIncomplete(); }
     return *this;
+}
+
+// A Fact-typed name with no source (FieldUnit ADR 0009 D1): the plant
+// declares an implicit line input, released until a ghost drives it.
+inline Route& Route::home(std::initializer_list<const char*> factNames) {
+    homeFactCount_ = 0;
+    for (const char* factName : factNames) {
+        homeFact(factName);
+    }
+    return *this;
+}
+
+inline Route& Route::homeFact(const char* factName) {
+    const Fact* f = cp_ ? cp_->resolveFact(factName, "home", name_) : nullptr;
+    return homeFact(f);
+}
+
+inline Route& Route::proceed(const char* factName) {
+    proceedFact_ = cp_ ? cp_->resolveFact(factName, "proceed", name_) : nullptr;
+    return *this;
+}
+
+// -------------------------------------------------------------
+// AutomaticSignal String-Based Configuration Implementations
+// -------------------------------------------------------------
+
+inline AutomaticSignal& AutomaticSignal::governs(std::initializer_list<const char*> names) {
+    for (const char* n : names) {
+        governs(cp_ ? cp_->resolveFact(n, "governs", name_) : nullptr);
+    }
+    return *this;
+}
+
+inline AutomaticSignal& AutomaticSignal::approach(std::initializer_list<const char*> names) {
+    for (const char* n : names) {
+        approach(cp_ ? cp_->resolveFact(n, "approach", name_) : nullptr);
+    }
+    return *this;
+}
+
+inline AutomaticSignal& AutomaticSignal::reads(const char* hName, const char* dName) {
+    const Fact* h = cp_ ? cp_->resolveFact(hName, "reads", name_) : nullptr;
+    const Fact* d = cp_ ? cp_->resolveFact(dName, "reads", name_) : nullptr;
+    return reads(h, d);
+}
+
+inline AutomaticSignal& AutomaticSignal::opposing(const char* mastName) {
+    AutomaticSignal* other = cp_ ? cp_->findAutomaticSignal(mastName) : nullptr;
+    if (cp_ && other == nullptr) { cp_->noteMissing(mastName, "opposing", name_); markIncomplete(); }
+    return opposing(other);
+}
+
+// -------------------------------------------------------------
+// ControlPointLine String-Based Configuration Implementations
+// -------------------------------------------------------------
+
+inline ControlPointLine& ControlPointLine::governs(std::initializer_list<const char*> names) {
+    for (const char* n : names) governs(cp_ ? cp_->resolveFact(n, "governs", name_) : nullptr);
+    return *this;
+}
+
+inline ControlPointLine& ControlPointLine::block(std::initializer_list<const char*> names) {
+    for (const char* n : names) block(cp_ ? cp_->resolveFact(n, "block", name_) : nullptr);
+    return *this;
+}
+
+inline ControlPointLine& ControlPointLine::leaving(std::initializer_list<const char*> mastNames) {
+    for (const char* n : mastNames) {
+        SignalMast* m = cp_ ? cp_->findSignalMast(n) : nullptr;
+        if (cp_ && m == nullptr) { cp_->noteMissing(n, "leaving", name_); markIncomplete(); }
+        leaving(m);
+    }
+    return *this;
+}
+
+inline ControlPointLine& ControlPointLine::home(const char* mastName) {
+    SignalMast* m = cp_ ? cp_->findSignalMast(mastName) : nullptr;
+    if (cp_ && m == nullptr) { cp_->noteMissing(mastName, "home", name_); markIncomplete(); }
+    return home(m);
 }
 
 inline Route& Route::engineReturn(const char* standingCarsName, const char* islandName) {
     TrackCircuit* standing = cp_ ? cp_->findTrackCircuit(standingCarsName) : nullptr;
     TrackCircuit* island = cp_ ? cp_->findTrackCircuit(islandName) : nullptr;
+    if (cp_ && standing == nullptr) { cp_->noteMissing(standingCarsName, "engineReturn", name_); markIncomplete(); }
+    if (cp_ && island == nullptr)   { cp_->noteMissing(islandName, "engineReturn", name_); markIncomplete(); }
     return engineReturn(standing, island);
 }
 

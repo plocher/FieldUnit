@@ -11,6 +11,19 @@ namespace FieldUnit {
 static constexpr uint8_t MAX_APPLIANCE_NAME_LEN = 16;
 static constexpr uint8_t MAX_ROUTE_NAME_LEN     = 32;
 
+// Staleness default for every remote fact (LineInput, TrackCircuit): the
+// time without update() or touch() after which it reads released. FieldUnit
+// ADR 0009 answer 3: a starting point, not a railroad fact. The right value
+// is the carrier's full cycle (a 1200 baud code line or a US&S machine
+// takes tens of seconds per station; a C/MRI poll or MQTT takes a fraction
+// of one), so set it per binary here, per interlocking with
+// InterlockingPlant::setDefaultStalenessTimeout() / JSON
+// "defaultStalenessTimeoutMs", or per fact with setStalenessTimeout().
+#ifndef FIELDUNIT_DEFAULT_STALENESS_TIMEOUT_MS
+#define FIELDUNIT_DEFAULT_STALENESS_TIMEOUT_MS 5000
+#endif
+static constexpr uint32_t DEFAULT_STALENESS_TIMEOUT_MS = FIELDUNIT_DEFAULT_STALENESS_TIMEOUT_MS;
+
 // Quality and health for all physical inputs
 enum class Quality : uint8_t {
     GOOD = 0,
