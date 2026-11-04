@@ -102,6 +102,10 @@ missing information, not agent-led authoring. Neither is an immediate task.
    districts and gaps, buses, where field units go, room and track spacing), concepts (what FieldUnit models and what
    it leaves to the layout), and interoperability (JMRI, CMRInet, LCC, DCC-EX, MQTT). For each slice: what we know,
    what we have built, what is missing, and who or what can supply it (a build, a measurement, a SIG member, a source).
+   The frame is the seams, not a feature list: each role (office, code line, field unit, devices) can be real or
+   virtual on its own, and each seam can be crossed several ways, so the combinations are the product (a virtual
+   layout; a new office on an existing CMRInet layout; JMRI/CATS as the office with field units; field units driving
+   IoT appliances over MQTT). Seed inventory: `docs/plan/realization-inventory.md`.
 2. **Operations and play value, once it is in place.** Slice again: what running a session on a FieldUnit layout is
    like, and how it compares to existing norms (JMRI panels and CATS, plain DCC with verbal authority, other CTC
    approaches).
