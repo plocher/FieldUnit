@@ -8,7 +8,8 @@ plan only), **gap** (nowhere).
 
 ## 1. The frame: roles, seams, implementations
 
-The system is built so that each role can be real or virtual on its own, and so that each seam can be crossed in
+This frame is the headline of the work (owner, 2026-11-04): composability at several levels, and a cosmopolitan
+attitude toward alternative instantiations, ours or another project's. The system is built so that each role can be real or virtual on its own, and so that each seam can be crossed in
 several ways. The combinations are the product. FieldUnit ADR 0004 ("Three seams, three deployments") states it:
 
 | Seam | Joins | Crossed by |

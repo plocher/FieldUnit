@@ -94,6 +94,21 @@ do with it?" Tables of material they know or can learn elsewhere (jobs by era, f
   explained. Its physical checklist (section 5) and gap list (section 6) are kept as seed for the next distillation;
   the rest is superseded.
 
+**The headline (owner, 2026-11-04): composability.** The biggest feature of this work is composability at several
+levels, and a cosmopolitan attitude toward alternative instantiations. FieldUnit does not insist on its own stack:
+any role can be real, virtual or someone else's (JMRI or CATS as the office, an existing CMRInet layout as the I/O,
+IoT devices as the appliances), and the vital logic stays the same. Levels at which a layout chooses, each with more
+than one instantiation today or planned (`docs/plan/realization-inventory.md`):
+
+- roles: office, code line, field unit, devices, each real, virtual, or another project's;
+- deployments: virtual, firmware near the devices, host with remote I/O (FieldUnit ADR 0004);
+- code line: encoding (AAR tokens, bit-packed C/MRI) × transport (MQTT, serial, ...);
+- I/O: buses (local expanders, C/MRI buffers, MQTT topics, mock) and device drivers;
+- the model: KiCad drawing, JSON, or the fluent API, describing the same plant;
+- the railroad: aspect rulebook per mast, switch Style, mast kind, era.
+
+This is what the SIG talk is about. The history is the context slide.
+
 **What comes next: two more distillations, then the talk.** Each is first a gap analysis and a plan to find the
 missing information, not agent-led authoring. Neither is an immediate task.
 
