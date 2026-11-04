@@ -397,7 +397,9 @@ the aspect policy of each mast: `sp1969`, `sp1985`, `gcorSpeed`, `nycSpeed`, `pr
 `upperQuadrantSemaphore` (`src/SignalAspectPolicy.h`).
 
 **What FieldUnit does.** Your masts can show any of those rulebooks, and you pick one per mast. Automatic signals
-between control points are designed (FieldUnit ADR 0007; FieldUnit-Subdivision ADR 0013) but not built yet.
+between control points are in the logic: `AutomaticSignal` (`src/AutomaticSignal.h`) reads the block ahead and
+produces the HD line to the rear, and `ControlPointLine` (`src/ControlPointLine.h`) is what a control point produces at
+the seam (FieldUnit ADR 0008, accepted 2026-11-02; `tests/test_automatic_signal.cpp`).
 
 **Closing line.** "On a model railroad, these are the signals between your sidings, the ones that run themselves.
 They protect the train; the dispatcher's orders still move it."
@@ -684,8 +686,7 @@ quadrant, mast `Kind` and plates, `RULE_251`, code line type. "Your givens and d
 - The I/O pieces exist and the integrations are next: a field unit as the host of a C/MRI system (`CmriIOBus`,
   `src/drivers/CmriIOBus.h`); appliances reached as MQTT IoT devices, JMRI's MQTT topics included (`MqttApplianceBus`,
   `src/drivers/MqttApplianceBus.h`).
-- Planned: virtual CTC machines on a screen, driving MQTT appliances; a tower lever frame; automatic signals between
-  control points; an existing JMRI layout brought in (plan, hands-on path 3).
+- Planned: virtual CTC machines on a screen, driving MQTT appliances; a tower lever frame; an existing JMRI layout brought in (plan, hands-on path 3).
 
 **Closing line.** "On a model railroad, this is your railroad."
 

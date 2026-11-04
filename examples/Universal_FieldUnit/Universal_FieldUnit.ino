@@ -106,6 +106,28 @@ void setup() {
     Serial.println(cp.switchCount());
     Serial.print(F("Signal Masts: "));
     Serial.println(cp.mastCount());
+
+    // FieldUnit ADR 0009 D3, D6: an incomplete model runs; every term with
+    // no source reads released and the plant says which. This sketch logs
+    // the report and takes no gate; a deployment that wants one checks
+    // cp.isComplete() here.
+    if (!cp.isComplete()) {
+        Serial.print(F("Plant is incomplete: "));
+        Serial.print(cp.unresolvedTotal());
+        Serial.println(F(" unresolved reference(s)"));
+        for (uint8_t i = 0; i < cp.unresolvedCount(); ++i) {
+            const UnresolvedReference* u = cp.unresolved(i);
+            Serial.print(F("  "));
+            Serial.print(unresolvedKindName(u->kind));
+            Serial.print(F(": "));
+            Serial.print(u->owner);
+            Serial.print(F("."));
+            Serial.print(u->call);
+            Serial.print(F("(\""));
+            Serial.print(u->name);
+            Serial.println(F("\")"));
+        }
+    }
 #endif
 }
 

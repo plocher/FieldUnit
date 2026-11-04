@@ -43,6 +43,32 @@ inline AspectResolver nameToPolicy(const char* name) {
     return AspectPolicies::defaultRoute;
 }
 
+inline const char* tumbleDownToName(TumbleDownTrigger t) {
+    return t == TumbleDownTrigger::REQUESTED ? "requested" : "cleared";
+}
+inline TumbleDownTrigger nameToTumbleDown(const char* n) {
+    return (n && strcmp(n, "requested") == 0) ? TumbleDownTrigger::REQUESTED : TumbleDownTrigger::CLEARED;
+}
+inline const char* trafficToName(TrafficMechanism m) {
+    switch (m) {
+        case TrafficMechanism::FIELD_FR: return "field_fr";
+        case TrafficMechanism::TRAFFIC_LINE: return "traffic_line";
+        default: return "hd_chain";
+    }
+}
+inline TrafficMechanism nameToTraffic(const char* n) {
+    if (n && strcmp(n, "field_fr") == 0) return TrafficMechanism::FIELD_FR;
+    if (n && strcmp(n, "traffic_line") == 0) return TrafficMechanism::TRAFFIC_LINE;
+    return TrafficMechanism::HD_CHAIN;
+}
+inline const char* trafficReleaseToName(TrafficRelease r) {
+    return r == TrafficRelease::REQUEST_NORMAL_AND_BLOCK_CLEAR ? "request_normal_and_block_clear" : "block_clear";
+}
+inline TrafficRelease nameToTrafficRelease(const char* n) {
+    return (n && strcmp(n, "request_normal_and_block_clear") == 0)
+        ? TrafficRelease::REQUEST_NORMAL_AND_BLOCK_CLEAR : TrafficRelease::BLOCK_CLEAR;
+}
+
 inline const char* mastTypeToName(MastType t) {
     switch (t) {
         case MastType::ONE_HEAD: return "ONE_HEAD";
@@ -300,6 +326,14 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
              sp, policyToName(cp.defaultAspectPolicy()), nl);
     if (!append(line)) return false;
 
+    // The per-interlocking staleness timeout (FieldUnit ADR 0009), written
+    // only when it is not the library default.
+    if (cp.defaultStalenessTimeout() != DEFAULT_STALENESS_TIMEOUT_MS) {
+        snprintf(line, sizeof(line), "%s\"defaultStalenessTimeoutMs\": %u,%s",
+                 sp, static_cast<unsigned>(cp.defaultStalenessTimeout()), nl);
+        if (!append(line)) return false;
+    }
+
     // 1. Track Circuits
     snprintf(line, sizeof(line), "%s\"trackCircuits\": [%s", sp, nl);
     if (!append(line)) return false;
@@ -312,6 +346,30 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
     }
     snprintf(line, sizeof(line), "%s],%s", sp, nl);
     if (!append(line)) return false;
+
+    // 1b. Line inputs (FieldUnit ADR 0007 D2). An implicit line input is
+    // derived, not given (FieldUnit ADR 0009 D4): the bindings re-derive it
+    // on read, so it is not written.
+    uint8_t givenLineInputs = 0;
+    for (uint8_t i = 0; i < cp.lineInputCount(); ++i) {
+        if (!cp.lineInput(i)->isImplicit()) ++givenLineInputs;
+    }
+    if (givenLineInputs > 0) {
+        snprintf(line, sizeof(line), "%s\"lineInputs\": [%s", sp, nl);
+        if (!append(line)) return false;
+        uint8_t written = 0;
+        for (uint8_t i = 0; i < cp.lineInputCount(); ++i) {
+            const LineInput* li = cp.lineInput(i);
+            if (li->isImplicit()) continue;
+            ++written;
+            snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"stalenessTimeoutMs\": %u}%s%s",
+                     sp2, li->name(), static_cast<unsigned>(li->stalenessTimeout()),
+                     (written < givenLineInputs) ? "," : "", nl);
+            if (!append(line)) return false;
+        }
+        snprintf(line, sizeof(line), "%s],%s", sp, nl);
+        if (!append(line)) return false;
+    }
 
     // 2. Switches (non-derail appliances only)
     uint8_t plainSwitchCount = 0;
@@ -392,18 +450,98 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
     snprintf(line, sizeof(line), "%s],%s", sp, nl);
     if (!append(line)) return false;
 
-    // 5. Signal Masts
+    // 5. Signal Masts (an automatic signal's mast is written with it, 5b)
     snprintf(line, sizeof(line), "%s\"signalMasts\": [%s", sp, nl);
     if (!append(line)) return false;
+    uint8_t plainMastCount = 0;
+    for (uint8_t i = 0; i < cp.mastCount(); ++i) {
+        if (!cp.isAutomaticMast(cp.mast(i))) plainMastCount++;
+    }
+    uint8_t plainMastEmitted = 0;
     for (uint8_t i = 0; i < cp.mastCount(); ++i) {
         const SignalMast* sm = cp.mast(i);
+        if (cp.isAutomaticMast(sm)) continue;
+        plainMastEmitted++;
         snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"type\": \"%s\", \"aspectPolicy\": \"%s\"}%s%s",
                  sp2, sm->name(), mastTypeToName(sm->type()), policyToName(sm->aspectPolicy()),
-                 (i + 1 < cp.mastCount()) ? "," : "", nl);
+                 (plainMastEmitted < plainMastCount) ? "," : "", nl);
         if (!append(line)) return false;
     }
     snprintf(line, sizeof(line), "%s],%s", sp, nl);
     if (!append(line)) return false;
+
+    // 5b. Automatic signals (FieldUnit ADR 0008 D6)
+    if (cp.automaticSignalCount() > 0) {
+        snprintf(line, sizeof(line), "%s\"automaticSignals\": [%s", sp, nl);
+        if (!append(line)) return false;
+        for (uint8_t i = 0; i < cp.automaticSignalCount(); ++i) {
+            const AutomaticSignal* a = cp.automaticSignal(i);
+            const SignalMast* sm = a->mast();
+            snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"type\": \"%s\", \"aspectPolicy\": \"%s\", ",
+                     sp2, a->name(),
+                     sm ? mastTypeToName(sm->type()) : "ONE_HEAD",
+                     sm ? policyToName(sm->aspectPolicy()) : "defaultRoute");
+            if (!append(line)) return false;
+            if (!append("\"governs\": [")) return false;
+            for (uint8_t g = 0; g < a->governedCount(); ++g) {
+                snprintf(line, sizeof(line), "\"%s\"%s", a->governed(g)->name(), (g + 1 < a->governedCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            if (!append("], \"approach\": [")) return false;
+            for (uint8_t g = 0; g < a->approachCount(); ++g) {
+                snprintf(line, sizeof(line), "\"%s\"%s", a->approachFact(g)->name(), (g + 1 < a->approachCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            if (!append("]")) return false;
+            if (a->hIn() || a->dIn()) {
+                snprintf(line, sizeof(line), ", \"reads\": {\"h\": \"%s\", \"d\": \"%s\"}",
+                         a->hIn() ? a->hIn()->name() : "", a->dIn() ? a->dIn()->name() : "");
+                if (!append(line)) return false;
+            }
+            if (a->opposingSignal()) {
+                snprintf(line, sizeof(line), ", \"opposing\": \"%s\"", a->opposingSignal()->name());
+                if (!append(line)) return false;
+            }
+            snprintf(line, sizeof(line), "}%s%s", (i + 1 < cp.automaticSignalCount()) ? "," : "", nl);
+            if (!append(line)) return false;
+        }
+        snprintf(line, sizeof(line), "%s],%s", sp, nl);
+        if (!append(line)) return false;
+    }
+
+    // 5c. Control point lines (FieldUnit ADR 0008 D5)
+    if (cp.controlPointLineCount() > 0) {
+        snprintf(line, sizeof(line), "%s\"controlPointLines\": [%s", sp, nl);
+        if (!append(line)) return false;
+        for (uint8_t i = 0; i < cp.controlPointLineCount(); ++i) {
+            const ControlPointLine* l = cp.controlPointLine(i);
+            snprintf(line, sizeof(line), "%s{\"name\": \"%s\", \"home\": \"%s\", ",
+                     sp2, l->name(), l->homeMast() ? l->homeMast()->name() : "");
+            if (!append(line)) return false;
+            if (!append("\"governs\": [")) return false;
+            for (uint8_t g = 0; g < l->governedCount(); ++g) {
+                snprintf(line, sizeof(line), "\"%s\"%s", l->governed(g)->name(), (g + 1 < l->governedCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            if (!append("], \"block\": [")) return false;
+            for (uint8_t g = 0; g < l->blockCount(); ++g) {
+                snprintf(line, sizeof(line), "\"%s\"%s", l->blockFact(g)->name(), (g + 1 < l->blockCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            if (!append("], \"leaving\": [")) return false;
+            for (uint8_t g = 0; g < l->leavingCount(); ++g) {
+                snprintf(line, sizeof(line), "\"%s\"%s", l->leavingMast(g)->name(), (g + 1 < l->leavingCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            snprintf(line, sizeof(line), "], \"tumbleDown\": \"%s\", \"traffic\": \"%s\", \"trafficRelease\": \"%s\"}%s%s",
+                     tumbleDownToName(l->tumbleDown()), trafficToName(l->traffic()),
+                     trafficReleaseToName(l->trafficRelease()),
+                     (i + 1 < cp.controlPointLineCount()) ? "," : "", nl);
+            if (!append(line)) return false;
+        }
+        snprintf(line, sizeof(line), "%s],%s", sp, nl);
+        if (!append(line)) return false;
+    }
 
     // 6. Detector Locks
     snprintf(line, sizeof(line), "%s\"detectorLocks\": [%s", sp, nl);
@@ -423,8 +561,15 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
     snprintf(line, sizeof(line), "%s\"routes\": [%s", sp, nl);
     if (!append(line)) return false;
     const InterlockingEngine& eng = cp.engine();
+    uint8_t plainRouteCount = 0;
+    for (uint8_t i = 0; i < eng.routeCount(); ++i) {
+        if (!eng.route(i).isAutomatic()) plainRouteCount++;
+    }
+    uint8_t plainRouteEmitted = 0;
     for (uint8_t i = 0; i < eng.routeCount(); ++i) {
         const Route& r = eng.route(i);
+        if (r.isAutomatic()) continue;   // written under automaticSignals
+        plainRouteEmitted++;
         snprintf(line, sizeof(line), "%s{%s", sp2, nl);
         if (!append(line)) return false;
 
@@ -472,6 +617,24 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
         snprintf(line, sizeof(line), "],%s", nl);
         if (!append(line)) return false;
 
+        // home facts (HR terms)
+        if (r.homeFactCount() > 0) {
+            snprintf(line, sizeof(line), "%s\"home\": [", sp3);
+            if (!append(line)) return false;
+            for (uint8_t f = 0; f < r.homeFactCount(); ++f) {
+                snprintf(line, sizeof(line), "\"%s\"%s", r.homeFact(f)->name(), (f + 1 < r.homeFactCount()) ? ", " : "");
+                if (!append(line)) return false;
+            }
+            snprintf(line, sizeof(line), "],%s", nl);
+            if (!append(line)) return false;
+        }
+
+        // proceed fact (DR term)
+        if (r.proceedFact()) {
+            snprintf(line, sizeof(line), "%s\"proceed\": \"%s\",%s", sp3, r.proceedFact()->name(), nl);
+            if (!append(line)) return false;
+        }
+
         // entrance
         if (r.entranceBlock()) {
             snprintf(line, sizeof(line), "%s\"entrance\": \"%s\"%s%s",
@@ -486,7 +649,7 @@ inline bool serialize(const InterlockingPlant& cp, char* buffer, size_t maxLen, 
             if (!append(line)) return false;
         }
 
-        snprintf(line, sizeof(line), "%s}%s%s", sp2, (i + 1 < eng.routeCount()) ? "," : "", nl);
+        snprintf(line, sizeof(line), "%s}%s%s", sp2, (plainRouteEmitted < plainRouteCount) ? "," : "", nl);
         if (!append(line)) return false;
     }
     snprintf(line, sizeof(line), "%s]%s", sp, nl);
@@ -527,6 +690,15 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
         }
     }
 
+    // 1a. Per-interlocking staleness timeout (FieldUnit ADR 0009): the
+    // default for line inputs that state none and for implicit ones.
+    if (findKey(json, "defaultStalenessTimeoutMs", val)) {
+        int32_t timeout = 0;
+        if (parseInt(val, timeout) && timeout >= 0) {
+            cp.setDefaultStalenessTimeout(static_cast<uint32_t>(timeout));
+        }
+    }
+
     // 2. Track Circuits
     if (findKey(json, "trackCircuits", val)) {
         skipWhitespace(val);
@@ -548,6 +720,38 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
                     }
                     if (name[0] != '\0') {
                         cp.addTrackCircuit(name, static_cast<uint32_t>(delay));
+                    }
+                    skipValue(val);
+                } else {
+                    val++;
+                }
+                skipWhitespace(val);
+                if (*val == ',') val++;
+            }
+        }
+    }
+
+    // 2b. Line inputs
+    if (findKey(json, "lineInputs", val)) {
+        skipWhitespace(val);
+        if (*val == '[') {
+            val++;
+            while (*val && *val != ']') {
+                skipWhitespace(val);
+                if (*val == '{') {
+                    const char* itemStart = val;
+                    const char* liVal = nullptr;
+                    char name[32] = "";
+                    int32_t timeout = static_cast<int32_t>(cp.defaultStalenessTimeout());
+
+                    if (findKey(itemStart, "name", liVal)) {
+                        parseString(liVal, name, sizeof(name));
+                    }
+                    if (findKey(itemStart, "stalenessTimeoutMs", liVal)) {
+                        parseInt(liVal, timeout);
+                    }
+                    if (name[0] != '\0') {
+                        cp.addLineInput(name, static_cast<uint32_t>(timeout));
                     }
                     skipValue(val);
                 } else {
@@ -765,6 +969,147 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
         }
     }
 
+    // 6b. Automatic signals (FieldUnit ADR 0008 D6). Two passes: every
+    // signal exists before any binding, so a local location may read
+    // another's outputs whatever the order in the file.
+    for (int pass = 0; pass < 2; ++pass) {
+        if (!findKey(json, "automaticSignals", val)) break;
+        skipWhitespace(val);
+        if (*val != '[') break;
+        val++;
+        while (*val && *val != ']') {
+            skipWhitespace(val);
+            if (*val == '{') {
+                const char* itemStart = val;
+                const char* aVal = nullptr;
+                char name[32] = "";
+                if (findKey(itemStart, "name", aVal)) {
+                    parseString(aVal, name, sizeof(name));
+                }
+                if (name[0] != '\0') {
+                    if (pass == 0) {
+                        char typeStr[32] = "ONE_HEAD";
+                        char policyStr[32] = "";
+                        if (findKey(itemStart, "type", aVal)) {
+                            parseString(aVal, typeStr, sizeof(typeStr));
+                        }
+                        if (findKey(itemStart, "aspectPolicy", aVal)) {
+                            parseString(aVal, policyStr, sizeof(policyStr));
+                        }
+                        AspectResolver policy = (policyStr[0] != '\0') ? nameToPolicy(policyStr) : nullptr;
+                        cp.addAutomaticSignal(name, nameToMastType(typeStr), policy);
+                    } else {
+                        AutomaticSignal* a = cp.findAutomaticSignal(name);
+                        if (a) {
+                            const char* listKeys[2] = { "governs", "approach" };
+                            for (int k = 0; k < 2; ++k) {
+                                if (!findKey(itemStart, listKeys[k], aVal)) continue;
+                                skipWhitespace(aVal);
+                                if (*aVal != '[') continue;
+                                aVal++;
+                                while (*aVal && *aVal != ']') {
+                                    skipWhitespace(aVal);
+                                    if (*aVal == '"') {
+                                        char fname[32] = "";
+                                        if (parseString(aVal, fname, sizeof(fname))) {
+                                            if (k == 0) a->governs({ fname }); else a->approach({ fname });
+                                        }
+                                    } else {
+                                        aVal++;
+                                    }
+                                    skipWhitespace(aVal);
+                                    if (*aVal == ',') aVal++;
+                                }
+                            }
+                            if (findKey(itemStart, "reads", aVal)) {
+                                const char* readsObj = aVal;
+                                const char* rv = nullptr;
+                                char hName[32] = "";
+                                char dName[32] = "";
+                                if (findKey(readsObj, "h", rv)) parseString(rv, hName, sizeof(hName));
+                                if (findKey(readsObj, "d", rv)) parseString(rv, dName, sizeof(dName));
+                                a->reads(hName[0] ? hName : nullptr, dName[0] ? dName : nullptr);
+                            }
+                            if (findKey(itemStart, "opposing", aVal)) {
+                                char oName[32] = "";
+                                if (parseString(aVal, oName, sizeof(oName))) {
+                                    a->opposing(oName);
+                                }
+                            }
+                        }
+                    }
+                }
+                skipValue(val);
+            } else {
+                val++;
+            }
+            skipWhitespace(val);
+            if (*val == ',') val++;
+        }
+    }
+
+    // 6c. Control point lines (FieldUnit ADR 0008 D5)
+    if (findKey(json, "controlPointLines", val)) {
+        skipWhitespace(val);
+        if (*val == '[') {
+            val++;
+            while (*val && *val != ']') {
+                skipWhitespace(val);
+                if (*val == '{') {
+                    const char* itemStart = val;
+                    const char* lVal = nullptr;
+                    char name[32] = "";
+                    if (findKey(itemStart, "name", lVal)) {
+                        parseString(lVal, name, sizeof(name));
+                    }
+                    if (name[0] != '\0') {
+                        ControlPointLine& l = cp.addControlPointLine(name);
+                        char str[40] = "";
+                        if (findKey(itemStart, "home", lVal) && parseString(lVal, str, sizeof(str)) && str[0]) {
+                            l.home(str);
+                        }
+                        const char* listKeys[3] = { "governs", "block", "leaving" };
+                        for (int k = 0; k < 3; ++k) {
+                            if (!findKey(itemStart, listKeys[k], lVal)) continue;
+                            skipWhitespace(lVal);
+                            if (*lVal != '[') continue;
+                            lVal++;
+                            while (*lVal && *lVal != ']') {
+                                skipWhitespace(lVal);
+                                if (*lVal == '"') {
+                                    char fname[32] = "";
+                                    if (parseString(lVal, fname, sizeof(fname))) {
+                                        if (k == 0) l.governs({ fname });
+                                        else if (k == 1) l.block({ fname });
+                                        else l.leaving({ fname });
+                                    }
+                                } else {
+                                    lVal++;
+                                }
+                                skipWhitespace(lVal);
+                                if (*lVal == ',') lVal++;
+                            }
+                        }
+                        if (findKey(itemStart, "tumbleDown", lVal) && parseString(lVal, str, sizeof(str))) {
+                            l.tumbleDown(nameToTumbleDown(str));
+                        }
+                        if (findKey(itemStart, "traffic", lVal) && parseString(lVal, str, sizeof(str))) {
+                            l.traffic(nameToTraffic(str));
+                        }
+                        if (findKey(itemStart, "trafficRelease", lVal) && parseString(lVal, str, sizeof(str))) {
+                            l.trafficRelease(nameToTrafficRelease(str));
+                        }
+                    }
+                    skipValue(val);
+                } else {
+                    val++;
+                }
+                skipWhitespace(val);
+                if (*val == ',') val++;
+            }
+        }
+    }
+
     // 8. Routes
     if (findKey(json, "routes", val)) {
         skipWhitespace(val);
@@ -876,6 +1221,35 @@ inline bool deserialize(InterlockingPlant& cp, const char* json) {
                                     skipWhitespace(rVal);
                                     if (*rVal == ',') rVal++;
                                 }
+                            }
+                        }
+
+                        // home facts (HR terms)
+                        if (findKey(routeObj, "home", rVal)) {
+                            skipWhitespace(rVal);
+                            if (*rVal == '[') {
+                                rVal++;
+                                while (*rVal && *rVal != ']') {
+                                    skipWhitespace(rVal);
+                                    if (*rVal == '"') {
+                                        char factName[32] = "";
+                                        if (parseString(rVal, factName, sizeof(factName))) {
+                                            r.homeFact(factName);
+                                        }
+                                    } else {
+                                        rVal++;
+                                    }
+                                    skipWhitespace(rVal);
+                                    if (*rVal == ',') rVal++;
+                                }
+                            }
+                        }
+
+                        // proceed fact (DR term)
+                        if (findKey(routeObj, "proceed", rVal)) {
+                            char factName[32];
+                            if (parseString(rVal, factName, sizeof(factName))) {
+                                r.proceed(factName);
                             }
                         }
 

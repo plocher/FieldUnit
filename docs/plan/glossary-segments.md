@@ -18,8 +18,9 @@ term, not a power-interlocking term). Terms are spelled as the glossary spells t
   letters, token parts) are not entries. Where they carry teaching content, the segment that uses them is noted under
   "Glossary sections that are not entries".
 
-Count: 163 entries in the glossary (160 distinct terms, since 10.6 restates three), after the 22 entries added on
-2026-11-03 (marked "new" below). 145 terms are assigned to segments 1 to 13; 15 are reference-only.
+Count: 169 entries in the glossary (166 distinct terms, since 10.6 restates three), after the 22 entries added on
+2026-11-03 (marked "new" below) and four from `main` on 2026-11-04 (number plate, line input, fact, implicit fact).
+147 terms are assigned to segments 1 to 13; 17 are reference-only.
 
 ## 1. The switch tender
 
@@ -121,6 +122,8 @@ Count: 163 entries in the glossary (160 distinct terms, since 10.6 restates thre
 | `TP`, `TPR` | 10.5 | | |
 | `BPR` | 10.5 | | |
 | `FR`, `FSR` (traffic) | 10.5 | | |
+| number plate | 8 | yes | from main, 2026-11-04 (ADR 0008) |
+| line input | 10.5 | | FieldUnit; the consumer end of the HD line (ADR 0007, 0008) |
 | ABS | 4 | yes | new |
 | APB | 4 | yes | new |
 | head block | 7 | yes | new |
@@ -252,6 +255,8 @@ Count: 163 entries in the glossary (160 distinct terms, since 10.6 restates thre
 | writer policy | 2.6 | same |
 | port | 3 | a KiCad sheet connection; tutorial and peer-brief material |
 | control point limits | 4 | not a term, by the owner's decision; the entry exists to send readers to interlocking limits |
+| fact | 10.5 | FieldUnit code concept (FieldUnit ADR 0009); developer material |
+| implicit fact | 10.5 | same |
 
 None of these is a gap: they belong to the reference, the peer brief or the tutorials, not to the history spine.
 
@@ -282,6 +287,6 @@ other entries or in the talk without an entry of their own:
 | 3 | home signal, absolute signal, controlled signal | inside interlocking limits, control point, automatic signal |
 | 4 | detector bar | talk segment 4 |
 | 5 | pick up, drop, electro-pneumatic | section 10 throughout; talk segment 5 |
-| 6 | number plate, route signaling, speed signaling, searchlight | inside automatic signal and color light signal; talk segment 6 |
+| 6 | route signaling, speed signaling, searchlight | inside color light signal; talk segment 6 |
 | 8 | line relay, pulse (long, short), End CTC sign | talk segment 8 |
 | 9 | model board | `docs/AAR_SIGNALING_PRIMER.md` section 9.6; talk segment 9 |

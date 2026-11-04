@@ -74,6 +74,15 @@ Device drivers on SEAM-1:
 | Field unit reaching devices over MQTT | partial | `MqttApplianceBus`, as above |
 | Field unit on a host, devices on a cpNode | planned | ADR 0004 deployment C |
 
+### Between control points: line circuits (logic, after SEAM-0)
+
+| Item | Status | Where |
+|---|---|---|
+| Automatic signal location, producing the HD line to the rear | exists | `AutomaticSignal` (`src/AutomaticSignal.h:48`), FieldUnit ADR 0008 (accepted); `tests/test_automatic_signal.cpp` |
+| What a control point produces at the seam | exists | `ControlPointLine` (`src/ControlPointLine.h:68`), ADR 0008 D5 |
+| Line inputs and route `home()` / `proceed()` terms; an incomplete plant fails safe | exists | `LineInput`, `Fact` (`src/LineInput.h`), ADR 0007 D2, ADR 0009; `tests/test_line_input.cpp` |
+| Transport of line circuits between field units | gap | the classes produce and consume the HD line; how it crosses between field units on a layout is not in this inventory yet |
+
 ### Field processors and configuration
 
 | Item | Status | Where |

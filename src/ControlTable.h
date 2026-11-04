@@ -4,6 +4,7 @@
 #include <initializer_list>
 #include "types.h"
 #include "TrackCircuit.h"
+#include "LineInput.h"
 #include "Switch.h"
 #include "SignalMast.h"
 #include "SignalControl.h"
@@ -14,6 +15,8 @@ class InterlockingPlant;
 
 static constexpr uint8_t MAX_ROUTE_SWITCHES = 8;
 static constexpr uint8_t MAX_ROUTE_BLOCKS   = 8;
+static constexpr uint8_t MAX_ROUTE_FACTS    = 8;
+static constexpr uint8_t MAX_BLOCK_FACTS    = 4;
 static constexpr uint8_t MAX_ROUTES         = 32;
 
 enum class RouteState : uint8_t {
@@ -64,7 +67,11 @@ public:
           blockCount_(0),
           entranceBlock_(nullptr),
           approachBlock_(nullptr),
+          homeFactCount_(0),
+          proceedFact_(nullptr),
           isEngineReturn_(false),
+          automatic_(false),
+          incomplete_(false),
           originBlock_(nullptr),
           osBlock_(nullptr),
           cp_(nullptr),
@@ -233,6 +240,37 @@ public:
 
     Route& approaching(const char* tcName);
 
+    // Home terms (FieldUnit ADR 0007 D2): facts ANDed into the HR condition.
+    // At a block end these are segment_clear (H in) and traffic_free (F in).
+    Route& home(std::initializer_list<const Fact*> facts) {
+        homeFactCount_ = 0;
+        for (const Fact* f : facts) {
+            homeFact(f);
+        }
+        return *this;
+    }
+
+    Route& home(std::initializer_list<const char*> factNames);
+
+    Route& homeFact(const Fact* f) {
+        if (homeFactCount_ < MAX_ROUTE_FACTS && f) {
+            homeFacts_[homeFactCount_++] = f;
+        }
+        return *this;
+    }
+
+    Route& homeFact(const char* factName);
+
+    // Proceed term (FieldUnit ADR 0007 D2): the DR condition. While the fact
+    // is released the route shows no better than Approach. At a block end
+    // this is next_proceed (D in).
+    Route& proceed(const Fact* f) {
+        proceedFact_ = f;
+        return *this;
+    }
+
+    Route& proceed(const char* factName);
+
     // Engine Return: Permits Restricting back onto cars standing on originBlock
     Route& engineReturn(TrackCircuit* standingCarsBlock, TrackCircuit* islandBlock) {
         isEngineReturn_ = true;
@@ -242,6 +280,19 @@ public:
     }
 
     Route& engineReturn(const char* standingCarsName, const char* islandName);
+
+    // Automatic signal (FieldUnit ADR 0008 D1): a route with no signal
+    // control. The authority term is absent, not Stop. Only a marked route
+    // evaluates without an authority; an unmarked one stays dark.
+    Route& automatic() {
+        automatic_ = true;
+        return *this;
+    }
+
+    // A binding named an appliance the plant does not have (FieldUnit ADR
+    // 0009 D2). The route evaluates to Stop until the model declares it.
+    void markIncomplete() { incomplete_ = true; }
+    bool isIncomplete() const { return incomplete_; }
 
     // Accessors for vital evaluation
     const char* name() const { return name_; }
@@ -261,7 +312,12 @@ public:
     }
     TrackCircuit* approachBlock() const { return approachBlock_; }
 
+    uint8_t homeFactCount() const { return homeFactCount_; }
+    const Fact* homeFact(uint8_t idx) const { return (idx < homeFactCount_) ? homeFacts_[idx] : nullptr; }
+    const Fact* proceedFact() const { return proceedFact_; }
+
     bool isEngineReturn() const { return isEngineReturn_; }
+    bool isAutomatic() const { return automatic_; }
     TrackCircuit* originBlock() const { return originBlock_; }
     TrackCircuit* osBlock() const { return osBlock_; }
 
@@ -281,7 +337,13 @@ private:
 
     TrackCircuit*      approachBlock_;
 
+    uint8_t            homeFactCount_;
+    const Fact*        homeFacts_[MAX_ROUTE_FACTS];
+    const Fact*        proceedFact_;
+
     bool               isEngineReturn_;
+    bool               automatic_;
+    bool               incomplete_;
     TrackCircuit*      originBlock_;
     TrackCircuit*      osBlock_;
     InterlockingPlant* cp_;
@@ -367,7 +429,8 @@ public:
             }
 
             // B. Standard Dispatcher-Governed Route
-            if (r.authority() == nullptr || r.authority()->activeDirection() != r.direction()) {
+            if (!r.isAutomatic() &&
+                (r.authority() == nullptr || r.authority()->activeDirection() != r.direction())) {
                 r.resetTraversal();
                 continue;
             }
@@ -418,6 +481,37 @@ public:
 
     bool checkRouteBlocksClear(const Route& r) const {
         return checkBlocksClear(r);
+    }
+
+    // Every home fact asserted (true when the route has none).
+    bool checkRouteHomeFacts(const Route& r) const {
+        return checkHomeFacts(r);
+    }
+
+    // The route equation as a function, for a signal location that
+    // produces its D from its own HR (FieldUnit ADR 0008 D3). Reads inputs
+    // only; writes nothing.
+    Indication evaluateRouteIndication(const Route& r) const {
+        return evaluateIndication(r);
+    }
+
+    // A mast's indication as a function of its routes' data: the most
+    // permissive of the routes that display it, each gated as evaluate()
+    // gates it (control held in the route's direction, entrance clear).
+    // For the seam's cleared and home_proceed ports (FieldUnit ADR 0008 D5).
+    Indication evaluateMastIndication(const SignalMast* mast) const {
+        Indication best = Indication::STOP;
+        if (mast == nullptr) return best;
+        for (uint8_t i = 0; i < routeCount_; ++i) {
+            const Route& r = routes_[i];
+            if (r.mast() != mast || r.isEngineReturn()) continue;
+            if (!r.isAutomatic() &&
+                (r.authority() == nullptr || r.authority()->activeDirection() != r.direction())) continue;
+            TrackCircuit* ent = r.entranceBlock();
+            if (ent != nullptr && !ent->isClear()) continue;
+            best = Route::mostPermissive(best, evaluateIndication(r));
+        }
+        return best;
     }
 
     const Route* activeRouteForAuthority(const SignalControl* auth) const {
@@ -471,16 +565,43 @@ private:
         return true;
     }
 
+    bool checkHomeFacts(const Route& r) const {
+        for (uint8_t i = 0; i < r.homeFactCount(); ++i) {
+            const Fact* f = r.homeFact(i);
+            if (f == nullptr || !f->asserted()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     Indication evaluateIndication(const Route& r) const {
+        if (r.isIncomplete()) return Indication::STOP;     // FieldUnit ADR 0009 D2
         Indication indication = r.aspectCeiling();
         indication = Route::leastPermissive(indication, authorityContribution(r));
         indication = Route::leastPermissive(indication, alignmentContribution(r));
         indication = Route::leastPermissive(indication, clearanceContribution(r));
+        indication = Route::leastPermissive(indication, homeContribution(r));
         indication = Route::leastPermissive(indication, approachContribution(r));
+        indication = Route::leastPermissive(indication, proceedContribution(r));
         return indication;
     }
 
+    // HR term: every home fact asserted, else Stop.
+    Indication homeContribution(const Route& r) const {
+        return checkHomeFacts(r) ? r.aspectCeiling() : Indication::STOP;
+    }
+
+    // DR term: the proceed fact released caps the route at Approach.
+    Indication proceedContribution(const Route& r) const {
+        if (r.proceedFact() == nullptr || r.proceedFact()->asserted()) {
+            return r.aspectCeiling();
+        }
+        return reduceForOccupiedApproach(r.aspectCeiling());
+    }
+
     Indication authorityContribution(const Route& r) const {
+        if (r.isAutomatic()) return r.aspectCeiling();   // term absent, not Stop
         return r.authority() != nullptr && r.authority()->activeDirection() == r.direction()
             ? r.aspectCeiling()
             : Indication::STOP;

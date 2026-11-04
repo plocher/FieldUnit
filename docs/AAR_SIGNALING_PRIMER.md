@@ -141,6 +141,8 @@ Railroad rulebooks make an exact distinction between what an engineer sees and w
 
 Do not confuse a signal indication with an **office indication** (Act IV): the report that the field sends back to the dispatcher.
 
+**The number plate is neither.** An absolute signal at Stop means Stop and Hold (Rule 292). A signal with a number plate at Stop means Stop and Proceed (Rule 291). The plate is a fixed attribute of the mast, not something the bungalow switches on and off: a plated mast presents the same indications as an unplated one, its `HR` is down at Stop either way, and the signal in rear reads only that `HR`. The plate dates from semaphore heads, which could add no blade position for one more indication, so the mast got a plate instead. FieldUnit therefore has no `STOP_AND_PROCEED` indication: `Indication::STOP` is what every mast presents when its `HR` is down, and the plate belongs to the mast as drawn (the layout model's `Kind` `PERMISSIVE` or `ABSOLUTE`).
+
 #### Step-by-Step: Clearing Signal 2
 The circuits below are illustrative word pictures, not prototype circuit plans.
 ```
@@ -393,18 +395,35 @@ The `DR` relay looks down the track to the next signal.
 
 ```
   Power ───[ 2HR Front ]───[ Block Ahead TR Front ]───[ Next Signal HR Front ]───( 2DR )
-           (Route Clear)    (Block Ahead Clear)       (Next Signal Permissive)
+           (Route Clear)    (Block Ahead Clear)       (Next Signal HR Up)
 ```
 
-`DR = (2HR picked up) AND (Block Ahead VACANT) AND (Next Signal Permissive)`
+`DR = (2HR picked up) AND (Block Ahead VACANT) AND (Next Signal HR picked up)`
+
+"Next signal `HR` up" means the next signal shows Approach or better. It is the same test whether the next signal is a controlled signal, an absolute automatic or a permissive automatic with a number plate: the plate changes how a crew reads that signal's Stop, not whether its `HR` is up.
 
 - If the block ahead is occupied, `DR` stays dropped.
   The signal displays **`APPROACH`** (Yellow).
   The engineer knows to slow down and prepare to stop at the next signal.
-- If the block ahead is clear AND the next signal is also displaying a permissive aspect, `DR` picks up.
+- If the block ahead is clear AND the next signal's `HR` is up (Approach or better), `DR` picks up.
   This upgrades the aspect from `APPROACH` (Yellow) to **`CLEAR`** (Green).
 
-FieldUnit has no `DR` object. It lowers CLEAR to APPROACH when the track circuit named in the route's `approaching()` is occupied.
+FieldUnit has no `DR` object, because it has no stored relays at all: the chain above is a function, and the "next signal `HR` front" is where that function reads the location ahead. Written for one automatic signal `M` at location `L`, governing toward `W` with its line going back to `U` (FieldUnit ADR 0008):
+
+```
+              U                        L                         W
+ ===T(·→U)=== + ======T(U→L)====== + ======T(L→W)====== + ===T(W→·)===
+             |--O                     |--O  M                   |--O
+                 ◄──── H, D from L ────   ◄──── H, D from W ────
+
+  M's display   least permissive of   T(L→W) clear      → CLEAR else STOP
+                                      H from W          → CLEAR else STOP
+                                      D from W          → CLEAR else APPROACH
+  D to U   =  HR_M  =  T(L→W) ∧ H_W
+  H to U   =  T(U→L) ∧ (H_W ∨ SR_M)
+```
+
+Each location reads the circuit ahead of it for its own display and reports on the circuit behind it to the location in rear. Written as blocks only, `D_W = T(W→X) ∧ H_X`: the mast at `W` is an output, never an input. In code the location is `AutomaticSignal`, its two outputs are the facts `<mast>H` and `<mast>D`, and the route in rear writes `home("832SAH").proceed("832SAD")` whether location 832 is on this processor or arrives over a wire as line inputs. A control point produces its own line at the seam with `ControlPointLine`. The `approaching()` circuit still lowers CLEAR to APPROACH as well (issue #19).
 
 ---
 

@@ -2,10 +2,11 @@
 #define FIELDUNIT_TRACK_CIRCUIT_H
 
 #include "types.h"
+#include "Fact.h"
 
 namespace FieldUnit {
 
-class TrackCircuit {
+class TrackCircuit : public Fact {
 public:
     TrackCircuit() : TrackCircuit("", 0) {}
 
@@ -16,7 +17,7 @@ public:
           dropoutDelayMs_(dropoutDelayMs),
           clearanceStartMs_(0),
           clearingActive_(false),
-          stalenessTimeoutMs_(5000),
+          stalenessTimeoutMs_(DEFAULT_STALENESS_TIMEOUT_MS),
           lastUpdateMs_(0) {
         setName(name);
     }
@@ -27,9 +28,13 @@ public:
         name_[sizeof(name_) - 1] = '\0';
     }
 
-    const char* name() const { return name_; }
+    const char* name() const override { return name_; }
     uint8_t index() const { return index_; }
     void setIndex(uint8_t idx) { index_ = idx; }
+
+    // Fact (FieldUnit ADR 0008 D2): the TR as an operand. A route or a
+    // signal location reads a track circuit the same way it reads a line.
+    bool asserted() const override { return isClear(); }
 
     // Vital query: is this block safe for train movement?
     // Fail-safe rule: Must be VACANT AND GOOD quality.
@@ -54,7 +59,19 @@ public:
     // Direct access to qualified state
     const Qualified<Occupancy>& state() const { return state_; }
 
-    // Update from local sensor driver or network packet
+    // Liveness without a state change: the source is still watching and
+    // reports no change. Refreshes the staleness clock and clears LOST_COMMS.
+    // Inert before the first update(): a heartbeat from a source that has
+    // never reported a state still means "no clue".
+    void touch(uint32_t nowMs) {
+        if (lastUpdateMs_ == 0) return;
+        lastUpdateMs_ = nowMs;
+        if (state_.quality == Quality::LOST_COMMS) {
+            state_.quality = Quality::GOOD;
+        }
+    }
+
+    // State: update from local sensor driver or network packet
     // Shunting to OCCUPIED happens immediately.
     // Clearing to VACANT applies dropoutDelayMs to bridge inter-car optical sensor gaps.
     void update(Occupancy occ, Quality quality = Quality::GOOD, uint32_t nowMs = 0) {
@@ -111,6 +128,7 @@ public:
     void setStalenessTimeout(uint32_t timeoutMs) {
         stalenessTimeoutMs_ = timeoutMs;
     }
+    uint32_t stalenessTimeout() const { return stalenessTimeoutMs_; }
 
 private:
     char name_[MAX_APPLIANCE_NAME_LEN];

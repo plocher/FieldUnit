@@ -39,7 +39,7 @@ Extensive architectural specifications and prototype signaling primers reside in
 - **`docs/CONTROL_POINT_ARCHITECTURE.md`**: Complete 4-tier architectural specification written in ASD-STE100 controlled English.
 - **`docs/AAR_SIGNALING_PRIMER.md`**: Detailed technical primer explaining the vital relay chains behind switches (`TR`, `WLR`, `WR`, `NWCR`, `RWCR`, `KR`) and signals (`HSR`, `HR`, `DR`, `ASR`, `FSR`).
 - **`docs/FIELDUNIT_STUDIO_DESIGN_SPEC.md`**: Architectural specification for virtual and physical cTc panel parity, layout schemas, and route synthesis.
-- **`docs/adr/`**: Architectural Decision Records (e.g., `0001-mqtt-aar-codeline-interface-a.md` establishing the MQTT AAR CodeLine topic schema and payload contracts).
+- **`docs/adr/`**: Architectural Decision Records. `docs/adr/README.md` is the index from code to decision; read the ADRs that name the code you are changing.
 - **`docs/how-to/` & `docs/tutorials/`**: Wiring guides, JMRI/CMRI integration, electric locks, and aspect configuration tutorials.
 
 ## Build and Test Commands
@@ -121,9 +121,9 @@ python3 tools/test_ctc_desk.py --loopback
 python3 tools/test_ctc_desk.py --walk
 ```
 
-`tools/test_ctc_desk.py` needs `paho-mqtt` and a broker on localhost:1883.
+`tools/test_ctc_desk.py` needs `paho-mqtt` and a broker on localhost:1883. Its `STATIONS["Luchessa"]` carries the KiCad-derived names (783/795/799/784); update it whenever desk names change.
 
-`tools/md2pdf/md2pdf.py` prints a Markdown file as a PDF, one `##` section per page (`docs/plan/talk-outline.md` is the use case). It needs `markdown` and Playwright for Python; see `tools/md2pdf/README.md`. Its `STATIONS["Luchessa"]` carries the KiCad-derived names (783/795/799/784); update it whenever desk names change.
+`tools/md2pdf/md2pdf.py` prints a Markdown file as a PDF, one `##` section per page (`docs/plan/talk-outline.md` is the use case). It needs `markdown` and Playwright for Python; see `tools/md2pdf/README.md`.
 
 ---
 
@@ -177,7 +177,7 @@ The system is organized into a four-tier decoupled architecture:
 ### 2. Vital Interlocking Engine (`InterlockingPlant`, `ControlTable`)
 
 - **Execution Model**:
-  - Zero dynamic heap allocation after startup. All appliance lookups occur once during configuration; runtime cycles use $O(1)$ raw pointer dereferences.
+  - No allocation after `setup()` (FieldUnit ADR 0007 D4). All appliance lookups occur once during configuration; runtime cycles use $O(1)$ raw pointer dereferences.
   - Encapsulated scan cycle: `cp.tick(nowMs)` executes atomically:
     $$\text{Sample Inputs} \longrightarrow \text{Vital Safety Rules} \longrightarrow \text{Drive Outputs}$$
   - No queuing or conversational negotiation: invalid or unsafe switch commands are silently ignored (vital lock prevents movement); the controlling client learns this by observing reported indications.
@@ -188,6 +188,7 @@ The system is organized into a four-tier decoupled architecture:
   - **Approach Time Locking (`TIME_LOCKED`)**: If a cleared signal is knocked down before a train enters, switch points freeze until the approach timer expires, unless downstream approach tracks are vacant (dynamic approach cancellation).
   - **Sectional Route Release**: As a train traverses an interlocking across multiple switches, trailing switches release progressively as their specific fouling track circuit is vacated, freeing them for conflicting moves while maintaining locking ahead.
   - **Vital Stick Relays**: Standard signal stick drops upon entrance shunt (`knockdown`). Fleeting mode (`FSR`) automatically re-clears authority for following trains when route blocks vacate. Engine Return Stick (`ERS`) permits low-speed return moves to cars standing on dark/approach tracks.
+  - **Block signals, the seam, and an incomplete plant**: decided in FieldUnit ADRs 0007, 0008 and 0009; `docs/adr/README.md` maps them to the code.
 
 ### 3. Office Machine Abstraction (`cTcMachine`)
 
