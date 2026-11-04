@@ -2,6 +2,8 @@
 
 Draft 6, 2026-11-03. Deliverable 1 of `docs/plan/user-docs-plan.md`.
 Audience: NMRA Layout Design and Operations SIGs, in person, early 2027. One hour.
+**Intent under review (2026-11-04):** `docs/plan/talk-intent.md` proposes reshaping this outline around what
+signaling adds to operations and asks of layout design. Not yet applied here.
 Tone: approachable, interesting, fun. Pure story. Optional demo hooks are marked **[demo, optional]**.
 
 Changes in draft 3 (owner review, 2026-11-03): each segment speaks only the vocabulary of its era; rules that came later

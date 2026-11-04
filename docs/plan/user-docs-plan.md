@@ -78,6 +78,8 @@ reference-only or a sign of a gap.
 
 1. **Talk outline = spine.** A 1-hour, in-person presentation for the NMRA LD/Ops SIG, early 2027: approachable, interesting, fun.
    Pure story at minimum; a demo if the emulation is ready. 2 to 6 minutes per segment.
+   Intent under review (2026-11-04): what the talk adds to operations and layout design, and the missing physical
+   layer of the docs; see `docs/plan/talk-intent.md`.
 2. Glossary-to-segment assignment.
 3. Docs-figures KiCad project in `Railroad/`, and the first figures for the talk.
 4. The textbook: the talk written down, one short chapter per segment. Mostly cut from the existing primer and glossary along the spine.
