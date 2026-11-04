@@ -74,13 +74,50 @@ reference-only or a sign of a gap.
 3. Proof of usability: a second KiCad layout project for an existing layout, probably one already running with JMRI
    (CMRInet or JMRI-MQTT). Includes a virtual CTC machine and existing hardware. Possible spike: import JMRI panels and tables instead of KiCad as the source.
 
+## Course correction (owner, 2026-11-04)
+
+An informal review by experienced Design and Ops SIG members, and the owner's conclusions from it.
+
+**What they said.** This audience already knows prototype signaling as well as we present it. They do not need a
+history of signaling or another introduction to the topic. One comment: "this is a 2 to 3 page handout and one slide
+of context. You've done something interesting with the software: what did you learn, what have you done, what can I
+do with it?" Tables of material they know or can learn elsewhere (jobs by era, for example) are filler.
+
+**What we conclude.**
+
+- The history and concepts outline is good, and necessary, but not sufficient. It has done its job of focusing our
+  thinking. It rests now (`talk-outline.md`, `glossary-segments.md`); its likely future is the handout and one slide
+  of context, and the textbook for the F audience.
+- What is new, and what this audience came for, is our tooling, concepts and capabilities: what makes it easier,
+  better, faster or cheaper to put all of this on a layout.
+- The talk-intent brief (`talk-intent.md`) had the audience wrong: it still assumed the room needed the prototype
+  explained. Its physical checklist (section 5) and gap list (section 6) are kept as seed for the next distillation;
+  the rest is superseded.
+
+**What comes next: two more distillations, then the talk.** Each is first a gap analysis and a plan to find the
+missing information, not agent-led authoring. Neither is an immediate task.
+
+1. **Realization on a layout.** Slice by how the system is realized on a layout, not by prototype era and railroad:
+   devices (switch machines and point detection, masts and heads, detectors, fascia controls), wiring (power, DCC
+   districts and gaps, buses, where field units go, room and track spacing), concepts (what FieldUnit models and what
+   it leaves to the layout), and interoperability (JMRI, CMRInet, LCC, DCC-EX, MQTT). For each slice: what we know,
+   what we have built, what is missing, and who or what can supply it (a build, a measurement, a SIG member, a source).
+2. **Operations and play value, once it is in place.** Slice again: what running a session on a FieldUnit layout is
+   like, and how it compares to existing norms (JMRI panels and CATS, plain DCC with verbal authority, other CTC
+   approaches).
+3. **Then the talk**, rebuilt around "what we did, what we learned, what you can do with it", with the history as one
+   slide and a handout.
+
+The plan's audiences still hold, but the SIGs are a C/E audience on signaling itself. The F audience is the one that
+needs the history spine.
+
 ## Deliverables, in order
 
 1. **Talk outline = spine.** A 1-hour, in-person presentation for the NMRA LD/Ops SIG, early 2027: approachable, interesting, fun.
    Pure story at minimum; a demo if the emulation is ready. 2 to 6 minutes per segment.
-   Intent under review (2026-11-04): what the talk adds to operations and layout design, and the missing physical
-   layer of the docs; see `docs/plan/talk-intent.md`.
-2. Glossary-to-segment assignment.
+   **Resting (2026-11-04)**: see "Course correction" above. The outline is history and concepts; its likely future is
+   a handout and the textbook. The SIG talk will be rebuilt after the two distillations.
+2. Glossary-to-segment assignment. **Resting with the outline.**
 3. Docs-figures KiCad project in `Railroad/`, and the first figures for the talk.
 4. The textbook: the talk written down, one short chapter per segment. Mostly cut from the existing primer and glossary along the spine.
 5. Peer brief: the architecture, seams and interoperation (JMRI, C/MRI, MQTT), with links into the reference.

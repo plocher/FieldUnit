@@ -3,6 +3,11 @@
 Draft 1, 2026-11-04. Intent refinement for deliverable 1 of `docs/plan/user-docs-plan.md`, before more work on
 `docs/plan/talk-outline.md`. Everything here is a proposal for the owner to accept, change or reject.
 
+**Status: superseded in part (owner, 2026-11-04).** This brief still assumed the SIG audience needed prototype
+signaling explained; they do not. See "Course correction" in `docs/plan/user-docs-plan.md`. Sections 5 and 6 (the
+physical checklist and the documentation gap) are kept as seed for the "realization on a layout" distillation.
+Sections 3, 4 and 7 (purpose, jobs by era, shapes of the hour) are withdrawn.
+
 ## 1. What prompted this
 
 An informal discussion with experienced modelers (2026-11-04, the owner's summary) asked two questions:
