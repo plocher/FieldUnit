@@ -109,6 +109,16 @@ than one instantiation today or planned (`docs/plan/realization-inventory.md`):
 
 This is what the SIG talk is about. The history is the context slide.
 
+**SIG tagline (owner's draft, 2026-11-04):** "We developed a layout design tool that uses AAR interlocking logic and
+behavior in a composable and extensible framework that supports implementation choices ranging from simulation to
+C/MRI to IoT to distributed Arduino field units to do-it-yourself. Every layer is replaceable, and the other options
+don't have to be ours."
+
+Shorter forms, for a program listing or a title slide (proposals):
+
+- "Prototype interlocking for your layout: every layer replaceable, and the other options don't have to be ours."
+- "AAR interlocking logic, your choice of everything else: simulation, C/MRI, IoT, Arduino field units, or your own."
+
 **What comes next: two more distillations, then the talk.** Each is first a gap analysis and a plan to find the
 missing information, not agent-led authoring. Neither is an immediate task.
 
