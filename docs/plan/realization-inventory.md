@@ -47,8 +47,8 @@ follows the rejected ADR 0005 (Seam 1 the code line, Seam 2 hardware I/O). One n
 | Bus interface with typed directions and polarity | exists | `IOBus` (`src/drivers/IOBus.h:9`), `IOBit`/`InputBit`/`OutputBit` (`src/drivers/IOBit.h`) |
 | Simulated devices | exists | `MockIOBus` (`src/drivers/IOBus.h:19`) |
 | I2C expanders (MCP23017, cpNode-IOX, MAX7313 on the desk) | exists | `I2CexpanderIOBus` (`src/drivers/I2CexpanderIOBus.h:13`); `examples/CP_Corporal`; `examples/spcoast_ctc/IO-I2C.h` |
-| C/MRI byte buffers as a bus | partial | `CmriIOBus` (`src/drivers/CmriIOBus.h:11`), "centralized interlocking compute with remote I/O nodes"; the serial polling that fills IB/OB is not in `src/` |
-| Semantic appliance bus: JMRI MQTT topics, IoT devices | partial | `MqttApplianceBus` (`src/drivers/MqttApplianceBus.h:34`), `MqttDriverPolicy` (`src/drivers/DriverPolicy.h:138`); exercised only by `tests/test_driver_policy.cpp` |
+| C/MRI byte buffers as a bus | partial | `CmriIOBus` (`src/drivers/CmriIOBus.h:11`), "centralized interlocking compute with remote I/O nodes"; `tests/test_centralized_chubb.cpp` runs a centralized plant on it; the serial polling that fills IB/OB is not in `src/` |
+| Semantic appliance bus: JMRI MQTT topics, IoT devices | exists in unit tests | `MqttApplianceBus` (`src/drivers/MqttApplianceBus.h:34`), `MqttDriverPolicy` (`src/drivers/DriverPolicy.h:138`); `tests/test_mqtt_appliance_bus.cpp` (auto-binding, sensor and turnout topics, mast aspects, end-to-end route clearing over MQTT) and `tests/test_driver_policy.cpp`; no test against a real broker or JMRI |
 | PWM servo controller (PCA9685) | gap | `IOBus::writeAngle` exists and `MockIOBus` implements it; no PCA9685 `IOBus` (how-to 4) |
 
 Device drivers on SEAM-1:
@@ -105,7 +105,7 @@ The combinations the seams allow, as a layout would meet them. Status is the wea
 | 2 | physical desk | MQTT | firmware under the benchwork | I2C expanders, Tortoises, LED masts | exists | the driver seam is in flux (ADR 0004) |
 | 3 | JMRI / CATS on an existing CMRInet layout | C/MRI (bit-packed) | firmware | local I/O | partial | no end-to-end test with JMRI or CATS |
 | 4 | FieldUnit desk or screen | MQTT | FieldUnit as host of an existing CMRInet layout | the layout's existing C/MRI nodes | partial | CMRInet polling transport |
-| 5 | any | MQTT | virtual or firmware | IoT appliances on MQTT (JMRI MQTT topics, ESP32 devices) | partial | `MqttApplianceBus` tested only in unit tests |
+| 5 | any | MQTT | virtual or firmware | IoT appliances on MQTT (JMRI MQTT topics, ESP32 devices) | partial | `MqttApplianceBus` tested end to end, but only against a mock broker |
 | 6 | any | any | firmware or host | LCC, DCC-EX accessories, LocoNet | gap | no bus, no transport |
 | 7 | screen CTC machine | MQTT | any | any | planned | no virtual desk |
 | 8 | none (bench) | USB | `FieldUnit_Tracer` | real and mocked mixed | exists | none |
