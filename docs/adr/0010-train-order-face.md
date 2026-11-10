@@ -10,7 +10,7 @@ Terms follow `docs/GLOSSARY.md`. The model's word is *train order board*. A *fac
 
 ## Decisions requested
 
-- D1. **A face is one logic block: inputs in a stated order, one indication out.** The first asserted input in the order gives its indication. With no input asserted, the face shows its rest indication. The order is the precedence, so STOP before SLOW is "the more restrictive input wins". A new class, `TrainOrderFace`, holds this rule and nothing else. Default: yes.
+- D1. **A face is one logic block: a ranked list of inputs, one indication out.** In each scan the face reads all of its inputs together and shows the indication of the highest-ranked input that is asserted. With no input asserted, the face shows its rest indication. The rank is fixed at setup. It is not the order in time in which the inputs became asserted, and the face keeps no state from one scan to the next, so the result depends only on the present inputs. STOP ranked above SLOW is "the more restrictive input wins". A new class, `TrainOrderFace`, holds this rule and nothing else. Default: yes.
 - D2. **The words come from the model, not from `src/`.** At setup the generated sketch gives the face its ordered pairs and its rest word: (`STOP` → STOP), (`SLOW` → APPROACH), rest CLEAR. These are the model's `TRAIN_ORDER_INPUTS` and `TRAIN_ORDER_CLEAR`. Default: yes. The alternative is a class with STOP, SLOW and CLEAR fixed in it. It is a few lines smaller, and it states the reference data a second time.
 - D3. **The output of a face is a `SignalMast` with one head.** The face sets its indication; nothing else does. The aspect policies and the head drivers that exist then serve a train order head with no change (see Context). Default: yes.
 - D4. **A face is outside the interlocking.** It is not declared with a `cp.add…` call. It is not in `tick()`, in `ControlTransaction`, in `IndicationVector`, in the wire schema or in the plant JSON. The sketch evaluates it one time in each loop, beside `executeCycle()`. Default: yes.
@@ -22,7 +22,7 @@ Terms follow `docs/GLOSSARY.md`. The model's word is *train order board*. A *fac
 ```
    fascia lever (Local-TrainOrder)         TrainOrderFace               head (Device-Head-*)
    STOP ──┐                              ┌──────────────────┐
-          ├── inputs, in order ────────▶ │ first asserted   │ ── Indication ──▶ SignalMast ──▶ head driver
+          ├── inputs, ranked ──────────▶ │ highest asserted │ ── Indication ──▶ SignalMast ──▶ head driver
    SLOW ──┘                              │ wins, else rest  │                   (one head)
                                          └──────────────────┘
                  no route, no signal control, no track circuit, no code line
@@ -46,7 +46,7 @@ SignalMast     gilroyE("Gilroy E", MastType::ONE_HEAD);
 TrainOrderFace faceE(&gilroyE, Indication::CLEAR);              // the rest word (D2)
 
 void setup() {
-    faceE.input(Indication::STOP).input(Indication::APPROACH);  // the order is the precedence (D1)
+    faceE.input(Indication::STOP).input(Indication::APPROACH);  // the order of the calls is the rank (D1)
 }
 
 void loop() {
@@ -70,7 +70,7 @@ void loop() {
 
 - Which pins and which JMRI names a face binds. The model gives both levers and both heads of the Gilroy board one name today; FieldUnit-Subdivision issue 85 gives them distinct keys. The class can be written and tested before that. The generated bindings cannot.
 - How a lever input and a head are driven. That is the driver seam (FieldUnit ADR 0003 and 0004, both proposed). The illustration uses the per-appliance drivers that the example sketches use today.
-- Contact bounce on the lever, and the time a semaphore arm takes to move.
+- Contact bounce on the lever, and the time a semaphore arm takes to move. If a lever opens one contact before it closes the next, no input is asserted for a moment between two positions, and the face reads CLEAR for that moment. A debounce time on the inputs is the usual answer; it is not chosen here.
 
 ## Record
 
