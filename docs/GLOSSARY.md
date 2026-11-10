@@ -419,7 +419,7 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
     - Field: a mast device, Appliance `train_order_mast`, with one pin for each face. The faces of a double board are named for the directions: `E` and `W`, or `N` and `S`. A head device wired to a face pin is the head of that face. A fascia lever (Appliance `lever`, Style `train_order`) wired to the same pin works that face.
     - The lever has two inputs, `STOP` and `SLOW`. Nothing asserted shows CLEAR. `SLOW` shows APPROACH. `STOP` shows STOP. The more restrictive input wins. These words are indications, never a color or a blade angle. A face that shows all three needs a three-position head.
     - The control is local and non-vital. No code line carries it. CALLON is not a train order control: it is an indication of the block signal, used with the board to bring a train that stopped at the block boundary up to the station (the owner, 2026-11-08).
-  - FieldUnit: no train order appliance in the library yet. The run-time logic is FieldUnit issue #44.
+  - FieldUnit: no train order appliance in the library yet. FieldUnit ADR 0010 (proposed) gives its shape: a face is a lever and a one-head mast, outside the interlocking. The run-time logic is FieldUnit issue #44.
 
 ## 8. Signal indications and locking
 
