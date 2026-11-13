@@ -407,9 +407,19 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
   - AAR56: "A track circuit is designated by the letter T preceded by a number" [AAR56 p. 31].
   - FieldUnit: `TrackCircuit`. Occupancy can come from any detector. A dropout delay (`dropoutDelayMs`) bridges gaps between cars for optical sensors. This is a model workaround.
   - FieldUnit: a track circuit starts OCCUPIED. A remote circuit with no update for 5000 ms gets quality `LOST_COMMS` and is not clear.
-- **train order signal** [Prototype]. A fixed signal at a train order office, worked by the operator. It tells a train whether there are train orders for it. It is not a block signal: it says nothing about the track ahead. Standard Code Rule 221 governs it: when orders are held for a train, the signal displays stop for that train's direction, and the operator handles the clearance (unverified). Compare Form 19, Form 31.
-  - Layout model: Appliance `train_order` (FieldUnit-Subdivision, 2026-11-03). It is operator-controlled and non-vital. It is never in a route or a control point, and no mast rule reads it. Its heads are keyed by the compass letter of the direction they face (`N`, `S`, `E`, `W`, each at most once); its `Station` field names the station it serves. KiCad symbol in `Railroad/symbols/`.
-  - FieldUnit: no train order appliance in the library yet.
+- **train order signal** [Prototype]. A fixed signal at a train order office (a depot, a station or a tower), worked by the operator. It tells an approaching train whether the operator holds train orders for it. Also called an order board or a train order board. It is not a block signal: it says nothing about whether the track ahead is occupied. It says only whether the crew must take new orders before it goes on. Standard Code Rule 221 governs it: when orders are held for a train, the signal displays stop for that train's direction, and the operator handles the clearance (unverified). Compare Form 19, Form 31.
+  - What it shows, in general practice (the owner, 2026-11-09; unverified: no source was opened). The details differ by road and by the style of the board.
+    - Stop: the operator holds orders that the train must stop and sign for (Form 31).
+    - Slow: the operator holds orders that the crew takes on the fly from the hoop (Form 19). The train slows enough to catch them. Many roads had this position; not all.
+    - Clear: no orders. The train passes without slowing.
+  - Form (same source): a semaphore whose blade moves between positions, colored lamps or lanterns (red, yellow, green or white, by era), or cross-arms or balls on the earliest boards. It stands directly beside the office. Its blades or its style differ from those of a block signal.
+  - Era (same source): in use from the 1850s. It went out of use between the 1960s and the 1980s, as radio, track warrants and CTC replaced timetable and train order operation. It belongs to timetable and train order territory, never to CTC.
+  - Layout model (FieldUnit-Subdivision, ruled 2026-11-05 and reworked 2026-11-08; `FieldUnit-Subdivision/docs/review/signal-symbols-worklist.md`). The model's word is train order board.
+    - Trackplan: Appliance `train_order`, Style `single` or `double`, with a Name and a `Station` field that names its timetable station. The symbol has no pins. A board is never on the track, in a route or in a control point, and no mast rule reads it.
+    - Field: a mast device, Appliance `train_order_mast`, with one pin for each face. The faces of a double board are named for the directions: `E` and `W`, or `N` and `S`. A head device wired to a face pin is the head of that face. A fascia lever (Appliance `lever`, Style `train_order`) wired to the same pin works that face.
+    - The lever has two inputs, `STOP` and `SLOW`. Nothing asserted shows CLEAR. `SLOW` shows APPROACH. `STOP` shows STOP. The more restrictive input wins. These words are indications, never a color or a blade angle. A face that shows all three needs a three-position head.
+    - The control is local and non-vital. No code line carries it. CALLON is not a train order control: it is an indication of the block signal, used with the board to bring a train that stopped at the block boundary up to the station (the owner, 2026-11-08).
+  - FieldUnit: no train order appliance in the library yet. The run-time logic is FieldUnit issue #44.
 
 ## 8. Signal indications and locking
 
@@ -443,7 +453,20 @@ Illustrative step assignment for office indications. Source: JMRI developers lis
 - A rule number belongs to one rulebook and one era. Give the book with the number.
 - **current of traffic** [Both]. The movement of trains on a main track in one direction, specified in the timetable (`RULE_251`) [PRR56 Definitions; CFR236 §236.734]. In the layout model, a `RULE_251` sign's `LEFT` or `RIGHT` states the lever direction of the signals that govern with the current of traffic (`FieldUnit-Subdivision/docs/adr/0013-between-control-points.md` §8). Compare traffic, direction of traffic (section 8).
 - **timetable** [Prototype]. The document that authorizes the regular trains of a division, gives their schedules and superiority, and holds special instructions. Under timetable and train order operation it is one of the two sources of authority. (unverified)
-- **train order** [Prototype]. A written order from the dispatcher, sent by telegraph (later by telephone) through an operator to a train crew. It adds to or changes the authority of the timetable. The first telegraphic train order is usually credited to Charles Minot on the Erie, 1851 (unverified). Compare train order signal.
+- **timetable station** [Both]. A place on the line that the timetable names. A train order signal stands at one. (unverified: the Standard Code definition of station was not opened.)
+  - Layout model: an entry of `layout.stations`, keyed by its Name. It is drawn as a `STRUCTURE` symbol of Kind `STATION` with its `Milepost`. `relations.interlocking` is the interlocking whose sheet it is drawn under (`FieldUnit-Subdivision/schemas/layout-model/v3.1.0.json`; the owner, 2026-11-03). The `Station` field of a train order board names one.
+  - It is not a field station. A field station is an address on a code line. A timetable station is a place.
+  - SPCoast: `Gilroy`, milepost 77.9, drawn under Gilroy Interchange.
+- **train order** [Prototype]. A written order from the dispatcher to a train crew. The dispatcher sends it by telegraph (later by telephone) to the operator at a train order office. The operator copies it and delivers it to the crew. It adds to or changes the authority of the timetable. The first telegraphic train order is usually credited to Charles Minot on the Erie, 1851 (unverified). Compare train order signal, Form 19, Form 31.
+  - What a train order does (the owner, 2026-11-09; unverified: no source was opened):
+    - It authorizes an extra train: one that the timetable does not list.
+    - It sets a meeting or passing point: it directs one train to take a siding for another.
+    - It changes a schedule: it adds a section to a regular train, or it annuls a scheduled train.
+    - It warns of a track condition: a slow order, a washout, a maintenance crew on the line.
+    - With the timetable, it keeps two trains from holding the same piece of single track.
+  - Why it existed (same source): the timetable is fixed in advance. When a train ran late or failed, a single track line needed a lawful way to change which train had the right to the track. Before two-way radio, the telegraph to a trackside office was the only way to reach a crew on the road.
+  - Era (same source): from the 1850s until the late 20th century, when radio, track warrants and CTC replaced it.
+  - The model does not cover train orders. It covers the train order signal and the timetable station.
 - **Form 19** [Prototype]. A train order that the crew can take without stopping: the operator hands it up on a hoop and the crew takes it on the fly. The conductor does not sign for it (unverified). Compare Form 31.
 - **Form 31** [Prototype]. A train order that the train must stop for: the conductor (on some roads the engineman too) signs for it before the operator gives the clearance. It is used for the more restrictive orders (unverified). Compare Form 19.
 - SPCoast models 1942 to 1985 (title block). Use Standard Code numbers for SPCoast. Name GCOR only as the modern equivalent.
