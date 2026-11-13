@@ -1,6 +1,6 @@
 # 0010. The train order board: a face is a lever and a mast, outside the interlocking
 
-- Status: proposed (drafted for the owner, 2026-11-10; reviewed by the owner 2026-11-12: "no serious problems", with the clarifications to D2, D4 and the timing text that the Record lists; not yet marked accepted)
+- Status: accepted (drafted for the owner, 2026-11-10; reviewed by the owner 2026-11-12 with the clarifications to D2, D4 and the timing text that the Record lists; D1 to D6 ratified by the owner 2026-11-12; not yet in `src/`)
 - Date: 2026-11-10
 - Builds on: `docs/GLOSSARY.md` entries train order signal, timetable station, Form 19, Form 31; FieldUnit-Subdivision `docs/review/signal-symbols-worklist.md`, "Train order boards" (ruled 2026-11-05, reworked 2026-11-08), items 1 to 6; FieldUnit-Subdivision `tools/layout_model/reference.py` (`TRAIN_ORDER_INPUTS`, `TRAIN_ORDER_CLEAR`); FieldUnit ADR 0003 (D8 a local lever is a local client; D9 heads bind, not masts); FieldUnit ADR 0008 (a mast is an output and nothing reads it); FieldUnit ADR 0009 (the direction a gap fails in).
 - Order of authority: as FieldUnit ADR 0007 states it. This ADR adds no relay and no vital logic. Every prototype statement it relies on is in the glossary entry, where it is marked unverified.
@@ -78,10 +78,11 @@ void loop() {
 ## Not decided here
 
 - How a lever input and a head are driven. That is the driver seam (FieldUnit ADR 0003 and 0004, both proposed). The illustration uses the per-appliance drivers that the example sketches use today.
-- How the reference tables reach FieldUnit. The compiled file carries only a date for each table; the tables are Python in FieldUnit-Subdivision (found by the Corporal generator spike, 2026-11-12, and sent to that session). D2 needs the words as data.
+- How the reference tables reach FieldUnit. The compiled file carries only a date for each table; the tables are Python in FieldUnit-Subdivision (found by the Corporal generator spike, 2026-11-12, and sent to that session). D2 needs the words as data. The direction (the owner, 2026-11-12): the tables become JSON files that the two repositories share, each with a schema, a schema version and a provenance date or nonce. Their shape, and where they are published, is FieldUnit-Subdivision's to decide.
 
 ## Record
 
+- 2026-11-12: D1 to D6 ratified by the owner ("Agreed/approved ADR"). No code is written; `TrainOrderFace` and its test are FieldUnit issue #44. The same day the owner gave the direction for the reference tables that "Not decided here" records.
 - 2026-11-12, the owner's review: "Other than these clarifications and nits, I see no serious problems with the ADR." The clarifications are in the text: D2 names where the model gets the words (reference data selected by the model, or the user's explicit choice in the model); D4 says the face is at a station within an interlocking and has no part in the vital logic in either direction, with the prototype's lever beside the telegraph clerk; a single board has a direction from the symbol's rotation and mirroring; timing is settled by evaluating less often if needed, and a head may take one to three seconds to move.
 - 2026-11-12: FieldUnit-Subdivision issue 85 is closed and the compiled SPCoast file carries a distinct key for each face's head and for each lever output. The paragraph that held the bindings open is replaced by the keys, and D5 states where a face's identity comes from. D1 now says "ranked": the owner asked whether "the first asserted input wins" hid a race, and it does not. The owner ruled that the face needs no debounce and that a moment of CLEAR between lever positions is acceptable.
 - 2026-11-10: drafted while the layout compiler work was in flight in FieldUnit-Subdivision. No code is written. An earlier suggestion in the session, that a face rest at Stop, is withdrawn in favor of the ruling (D6).
