@@ -35,4 +35,4 @@ Invariants no ADR records yet (declaration order is the wire index, schema order
 | [0007](0007-interlocking-block-seam.md) | The interlocking–block seam in the field unit | accepted (D1 to D5, 2026-11-02; D4 default revised 2026-11-02) |
 | [0008](0008-automatic-signal.md) | The automatic signal: a location that reads the block ahead and produces the HD line to the rear | accepted (D1 to D6, 2026-11-02) |
 | [0009](0009-unresolved-references.md) | An incomplete plant: what a binding does when its name has no source | accepted (D1 to D6, 2026-11-02; implemented the same day) |
-| [0010](0010-train-order-face.md) | The train order board: a face is a lever and a mast, outside the interlocking | proposed (drafted for the owner 2026-11-10; not yet reviewed) |
+| [0010](0010-train-order-face.md) | The train order board: a face is a lever and a mast, outside the interlocking | proposed (reviewed by the owner 2026-11-12; not yet marked accepted) |
