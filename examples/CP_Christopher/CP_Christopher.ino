@@ -21,11 +21,11 @@
  * Wire schema:
  *   Controls:
  *     1NW, 1RW, 3NW, 3RW, 3BNW, 3BRW, 5NW, 5RW
- *     2SG, 2NG, 2H,  MC1, MC2
+ *     2SG, 2NG, 2H,  1MC, 2MC
  *   Indications (4 bytes):
  *     1NWK, 1RWK, 3NWK, 3RWK, 3BNWK, 3BRWK, 5NWK, 5RWK
  *     1T1,  3T1,  3BT1, 5T1,  1SA,   2SA,   1NA,  2NA
- *     2SGK, 2NGK, 2TEK, MC1,  MC2,   IND
+ *     2SGK, 2NGK, 2TEK, 1MC,  2MC,   IND
  */
 
 #include <FieldUnit.h>

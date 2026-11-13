@@ -173,7 +173,7 @@ inline DecodeEntry decodeMaintainer(uint8_t mcIdx, const char* customName = null
     if (customName && customName[0] != '\0') {
         cleanRailroadId(customName, e.name, sizeof(e.name));
     } else {
-        snprintf(e.name, sizeof(e.name), "MC%u", static_cast<unsigned>(mcIdx + 1));
+        snprintf(e.name, sizeof(e.name), "%uMC", static_cast<unsigned>(mcIdx + 1));
     }
     e.skipCount = 0;
     return e;
@@ -355,7 +355,7 @@ inline EncodeEntry encodeMaintainer(uint8_t mcIdx, const char* customName = null
     if (customName && customName[0] != '\0') {
         cleanRailroadId(customName, e.name, sizeof(e.name));
     } else {
-        snprintf(e.name, sizeof(e.name), "MC%u", static_cast<unsigned>(mcIdx + 1));
+        snprintf(e.name, sizeof(e.name), "%uMC", static_cast<unsigned>(mcIdx + 1));
     }
     e.skipCount = 0;
     e.activeHigh = true;
@@ -380,8 +380,8 @@ inline EncodeEntry encodeMaintainer() {
 // Conservative in what is produced (exact declaration order),
 // liberal in what is consumed (any order, whitespace/case insensitive).
 // Unambiguous:
-// - Control tokens MUST end with 'S' (1NWS, 1RWS, 2SGS, 2NGS, 2HS, MC1S)
-// - Indication tokens MUST end with 'K' (1NWK, 1RWK, 1T1K, 2SGK, 2NGK, 2TEK, MC1K)
+// - Control tokens MUST end with 'S' (1NWS, 1RWS, 2SGS, 2NGS, 2HS, 1MCS)
+// - Indication tokens MUST end with 'K' (1NWK, 1RWK, 1T1K, 2SGK, 2NGK, 2TEK, 1MCK)
 // - Asserted = TOKEN, Negated / Dropped = (TOKEN)
 //
 // =============================================================================

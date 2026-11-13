@@ -63,8 +63,8 @@ See section 10.3 of the [Glossary](../GLOSSARY.md) for the full table and the or
 | **`2SGK`** | Signal 2 office indication: RIGHT | Field $\to$ Dispatcher | 1 = RIGHT is the active direction |
 | **`2NGK`** | Signal 2 office indication: LEFT | Field $\to$ Dispatcher | 1 = LEFT is the active direction |
 | **`2TEK`** | Signal 2 office indication: time locking runs | Field $\to$ Dispatcher | 1 = timer running |
-| **`MC1S`** | Maintainer call control | Dispatcher $\to$ Field | 1 = call the maintainer |
-| **`MC1K`** | Maintainer call office indication | Field $\to$ Dispatcher | 1 = call lamp lit |
+| **`1MCS`** | Maintainer call control | Dispatcher $\to$ Field | 1 = call the maintainer |
+| **`1MCK`** | Maintainer call office indication | Field $\to$ Dispatcher | 1 = call lamp lit |
 
 ---
 
@@ -77,14 +77,14 @@ Here is the standard 2-byte control and 4-byte office indication layout:
 ### Controls (2 Bytes)
 ```
 Byte 0: [ 1NW, 1RW, 3NW, 3RW, 5NW, 5RW, 7NW, 7RW ]
-Byte 1: [ 2SG, 2NG,  2H,   - , 4SG, 4NG,  4H, MC1  ]
+Byte 1: [ 2SG, 2NG,  2H,   - , 4SG, 4NG,  4H, 1MC  ]
 ```
 
 ### Office Indications (4 Bytes)
 ```
 Byte 0: [ 1NWK, 1RWK, 3NWK, 3RWK, 5NWK, 5RWK, 7NWK, 7RWK ]
 Byte 1: [ 1T1,  3T1,  5T1,  7T1,  1SA,  2SA,  1NA,  2NA  ]
-Byte 2: [ 2SGK, 2NGK, 2TEK,  - , 4SGK, 4NGK, 4TEK, MC1K ]
+Byte 2: [ 2SGK, 2NGK, 2TEK,  - , 4SGK, 4NGK, 4TEK, 1MCK ]
 Byte 3: [ IND1, IND2, IND3,  - ,   - ,   - ,   - ,   -   ]
 ```
 

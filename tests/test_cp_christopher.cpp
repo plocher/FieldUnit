@@ -268,11 +268,11 @@ void runCPChristopherTests() {
     // Christopher wire layout from CP_Christopher.xml:
     // Controls: 2 bytes
     // Byte 0: 1NW(b0), 1RW(b1), 3NW(b2), 3RW(b3), 3BNW(b4), 3BRW(b5), 5NW(b6), 5RW(b7)
-    // Byte 1: 2SG(b0), 2NG(b1), 2H(b2), MC1(b5), MC2(b6)
+    // Byte 1: 2SG(b0), 2NG(b1), 2H(b2), 1MC(b5), 2MC(b6)
     // Indications: 4 bytes
     // Byte 0: 1NWK(b0), 1RWK(b1), 3NWK(b2), 3RWK(b3), 3BNWK(b4), 3BRWK(b5), 5NWK(b6), 5RWK(b7)
     // Byte 1: 1T1(b0), 3T1(b1), 3BT1(b2), 5T1(b3), 1SA(b4), 2SA(b5), 1NA(b6), 2NA(b7)
-    // Byte 2: 2SGK(b0), 2NGK(b1), 2TEK(b2), MC1(b4), MC2(b5)
+    // Byte 2: 2SGK(b0), 2NGK(b1), 2TEK(b2), 1MC(b4), 2MC(b5)
     // Byte 3: IND(b0)
     CodeLineCodec codec(2, 4);
     codec.mapSwitchControl(0, 0, 0, 0, 1); // SW1: b0=1NW, b1=1RW
@@ -280,7 +280,7 @@ void runCPChristopherTests() {
     codec.mapSwitchControl(2, 0, 4, 0, 5); // SW3B: b4=3BNW, b5=3BRW
     codec.mapSwitchControl(3, 0, 6, 0, 7); // SW5: b6=5NW, b7=5RW
     codec.mapSignalControl(0, 1, 0, 1, 2); // SIG2: b0=2SG, b1=2NG, b2=2H
-    codec.mapMaintainerControl(0, 1, 5);   // MC1: b5
+    codec.mapMaintainerControl(0, 1, 5);   // 1MC: b5
 
     codec.mapSwitchIndication(0, 0, 0, 0, 1); // 1NWK, 1RWK
     codec.mapSwitchIndication(1, 0, 2, 0, 3); // 3NWK, 3RWK

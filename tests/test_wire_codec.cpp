@@ -21,7 +21,7 @@ void testAarTextCodecSequentialStepping() {
         decodeSwitch(sw1),   // Step 0: 1NW, Step 1: 1RW
         decodeSwitch(sw3),   // Step 2: 3NW, Step 3: 3RW
         decodeSignal(sig2),  // Step 4: 2SG, Step 5: 2NG, Step 6: 2H
-        decodeMaintainer(0)  // Step 7: MC1
+        decodeMaintainer(0)  // Step 7: 1MC
     });
 
     codec.encodeIndications({
@@ -29,11 +29,11 @@ void testAarTextCodecSequentialStepping() {
         encodeSwitch(sw3),   // 3NWK, 3RWK
         encodeTrack(tc1T),   // 1TK
         encodeSignal(sig2),  // 2SGK, 2NGK, 2TEK
-        encodeMaintainer(0)  // MC1K
+        encodeMaintainer(0)  // 1MCK
     });
 
     // 1. Inbound message in exact sequential order (Step 0 to Step 7)
-    const char* validInput = "1nws, (1rws), (3nws), 3rws, (2sgs), 2NGS, (2hs), mc1s";
+    const char* validInput = "1nws, (1rws), (3nws), 3rws, (2sgs), 2NGS, (2hs), 1mcs";
     ControlTransaction ctl;
     bool ok = codec.decodeControls(validInput, ctl);
     assert(ok);
@@ -44,8 +44,8 @@ void testAarTextCodecSequentialStepping() {
     assert(ctl.maintainerCall[0] == true);
     printf("  -> PASS: Strict sequential step tokens correctly decoded\n");
 
-    // 2. Out-of-sequence message: MC1S sent first -> must be rejected immediately!
-    const char* outOfOrder = "mc1s, 1nws, (1rws), (3nws), 3rws, (2sgs), 2NGS, (2hs)";
+    // 2. Out-of-sequence message: 1MCS sent first -> must be rejected immediately!
+    const char* outOfOrder = "1mcs, 1nws, (1rws), (3nws), 3rws, (2sgs), 2NGS, (2hs)";
     ControlTransaction ctlBadSeq;
     bool badSeqOk = codec.decodeControls(outOfOrder, ctlBadSeq);
     assert(badSeqOk == false);
@@ -61,7 +61,7 @@ void testAarTextCodecSequentialStepping() {
     printf("  -> PASS: Truncated transmission rejected immediately (Gate 1 failure)\n");
 
     // 4. Missing term for Switch 1: Only 1NWS sent, 1RWS omitted -> must be rejected!
-    const char* missingTerm = "1nws, (3nws), 3rws, (2sgs), 2NGS, (2hs), mc1s";
+    const char* missingTerm = "1nws, (3nws), 3rws, (2sgs), 2NGS, (2hs), 1mcs";
     ControlTransaction ctlMissing;
     bool missOk = codec.decodeControls(missingTerm, ctlMissing);
     assert(missOk == false);
@@ -84,8 +84,8 @@ void testAarTextCodecSequentialStepping() {
     assert(encOk);
 
     // Exact expected format:
-    // 1NWK, (1RWK), (3NWK), 3RWK, 1TK, (2SGK), 2NGK, (2TEK), MC1K
-    const char* expected = "1NWK, (1RWK), (3NWK), 3RWK, 1TK, (2SGK), 2NGK, (2TEK), MC1K";
+    // 1NWK, (1RWK), (3NWK), 3RWK, 1TK, (2SGK), 2NGK, (2TEK), 1MCK
+    const char* expected = "1NWK, (1RWK), (3NWK), 3RWK, 1TK, (2SGK), 2NGK, (2TEK), 1MCK";
     assert(strcmp(outBuf, expected) == 0);
     printf("  -> PASS: Indications formatted in exact declaration order: %s\n\n", outBuf);
 }
@@ -135,8 +135,8 @@ void testAarTextCodecVitalConflictIsolation() {
     });
 
     // Inbound packet has conflicting switch demand: 1NWS AND 1RWS both asserted!
-    // But maintainer call MC1S is also present and valid.
-    const char* corruptInput = "1NWS, 1RWS, (2SGS), (2NGS), (2HS), MC1S";
+    // But maintainer call 1MCS is also present and valid.
+    const char* corruptInput = "1NWS, 1RWS, (2SGS), (2NGS), (2HS), 1MCS";
     ControlTransaction ctl;
     codec.decodeControls(corruptInput, ctl);
 
@@ -211,7 +211,7 @@ void testBitPackedCodecSequentialStream() {
 
     // Test Control Unpack:
     // Byte 0: 1NW=1 (b0), 3RW=1 (b3) -> 0x01 | 0x08 = 0x09
-    // Byte 1: 2NG=1 (b1), MC1=1 (b3) -> 0x02 | 0x08 = 0x0A
+    // Byte 1: 2NG=1 (b1), 1MC=1 (b3) -> 0x02 | 0x08 = 0x0A
     uint8_t rx[2] = { 0x09, 0x0A };
     ControlTransaction ctl;
     bool ok = codec.unpackControls(rx, sizeof(rx), ctl);
