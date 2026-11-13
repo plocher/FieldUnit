@@ -331,7 +331,7 @@ public:
     }
 
     Crossover* addCrossover(const char* name, Switch* swA, Switch* swB) {
-        if (crossoverCount_ >= MAX_APPLIANCES) return nullptr;
+        if (crossoverCount_ >= MAX_CROSSOVERS) return nullptr;
         crossovers_[crossoverCount_] = Crossover(name, swA, swB);
         return &crossovers_[crossoverCount_++];
     }
