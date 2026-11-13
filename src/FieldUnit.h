@@ -10,6 +10,7 @@
 #include "Crossover.h"
 #include "SignalControl.h"
 #include "SignalMast.h"
+#include "TrainOrderFace.h"
 #include "ControlTable.h"
 #include "AutomaticSignal.h"
 #include "ControlPointLine.h"
