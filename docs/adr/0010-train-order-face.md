@@ -35,7 +35,7 @@ What the model gives (read on FieldUnit-Subdivision `origin/main` at da2a765, `s
 | `E` | `Gilroy/SIGNALMAST.Gilroy.E/IND` | `Gilroy/SENSOR.Gilroy.E.STOP/S` | `Gilroy/SENSOR.Gilroy.E.SLOW/S` |
 | `W` | `Gilroy/SIGNALMAST.Gilroy.W/IND` | `Gilroy/SENSOR.Gilroy.W.STOP/S` | `Gilroy/SENSOR.Gilroy.W.SLOW/S` |
 
-SPCoast has no single board. The key of a single board's one face, which carries no direction, is unverified.
+SPCoast has no single board. The FieldUnit-Subdivision session states (2026-11-12) that a single board's mast has one position pin, so its keys carry no face: `SIGNALMAST.<Name>` for the head and `SENSOR.<Name>.STOP` and `SENSOR.<Name>.SLOW` for the lever. No instance and no rule scenario of a single board was read.
 
 What `src/` has today. Each line was read in the cited file on 2026-11-10.
 
