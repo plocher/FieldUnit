@@ -503,14 +503,14 @@ void configureDesk() {
         .inColumn(1).withSwitch("1").withTrackLamps({ "1T1", "EA1" })
         .inColumn(2).withSwitch("3").withTrackLamps({ "TK1", "TK2", "TK3" }).withCodeButton();
 
-    // Column 3..4: CP_GilroyInterchange (MC1 on Col 3, MC2 on Col 4)
+    // Column 3..4: CP_GilroyInterchange (1MC on Col 3, 2MC on Col 4)
     // Note: Column 3 traffic lamps (Position 1 & 2) repurposed for CodeLine Control/Indication pulses!
     machine.addStation("CP_GilroyInterchange")
         .inColumn(3).withSwitch("1").withMaintainerCall("1")
         .inColumn(4).withSwitch("3").withTrackLamps({ "1T1", "3T1", "TK1" }).withMaintainerCall("2").withCodeButton();
 
     // Column 5..7: interlocking Luchessa = CP Luchessa, CP Gilroy, CP Carnadero
-    // (one column per CP; Signal 784 on Col 5, MC1 on Col 6; one CODE button).
+    // (one column per CP; Signal 784 on Col 5, 1MC on Col 6; one CODE button).
     // KiCad -> FieldUnit JSON truth: switches 783/795/799, signal 784.
     // Dependent derail 795D has no separate lever; master 795 KR is combined.
     machine.addStation("Luchessa")
@@ -518,18 +518,18 @@ void configureDesk() {
         .inColumn(6).withSwitch("795").withTrackLamps({ "795T1" }).withMaintainerCall("1")
         .inColumn(7).withSwitch("799").withCodeButton();
 
-    // Column 8..10: CP_Christopher (MC1 on Col 8, MC2 on Col 10)
+    // Column 8..10: CP_Christopher (1MC on Col 8, 2MC on Col 10)
     machine.addStation("CP_Christopher")
         .inColumn(8).withSwitch("1").withTrackLamps({ "1T1", "1WA", "2WA" }).withMaintainerCall("1")
         .inColumn(9).withSwitch("3").withSignal("2").withTrackLamps({ "3T1", "3BT1", "5T1" })
         .inColumn(10).withSwitch("5").withTrackLamps({ "1EA", "2EA" }).withMaintainerCall("2").withCodeButton();
 
-    // Column 11..12: CP_Corporal (MC1 on Col 11)
+    // Column 11..12: CP_Corporal (1MC on Col 11)
     machine.addStation("CP_Corporal")
         .inColumn(11).withSwitch("1").withSignal("2").withTrackLamps({ "1EA", "1T1", "3T1" }).withMaintainerCall("1")
         .inColumn(12).withSwitch("3").withTrackLamps({ "SDT", "TL", "TR" }).withCodeButton();
 
-    // Column 13: CP_Sargent (MC1 on Col 13)
+    // Column 13: CP_Sargent (1MC on Col 13)
     machine.addStation("CP_Sargent")
         .inColumn(13).withSwitch("1").withTrackLamps({ "1T1", "HBD" }).withMaintainerCall("1").withCodeButton();
 

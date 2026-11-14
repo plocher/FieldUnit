@@ -486,12 +486,18 @@ inline PanelColumn& PanelColumn::withCodeButton() {
     return *this;
 }
 
+// A maintainer call is named with its number first: "1" names 1MC, with the tokens
+// 1MCS and 1MCK (docs/GLOSSARY.md, section 10.2). A name that already ends in MC is
+// the appliance name and is used as it is.
 inline PanelColumn& PanelColumn::withMaintainerCall(const char* mcNum) {
     if (mcNum) {
-        if (mcNum[0] == 'M' || mcNum[0] == 'm') {
+        size_t n = strlen(mcNum);
+        bool named = n >= 2 && (mcNum[n - 2] == 'M' || mcNum[n - 2] == 'm')
+                            && (mcNum[n - 1] == 'C' || mcNum[n - 1] == 'c');
+        if (named) {
             strncpy(mcNum_, mcNum, sizeof(mcNum_) - 1);
         } else {
-            snprintf(mcNum_, sizeof(mcNum_), "MC%s", mcNum);
+            snprintf(mcNum_, sizeof(mcNum_), "%sMC", mcNum);
         }
         mcNum_[sizeof(mcNum_) - 1] = '\0';
         hasMaintainerCall_ = true;

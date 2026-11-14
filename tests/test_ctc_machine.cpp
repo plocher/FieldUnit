@@ -263,6 +263,42 @@ void testStationLookupFoldsCaseOnly() {
     printf("  -> PASS: station lookup folds case only; interlocking and CP names stay distinct.\n");
 }
 
+void testMaintainerCallTokens() {
+    printf("--- Running testMaintainerCallTokens ---\n");
+    MockPanelHardware hw;
+    cTcMachine machine(hw);
+
+    // Two maintainer calls: one given as its number, one as its appliance name.
+    machine.addStation("Luchessa")
+        .inColumn(5).withSwitch("783").withMaintainerCall("1")
+        .inColumn(6).withSwitch("795").withMaintainerCall("2MC").withCodeButton();
+    machine.begin();
+
+    assert(strcmp(machine.station(0).column(0).maintainerNum(), "1MC") == 0);
+    assert(strcmp(machine.station(0).column(1).maintainerNum(), "2MC") == 0);
+
+    // Control: the number comes first, then MC, then the suffix S.
+    hw.setInput(5, PanelInput::SW_NORMAL, true);
+    hw.setInput(6, PanelInput::SW_NORMAL, true);
+    hw.setInput(6, PanelInput::MAINTAINER_CALL_SW, true);
+    hw.setInput(6, PanelInput::CODE_BUTTON, true);
+    hw.setInput(6, PanelInput::CODE_BUTTON, false);
+    size_t stIdx = 999;
+    const char* tokens = nullptr;
+    assert(machine.pollCode(stIdx, tokens));
+    printf("  -> Compiled Tokens: %s\n", tokens);
+    assert(strcmp(tokens, "783NWS, (783RWS), 795NWS, (795RWS), (1MCS), 2MCS") == 0);
+
+    // Indication: the same names with the suffix K light the column's lamp.
+    assert(machine.applyIndications("Luchessa", "783NWK, (783RWK), 795NWK, (795RWK), 1MCK, (2MCK)"));
+    assert(hw.getOutput(5, PanelOutput::MAINTAINER_LAMP) == true);
+    assert(hw.getOutput(6, PanelOutput::MAINTAINER_LAMP) == false);
+
+    // The former spelling is not this station's token: the message is out of version sync.
+    assert(!machine.applyIndications("Luchessa", "783NWK, (783RWK), 795NWK, (795RWK), MC1K, (MC2K)"));
+    printf("  -> PASS: maintainer call tokens are <n>MCS and <n>MCK.\n");
+}
+
 int main() {
     printf("====================================================\n");
     printf("   CTC MACHINE UNIT TESTS                           \n");
@@ -273,6 +309,7 @@ int main() {
     testHarvestReportsCurrentLeverPositions();
     testCtcMachineIndicationFanOut();
     testStationLookupFoldsCaseOnly();
+    testMaintainerCallTokens();
 
     printf("\nALL CTC MACHINE TESTS PASSED!\n");
     return 0;

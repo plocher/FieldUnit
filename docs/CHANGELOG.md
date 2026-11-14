@@ -5,6 +5,11 @@ All notable changes to the FieldUnit library will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- **Maintainer call tokens put the number first (breaking)**:
+  - A maintainer call is named `<n>MC`, with the control `<n>MCS` and the indication `<n>MCK` (`1MC`: `1MCS`, `1MCK`), as `docs/GLOSSARY.md` section 10.2 states. The library built `MC<n>` before (`MC1S`, `MC1K`). Owner's ruling, 2026-11-13.
+  - `decodeMaintainer()` and `encodeMaintainer()` build `<n>MC` when no name is given. `PanelColumn::withMaintainerCall("1")` builds `1MC`; a name that already ends in `MC` is used as it is. No code accepts the former spelling: a message that carries `MC1S` or `MC1K` is refused as out of version sync.
+  - The wire tokens change on both ends. Build and load the desk and its field units together, and clear retained indication messages that carry the former tokens.
+  - `tools/test_ctc_desk.py`, the primer, the data-collection how-to and the examples follow. New test `testMaintainerCallTokens` in `tests/test_ctc_machine.cpp`.
 - **Vocabulary rewrite of the documentation**: `docs/GLOSSARY.md` is rewritten in ASD-STE100 style and is the source of truth for terms (three roles and one seam; interlocking plant, logic, model, application, field processor, field unit; control point; field station; US&S 506 code line facts; retired terms table; relay model of the interlocking logic). The primer, README, tutorials, how-tos and `CTC_SUBDIVISION_AND_PLANT_DESIGN.md` follow it. Tutorial and how-to code samples match the current API (`InterlockingPlant`). The record of findings and decisions is `FieldUnit-Subdivision/docs/archive/vocabulary-review.md`.
 - **Derail polarity now follows the prototype (breaking)**:
   - Derail `NORMAL` is the derailing position (on the rail). `REVERSE` is clear. Derails rest in `NORMAL`.

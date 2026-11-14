@@ -535,7 +535,7 @@ The office sends **one complete control transaction** across the code line:
 - **Parenthesized token (`(3NWS)`)**: The function is **dropped** (the lever is not in that position).
 
 ```
-[ 1NWS, (1RWS), (3NWS), 3RWS, 5NWS, (5RWS), 2SGS, (2NGS), (2HS), (4SGS), (4NGS), 4HS, (MC1S) ]
+[ 1NWS, (1RWS), (3NWS), 3RWS, 5NWS, (5RWS), 2SGS, (2NGS), (2HS), (4SGS), (4NGS), 4HS, (1MCS) ]
 ```
 
 Why must dropped tokens be present?
@@ -724,7 +724,7 @@ FieldUnit's `AarTextCodec` carries switch, signal, electric lock and maintainer 
 | **Electric Lock**| `7WLS` | Release Electric Lock 7 | Vital | Every signal must be at Stop and no time locking may run. |
 | **Fleeting** † | `2FS` | Turn Fleeting On for Signal 2 | Vital | Conditions the `FSR` stick bypass. |
 | **Call-On** † | `2COS` | Call-On (Restricting) | Vital | Allows `RESTRICTING` into an occupied track circuit. |
-| **Maintainer** | `MC1S` | Maintainer Call ON/OFF | Non-vital | Applied at once; no locking checks. |
+| **Maintainer** | `1MCS` | Maintainer Call ON/OFF | Non-vital | Applied at once; no locking checks. |
 | **Auxiliary** † | `SNOWS` | Switch Heater / Snow Melter | Non-vital | Applied at once. |
 
 #### 10.2 Office Indication Taxonomy (Field to Office)
@@ -740,14 +740,14 @@ FieldUnit's `AarTextCodec` carries switch, signal, electric lock and maintainer 
 | **Signal** | `2SGK` | Signal 2 Cleared RIGHT | Vital | `2HSR` holds RIGHT. |
 | **Signal** | `2TEK` | Time Locking Runs at Signal 2 | Vital | The time-locking timer runs (`ASR()` of signal 2 is false). |
 | **Electric Lock**| `7WLK` | Electric Lock 7 Released | Vital | The field unit released the lock. |
-| **Maintainer** | `MC1K` | Maintainer Call On | Non-vital | The field unit's maintainer call state. |
+| **Maintainer** | `1MCK` | Maintainer Call On | Non-vital | The field unit's maintainer call state. |
 | **Power** † | `PORK` | Power Off (Commercial AC Loss) | Non-vital | A power-off relay dropped; running on battery. |
 | **Security** † | `DOORK` | Bungalow Door Open (modeling idea) | Non-vital | Door contact. |
 
 #### 10.3 The Two Classes of Control
 When a `ControlTransaction` arrives at a field unit, two rules apply:
 1. **A malformed transaction is ignored as a whole.** A transaction is malformed when it is incomplete, contains unknown or corrupted data, or fails a structural check of its code line. The field unit ignores the controls of both classes, updates its error counters, and sends office indications of its current, unchanged state. A UDP packet with a bad checksum behaves the same way.
-2. **A valid transaction that is unsafe has every vital control ignored together.** If acting on the transaction would violate a safety protection, the field unit ignores every vital control in it. It does not act on the safe ones and skip the unsafe one. If a switch is locked, no vital control in that transaction acts, including the free switches. The field unit acts on every non-vital control (such as Maintainer Call `MC1S`). It sends no refusal; the office learns the result from the office indications.
+2. **A valid transaction that is unsafe has every vital control ignored together.** If acting on the transaction would violate a safety protection, the field unit ignores every vital control in it. It does not act on the safe ones and skip the unsafe one. If a switch is locked, no vital control in that transaction acts, including the free switches. The field unit acts on every non-vital control (such as Maintainer Call `1MCS`). It sends no refusal; the office learns the result from the office indications.
 
 This lets a dispatcher call a maintainer even when a derailment or broken rail has locked down the interlocking.
 
@@ -829,7 +829,7 @@ codec.decodeControls({
     decodeSwitch(cp.findSwitch("5")),          // 5NWS, 5RWS
     decodeSignal(cp.findSignalControl("2")),   // 2SGS, 2NGS, 2HS
     decodeSignal(cp.findSignalControl("4")),   // 4SGS, 4NGS, 4HS
-    decodeMaintainer(0)                        // MC1S
+    decodeMaintainer(0)                        // 1MCS
 });
 
 codec.encodeIndications({
@@ -845,7 +845,7 @@ codec.encodeIndications({
     encodeTrack(cp.findTrackCircuit("2SAT")),  // 2SATK
     encodeSignal(cp.findSignalControl("2")),   // 2SGK, 2NGK, 2TEK
     encodeSignal(cp.findSignalControl("4")),   // 4SGK, 4NGK, 4TEK
-    encodeMaintainer(0)                        // MC1K
+    encodeMaintainer(0)                        // 1MCK
 });
 ```
 
@@ -876,7 +876,7 @@ For industrial spurs or hand-operated crossovers:
 
 ### 14. Maintainer Call (`MC`) and Wayside Telephones
 On the prototype, the maintainer call did what its name says: it called the signal maintainer to a location. A 1959 CTC machine had a "maintainer's call" control, with a maintainers' call lamp at each location.
-- The dispatcher codes **`MC1S`** to light the Maintainer Call lamp at the location.
+- The dispatcher codes **`1MCS`** to light the Maintainer Call lamp at the location.
 - Mount a tiny white 0402 SMD LED on the peak of the bungalow roof or on the signal mast.
 
 **A modeling idea (not a prototype rule):** on a layout with no radios, you can use the same lamp to call an operator to a fascia telephone.
