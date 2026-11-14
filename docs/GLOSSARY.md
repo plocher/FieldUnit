@@ -241,16 +241,26 @@ writes the file is one writer among others.
 
 - **code button** [Both]. The push button that sends the controls of one field station. The label on the machine is CODE.
   - FieldUnit: `PanelInput::CODE_BUTTON`. `cTcMachine` sends when the button is released (`OneShot`).
-- **control** [Both]. A function sent from the office to the field. It states the intent of the dispatcher. The field unit decides whether to act on it. Examples: `783NWS`, `784NGS`.
+- **control** [Both]. A demand sent from the office to the field over a code line, as a function. It states the intent of the dispatcher. The field unit decides whether to act on it. Examples: `783NWS`, `784NGS`.
 - **control transaction** [FieldUnit]. The complete set of controls for one field unit, applied as one unit. Code name: `ControlTransaction`. Two rules govern it (FieldUnit `docs/adr/0002-control-transaction-classes.md`):
   - A malformed transaction is ignored as a whole. This includes the controls of both classes. The field unit updates its error counters and sends office indications of its current state.
   - A valid transaction that would violate a safety protection has every vital control ignored together. The field unit does not act on the safe ones and skip the unsafe one. It processes every non-vital control.
+- **demand** [FieldUnit]. A request that an appliance take a state: a switch to go to normal or reverse, a signal to clear, a lock to release.
+  - A demand that comes from the office over a code line is a control.
+  - A demand that a field unit reads from its I/O is a local demand.
+  - Every demand is an input to the interlocking logic of the interlocking that owns the appliance. Only that logic drives the appliance, and it decides whether to act on the demand.
+  - Source: FieldUnit-Subdivision ADR 0017, decision 3 (owner's ruling, 2026-11-14).
+  - FieldUnit: `SwitchDemand`, `ElectricLockDemand`, `SignalDemand` (`src/types.h`, lines 80 to 94); `ControlTransaction::switchDemands`, `lockDemands`, `signalDemands`, `fleetDemands` (`src/InterlockingPlant.h`, lines 26 to 35). Each is a demand of the dispatcher in a control transaction, so these names carry controls. An input for a local demand is the subject of FieldUnit issue 45.
 - **function** [FieldUnit]. One named control or office indication. Its written form is a token. Example: `783NWS`.
 - **indication vector** [FieldUnit]. The complete set of office indications from one field unit, sent as one unit. Code name: `IndicationVector`.
 - **lever** [Both]. A handle on a CTC machine or an interlocking machine. It states one intent for one switch or signal.
   - AAR56 names the positions of a three-position lever L and R, as in `10L` and `10R` [AAR56 p. 34]. The middle position is N, the normal position [AAR56 Figs. 18, 22].
   - A switch lever has the positions N and R. A signal lever has the positions L, N and R.
   - FieldUnit: `PanelInput::SW_NORMAL`, `SW_REVERSE`, `SIG_LEFT`, `SIG_STOP`, `SIG_RIGHT`. A switch lever with neither contact closed sends no switch control.
+- **local demand** [FieldUnit]. A demand that a field unit reads from I/O: a lever, a key or any sensor, over any transport. Where the sensor is wired is free.
+  - It never crosses a code line as a control. The field unit can report it to the office as an office indication, as it reports a track circuit.
+  - As every demand does, it goes through the interlocking logic of the interlocking that owns the appliance.
+  - What a field unit learns of another interlocking is not a demand. The `H`, `D` and `F` of a block, which rest on track circuits the other interlocking owns, reach it as line inputs, and its own logic decides (the seam of FieldUnit-Subdivision ADR 0013; see line input in section 10.5).
 - **maintainer call** [Both]. A control and lamp that call the signal maintainer to a location. A 1959 machine had a "maintainer's call" control and a "maintainers' call lamp" [RS1959]. No source says that train crews used it.
   - FieldUnit: tokens `<n>MCS` and `<n>MCK`, from the name `<n>MC` (`1MC`: `1MCS`, `1MCK`). It is a non-vital control. `MC` is the AAR abbreviation per the owner (AAR Signal Manual Parts 33 and 91, tokens `MCS`, `MCK`; unverified, ADR 0003 D12). The number prefix is FieldUnit (section 10.2).
 - **non-vital control** [FieldUnit]. A control that cannot affect a safety protection. The interlocking logic does not check it against the locking.
@@ -754,7 +764,6 @@ Use the term in the right column. Code names in `code font` elsewhere in this fi
 | CPL (for a multi-lamp head with one lamp per color) | color light signal; CPL is the B&O color-position light signal |
 | CP Boundary, control point limits | interlocking limits (a control point has no limits of its own) |
 | cTc, cTc machine (in prose) | CTC machine |
-| demand (for a control) | control |
 | detection block | track circuit |
 | distant (as the meaning of D), Distant Relay | D: proceed indication, detector, decoding |
 | Exit Block | track circuit |
